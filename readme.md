@@ -1,0 +1,1 @@
+# Gamma: MLX LLM Low-Rank Fine-Tuning\n\nThis repository is dedicated to the implementation and experimentation of low-rank fine-tuning (LoRA/QLoRA) for Large Language Models using the MLX framework on Apple Silicon.\n\n## Status\n- [x] Repository Initialized\n- [ ] Fine-tuning Scripts Implementation\n- [ ] Hyperparameter Optimization\n- [ ] Evaluation Framework
