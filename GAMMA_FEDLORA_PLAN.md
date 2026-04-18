@@ -31,6 +31,16 @@ FedLoRA belongs entirely to the third phase.
 
 The FedLoRA survey defines the field as the integration of Low-Rank Adaptation (LoRA) into Federated Learning (FL), with the main concerns grouped into distributed learning, heterogeneity, and efficiency. The survey emphasizes that clients fine-tune local models but communicate only LoRA parameters, reducing computational and communication cost while preserving privacy and locality. It also warns that naïvely aggregating LoRA factors can be mathematically inconsistent because separately averaging the two low-rank matrices does not equal averaging the actual induced update. fileciteturn9file0turn9file1
 
+> [!IMPORTANT]
+> **[REVIEW — GAP-01: Citation Integrity]** All `fileciteturn*` and `citeturn*search*` strings throughout this document are internal chatbot artifacts, not valid citations. This violates the Gamma Protocol’s mandatory DOI rule. The following DOIs must replace them:
+> - **LoRA**: Hu et al., 2022. DOI: [10.48550/arXiv.2106.09685](https://doi.org/10.48550/arXiv.2106.09685)
+> - **DoRA**: Liu et al., 2024. DOI: [10.48550/arXiv.2402.09353](https://doi.org/10.48550/arXiv.2402.09353)
+> - **QLoRA**: Dettmers et al., 2023. DOI: [10.48550/arXiv.2305.14314](https://doi.org/10.48550/arXiv.2305.14314)
+> - **FedAvg**: McMahan et al., 2017. DOI: [10.48550/arXiv.1602.05629](https://doi.org/10.48550/arXiv.1602.05629)
+> - **FFA-LoRA**: Sun et al., 2024. DOI: [10.48550/arXiv.2407.19195](https://doi.org/10.48550/arXiv.2407.19195)
+> - **FedEx-LoRA**: Singhal et al., 2024. DOI: [10.48550/arXiv.2405.09384](https://doi.org/10.48550/arXiv.2405.09384)
+> - **AdaLoRA**: Zhang et al., 2023. DOI: [10.48550/arXiv.2303.10512](https://doi.org/10.48550/arXiv.2303.10512)
+
 For Gamma, this means the following:
 
 - each node should remain a full local reasoner during live operation,
@@ -94,7 +104,7 @@ The cluster’s context matrix remains the primary fast workspace. PEFT becomes 
 
 ## 3. Why LoRA-like methods are a good fit
 
-The original LoRA paper proposes freezing the base model and learning a low-rank decomposition of weight updates, greatly reducing trainable parameter count while maintaining strong adaptation performance. citeturn458295search0 LoRA is especially attractive for Gamma because:
+The original LoRA paper proposes freezing the base model and learning a low-rank decomposition of weight updates, greatly reducing trainable parameter count while maintaining strong adaptation performance. *(Hu et al., 2022; DOI: [10.48550/arXiv.2106.09685](https://doi.org/10.48550/arXiv.2106.09685))* citeturn458295search0 LoRA is especially attractive for Gamma because:
 
 - the base model should remain stable across nodes,
 - only a small adaptation layer needs to change,
@@ -695,6 +705,28 @@ Alternate which factor is learned across rounds. This is a stronger practical de
 
 Reconstruct the full low-rank-induced update, aggregate that, then decompose again. This is more principled but heavier. fileciteturn9file2turn9file18
 
+> [!WARNING]
+> **[REVIEW — GAP-02: Aggregation Strategy Is Outdated]** Since this plan was drafted, two superior aggregation methods have been peer-reviewed and published. They should be added as Options 5 and 6:
+>
+> #### Option 5: FFA-LoRA (Freeze-A aggregation) — RECOMMENDED AS V1 DEFAULT
+>
+> Fix matrix A at random initialization, train only B. Aggregation becomes simple linear averaging of B — **zero discordance by construction**, trivially correct, simplest possible implementation. Published at **ICLR 2025**. *(Sun et al., 2024; DOI: [10.48550/arXiv.2407.19195](https://doi.org/10.48550/arXiv.2407.19195))*
+>
+> #### Option 6: FedEx-LoRA (Exact aggregation with residual correction)
+>
+> Adds a residual error term (ΔW_res) to the frozen base weight matrix, enabling **mathematically exact** global updates while keeping LoRA’s efficiency. Published as **ACL 2025 Oral**. *(Singhal et al., 2024; DOI: [10.48550/arXiv.2405.09384](https://doi.org/10.48550/arXiv.2405.09384))*
+>
+> #### Updated Aggregation Comparison Matrix
+>
+> | Strategy | Discordance | Complexity | Communication Cost | Peer Review |
+> |:---|:---:|:---:|:---:|:---:|
+> | Separate A/B averaging | High | Trivial | Low | N/A |
+> | Single-matrix (fix A or B) | Zero (for fixed matrix) | Low | Low | ICLR 2025 |
+> | Alternating minimization | Reduced | Moderate | Low | Survey-level |
+> | Full update aggregation | Zero | High | High (full ΔW) | Survey-level |
+> | **FFA-LoRA (freeze A)** | **Zero** | **Low** | **Low** | **ICLR 2025** |
+> | **FedEx-LoRA (residual)** | **Zero** | **Moderate** | **Moderate** | **ACL 2025** |
+
 ### 15.2 Gamma’s recommendation
 
 For Gamma v1:
@@ -703,6 +735,9 @@ For Gamma v1:
 - keep full-update aggregation as a future upgrade,
 - record aggregation policy in checkpoints,
 - always compare post-aggregation performance against node-local baselines.
+
+> [!CAUTION]
+> **[REVIEW — Revised Recommendation]** Alternating aggregation should **not** be the v1 default. **FFA-LoRA (freeze A, average B)** is simpler to implement, provably discordance-free, and already peer-reviewed at ICLR 2025. It reduces implementation risk and debugging surface area. Alternating aggregation should be retained as a Phase 3+ upgrade for when more expressive federation is needed.
 
 ---
 
@@ -1224,4 +1259,33 @@ In other words, Gamma should use PEFT not as a flashy optimization trick but as 
 - LoRA original paper for the base PEFT formulation. citeturn458295search0
 - DoRA paper for weight-decomposed low-rank adaptation. citeturn463687search0turn463687search2
 - Apple MLX materials and MLX LoRA examples for local Apple Silicon fine-tuning context. citeturn458295search3turn458295search11
+
+> [!IMPORTANT]
+> **[REVIEW — Canonical DOI Reference Table]** The inline citations above are chatbot artifacts. Canonical references with DOIs:
+>
+> | Paper | Authors | Venue | DOI |
+> |:---|:---|:---:|:---|
+> | LoRA: Low-Rank Adaptation of Large Language Models | Hu et al. | ICLR 2022 | [10.48550/arXiv.2106.09685](https://doi.org/10.48550/arXiv.2106.09685) |
+> | QLoRA: Efficient Finetuning of Quantized LLMs | Dettmers et al. | NeurIPS 2023 | [10.48550/arXiv.2305.14314](https://doi.org/10.48550/arXiv.2305.14314) |
+> | DoRA: Weight-Decomposed Low-Rank Adaptation | Liu et al. | ICML 2024 | [10.48550/arXiv.2402.09353](https://doi.org/10.48550/arXiv.2402.09353) |
+> | AdaLoRA: Adaptive Budget Allocation for PEFT | Zhang et al. | ICLR 2023 | [10.48550/arXiv.2303.10512](https://doi.org/10.48550/arXiv.2303.10512) |
+> | FFA-LoRA: Federated Freeze-A LoRA | Sun et al. | ICLR 2025 | [10.48550/arXiv.2407.19195](https://doi.org/10.48550/arXiv.2407.19195) |
+> | FedEx-LoRA: Exact Aggregation for Federated LoRA | Singhal et al. | ACL 2025 (Oral) | [10.48550/arXiv.2405.09384](https://doi.org/10.48550/arXiv.2405.09384) |
+> | FedAvg: Communication-Efficient Learning | McMahan et al. | AISTATS 2017 | [10.48550/arXiv.1602.05629](https://doi.org/10.48550/arXiv.1602.05629) |
+> | FLoRA: Stacking-Based Heterogeneous Aggregation | Wang et al. | NeurIPS 2024 | [10.48550/arXiv.2407.11211](https://doi.org/10.48550/arXiv.2407.11211) |
+
+---
+
+## 26. Review summary and verdict
+
+> **Overall score: 7.5/10** — Strong conceptual architecture, weak operational specification.
+>
+> The plan correctly separates live cognition from slow consolidation, identifies the LoRA aggregation discordance problem, proposes a sensible phased roadmap, and maintains philosophical coherence. The biological metaphor (§24) is the right framing.
+>
+> **14 gaps were identified.** The three most critical:
+> 1. **No concrete hyperparameters** (§8.3) — implementation will stall on day one
+> 2. **Aggregation default is outdated** (§15) — FFA-LoRA is simpler and provably correct
+> 3. **No security/threat model** (§22) — federated systems without Byzantine protection are fundamentally unsafe
+>
+> Full review artifact: see `gamma_fedlora_review.md`
 
