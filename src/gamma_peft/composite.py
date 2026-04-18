@@ -99,22 +99,20 @@ class CompositeAdapter(AdapterMethod):
         
         wrap_recursive(model)
         
-        # 3. Now, let each sub-adapter 'attach' but instead of replacing, 
-        # they register their logic with the wrappers.
-        # This requires a slight change in how sub-adapters 'attach'.
-        # For v1, we will manually link them.
+        # 3. Now, let each sub-adapter 'attach' by registering its layers with the wrappers.
         for adapter_name, adapter in self.stack.items():
             print(f"DEBUG: Linking sub-adapter '{adapter_name}' to wrappers")
-            # Create sub-adapter internal structures (like LoRALinear) but don't inject into model
-            # We'll mock a model for them or just let them manage modules.
-            # Simplified for v1: we manually instantiate their modules and hand them to wrappers.
             for layer_name, wrapper in self.wrappers.items():
                 if any(target in layer_name for target in adapter.target_modules):
-                    print(f"DEBUG: Registering sub-adapter '{adapter_name}' at layer '{layer_name}'")
-                    # We need the specific sub-module (e.g. LoRALinear)
-                    # We'll use a factory pattern or similar.
-                    # For now, we'll assume we know it's LoRA or DoRA.
-                    pass # Implementation detail to be finalized in execution
+                    print(f"DEBUG: Creating and registering sub-layer for '{adapter_name}' at '{layer_name}'")
+                    # Use the factory method we added to LoRA/DoRA
+                    sub_layer = adapter.create_layer(wrapper.base_layer)
+                    
+                    # Register the sub_layer with the wrapper
+                    wrapper.add_adapter(adapter_name, sub_layer)
+                    
+                    # Also register with the sub-adapter's internal tracker so its methods work
+                    adapter.adapters[layer_name] = sub_layer
 
         self.is_attached = True
         print("SUCCESS: Composite attachment complete")

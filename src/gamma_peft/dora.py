@@ -60,12 +60,22 @@ class DoRALinear(nn.Module):
         print("DEBUG: Final DoRA weights computed via magnitude-direction recalibration")
         
         # Forward pass: x @ W'.T + bias
-        out = (x @ w_final.T)
-        if hasattr(self.base_layer, "bias") and self.base_layer.bias is not None:
-            out += self.base_layer.bias
-            print("DEBUG: Bias added to output")
-            
         return out
+
+    def forward_delta(self, x: mx.array) -> mx.array:
+        """
+        Returns ONLY the delta_W contribution for DoRA.
+        Math: delta_out = x @ (W_final - W_orig).T
+        """
+        print("DEBUG: Executing DoRALinear.forward_delta") # print("Executing DoRALinear.forward_delta")
+        delta_w = (self.lora_b @ self.lora_a) * self.scaling
+        v = self.base_layer.weight + delta_w
+        w_final = self.m * (v / mx.linalg.norm(v, axis=1, keepdims=True))
+        
+        # We need to subtract the base weight contribution to get only the delta
+        delta = (x @ (w_final - self.base_layer.weight).T)
+        print("DEBUG: DoRA delta computation complete")
+        return delta
 
 print("INFO: DoRALinear class defined") # print("DoRALinear class defined")
 
@@ -74,6 +84,10 @@ class DoRAAdapter(AdapterMethod):
         super().__init__(name, adapter_rank, adapter_alpha, target_modules)
         self.adapters: Dict[str, DoRALinear] = {}
         print(f"INFO: DoRAAdapter '{name}' initialized")
+
+    def create_layer(self, base_layer: nn.Linear) -> DoRALinear:
+        print(f"DEBUG: Creating DoRA layer factory product")
+        return DoRALinear(base_layer, self.adapter_rank, self.adapter_alpha)
 
     def attach(self, model: nn.Module, target_spec: Dict[str, Any], config: Dict[str, Any]):
         print(f"DEBUG: Attaching DoRA to model modules: {self.target_modules}") # print(f"Attaching DoRA to model modules: {self.target_modules}")

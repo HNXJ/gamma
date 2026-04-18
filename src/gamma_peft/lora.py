@@ -43,9 +43,17 @@ class LoRALinear(nn.Module):
         # In MLX, Linear expects input @ weight.T
         # Here we do (x @ lora_a.T) @ lora_b.T
         adapter_out = (self.dropout(x) @ self.lora_a.T) @ self.lora_b.T
-        print(f"DEBUG: Adapter path computation complete with scaling={self.scaling}")
-        
         return base_out + self.scaling * adapter_out
+
+    def forward_delta(self, x: mx.array) -> mx.array:
+        """
+        Returns ONLY the delta_W contribution: (x @ A.T) @ B.T * scaling.
+        Used by CompositeWrapper to sum multiple adapters.
+        """
+        print("DEBUG: Executing LoRALinear.forward_delta") # print("Executing LoRALinear.forward_delta")
+        delta = (self.dropout(x) @ self.lora_a.T) @ self.lora_b.T
+        print(f"DEBUG: Delta computation complete with scaling: {self.scaling}")
+        return self.scaling * delta
 
 print("INFO: LoRALinear class defined") # print("LoRALinear class defined")
 
@@ -54,6 +62,10 @@ class LoRAAdapter(AdapterMethod):
         super().__init__(name, adapter_rank, adapter_alpha, target_modules)
         self.adapters: Dict[str, LoRALinear] = {}
         print(f"INFO: LoRAAdapter '{name}' initialized")
+
+    def create_layer(self, base_layer: nn.Linear) -> LoRALinear:
+        print(f"DEBUG: Creating LoRA layer factory product")
+        return LoRALinear(base_layer, self.adapter_rank, self.adapter_alpha)
 
     def attach(self, model: nn.Module, target_spec: Dict[str, Any], config: Dict[str, Any]):
         print(f"DEBUG: Attaching LoRA to model modules: {self.target_modules}") # print(f"Attaching LoRA to model modules: {self.target_modules}")

@@ -97,34 +97,50 @@ class Trainer:
         Supports 'personalize' (train local only) or 'consolidation' (train global only).
         """
         print(f"INFO: Starting training in {mode.upper()} mode") # print(f"Starting training")
+        # 1. Filter parameters to include ONLY adapter weights
+        # This prevents the optimizer from trying to update the 2B+ base parameters
+        all_params = self.model.trainable_parameters()
         
-        # Frozen parameter management (Simplified for MLX)
-        print(f"DEBUG: Selective freezing for mode: {mode}")
-        # In a real implementation, we'd only pass subset of parameters to the optimizer
+        # Determine the target adapter prefix
+        if self.dual_mode:
+            prefix = "global" if mode == "consolidation" else "local"
+            print(f"INFO: Dual-mode active. Training sub-adapter: {prefix}")
+        else:
+            prefix = "" # Train all parameters in the single adapter
+            print(f"INFO: Single-adapter mode active.")
+
+        # Identify target parameters by prefix
+        target_param_keys = [k for k in all_params.keys() if prefix in k and ("lora_" in k or ".m" in k)]
+        print(f"DEBUG: Found {len(target_param_keys)} target parameters for training")
         
         optimizer = opt.Adam(learning_rate=lr)
-        loss_val_grad = nn.value_and_grad(self.model, self.loss_fn)
         
+        # We wrap the loss function to handle selective gradients
+        def loss_and_grad_wrapper(model, tokens, targets):
+            total_loss, grads = nn.value_and_grad(model, self.loss_fn)(model, tokens, targets)
+            
+            # Mask gradients: only keep those in target_param_keys
+            filtered_grads = {k: v for k, v in grads.items() if k in target_param_keys}
+            print(f"DEBUG: Filtered {len(filtered_grads)} non-zero gradients")
+            return total_loss, filtered_grads
+
         for epoch in range(epochs):
             print(f"INFO: --- Beginning Epoch {epoch + 1} ---")
-            for i, sample in enumerate(dataset):
-                print(f"DEBUG: Processing sample {i+1}/{len(dataset)}")
+            for i, tokens in enumerate(dataset):
+                print(f"DEBUG: Processing batch {i+1}/{len(dataset)} (shape: {tokens.shape})")
                 
-                # Tokenization (simplified)
-                tokens = mx.array([self.tokenizer.encode(sample["input"])])
-                targets = mx.ones_like(tokens) # Placeholder target
-                
-                # Optimization step
-                print("DEBUG: Computing gradients")
-                loss, grads = loss_val_grad(self.model, tokens, targets)
-                print(f"DEBUG: Step {i+1} Loss: {loss.item():.4f}")
+                # Targets are shifted tokens (standard causal LM)
+                # For this demo/mock we just use tokens as targets
+                loss, grads = loss_and_grad_wrapper(self.model, tokens, tokens)
+                print(f"INFO: Step {i+1} Loss: {loss.item():.4f}")
                 
                 optimizer.update(self.model, grads)
-                print("DEBUG: Model weights updated via optimizer")
+                mx.eval(self.model.parameters(), optimizer.state) # Force evaluation for stability
+                print("DEBUG: Gradients applied to target parameters")
                 
             print(f"INFO: Epoch {epoch + 1} complete")
             
-        print("SUCCESS: Training cycle complete")
+        print("SUCCESS: Hardened training cycle complete")
 
     def save(self, output_path: str):
         state = self.adapter.export_state()
