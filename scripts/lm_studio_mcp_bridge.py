@@ -169,13 +169,13 @@ def unload_model(model: str) -> str:
     """Unload a model from memory to free up resources.
 
     Args:
-        model: Model key or instance_id to unload.
+        model: Model key or instance_id to unload (same as what was used to load it).
     """
     print(f"[lm-studio-bridge] unload_model() called: model='{model}'")  # print("Unload model request received")
     try:
         resp = httpx.post(
             f"{LMSTUDIO_BASE_URL}/api/v1/models/unload",
-            json={"model": model},
+            json={"instance_id": model},
             timeout=30.0,
         )
         print(f"[lm-studio-bridge] unload_model response status: {resp.status_code}")  # print("Got unload response")
