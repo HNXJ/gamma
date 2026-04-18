@@ -129,6 +129,67 @@ def get_server_status() -> str:
         )
 
 
+@mcp.tool()
+def load_model(
+    model: str,
+    context_length: int = 4096,
+) -> str:
+    """Load a model into memory for inference via LM Studio's native REST API.
+
+    Args:
+        model: Model key to load (e.g. 'gpt-oss-20b', 'qwen3-14b-mlx').
+              Use list_models() to see available keys.
+        context_length: Maximum context window size in tokens (default 4096).
+    """
+    print(f"[lm-studio-bridge] load_model() called: model='{model}', ctx={context_length}")  # print("Load model request received")
+    try:
+        resp = httpx.post(
+            f"{LMSTUDIO_BASE_URL}/api/v1/models/load",
+            json={
+                "model": model,
+                "context_length": context_length,
+                "echo_load_config": True,
+            },
+            timeout=120.0,
+        )
+        print(f"[lm-studio-bridge] load_model response status: {resp.status_code}")  # print("Got load response")
+        data = resp.json()
+        if "error" in data:
+            print(f"[lm-studio-bridge] load_model error: {data['error']}")  # print("Model load failed")
+            return json.dumps(data, indent=2)
+        print(f"[lm-studio-bridge] Model loaded in {data.get('load_time_seconds', '?')}s")  # print("Model loaded successfully")
+        return json.dumps(data, indent=2)
+    except Exception as e:
+        print(f"[lm-studio-bridge] load_model exception: {e}")  # print("Load model exception")
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool()
+def unload_model(model: str) -> str:
+    """Unload a model from memory to free up resources.
+
+    Args:
+        model: Model key or instance_id to unload.
+    """
+    print(f"[lm-studio-bridge] unload_model() called: model='{model}'")  # print("Unload model request received")
+    try:
+        resp = httpx.post(
+            f"{LMSTUDIO_BASE_URL}/api/v1/models/unload",
+            json={"model": model},
+            timeout=30.0,
+        )
+        print(f"[lm-studio-bridge] unload_model response status: {resp.status_code}")  # print("Got unload response")
+        data = resp.json()
+        if "error" in data:
+            print(f"[lm-studio-bridge] unload_model error: {data['error']}")  # print("Model unload failed")
+        else:
+            print(f"[lm-studio-bridge] Model unloaded successfully")  # print("Model unloaded")
+        return json.dumps(data, indent=2)
+    except Exception as e:
+        print(f"[lm-studio-bridge] unload_model exception: {e}")  # print("Unload model exception")
+        return json.dumps({"error": str(e)})
+
+
 if __name__ == "__main__":
     print("[lm-studio-bridge] Starting MCP server via stdio transport...")  # print("Starting stdio transport")
     mcp.run(transport="stdio")
