@@ -41,26 +41,10 @@ class DoRALinear(nn.Module):
 
     def __call__(self, x: mx.array) -> mx.array:
         print("DEBUG: Executing DoRALinear forward pass") # print("Executing DoRALinear forward pass")
-        
-        # Compute delta_W = scaling * (B @ A)
-        delta_w = (self.lora_b @ self.lora_a) * self.scaling
-        print("DEBUG: Low-rank delta_W computed")
-        
-        # Updated direction: V = W + delta_W
-        v = self.base_layer.weight + delta_w
-        print("DEBUG: Directional matrix V updated")
-        
-        # Normalized direction: V / ||V||
-        v_norm = mx.linalg.norm(v, axis=1, keepdims=True)
-        v_normalized = v / v_norm
-        print("DEBUG: Directional matrix V normalized")
-        
-        # Final weights: W' = m * v_normalized
-        w_final = self.m * v_normalized
-        print("DEBUG: Final DoRA weights computed via magnitude-direction recalibration")
-        
-        # Forward pass: x @ W'.T + bias
-        return out
+        # In DoRA, we can't easily add delta to base_out because it's non-linear.
+        # But we already implemented forward_delta to return the Difference.
+        # So base + (final - base) = final.
+        return self.base_layer(x) + self.forward_delta(x)
 
     def forward_delta(self, x: mx.array) -> mx.array:
         """

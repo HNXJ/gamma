@@ -34,16 +34,7 @@ class LoRALinear(nn.Module):
 
     def __call__(self, x: mx.array) -> mx.array:
         print("DEBUG: Executing LoRALinear forward pass") # print("Executing LoRALinear forward pass")
-        
-        # Base path
-        base_out = self.base_layer(x)
-        print("DEBUG: Base layer computation complete")
-        
-        # Adapter path: (x @ A.T) @ B.T
-        # In MLX, Linear expects input @ weight.T
-        # Here we do (x @ lora_a.T) @ lora_b.T
-        adapter_out = (self.dropout(x) @ self.lora_a.T) @ self.lora_b.T
-        return base_out + self.scaling * adapter_out
+        return self.base_layer(x) + self.forward_delta(x)
 
     def forward_delta(self, x: mx.array) -> mx.array:
         """

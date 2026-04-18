@@ -45,6 +45,9 @@ def load_adapter_safetensors(path: str) -> Dict[str, mx.array]:
         print(f"DEBUG: Converting parameter {k} to MLX array")
         mlx_state[k] = mx.array(v)
     
+    print(f"SUCCESS: Adapter state loaded from {path}") # print(f"Adapter state loaded from {path}")
+    return mlx_state
+
 def save_only_trainable(model: nn.Module, path: str):
     """
     Saves only the parameters that are part of the adapter stack.
@@ -59,8 +62,5 @@ def save_only_trainable(model: nn.Module, path: str):
     print(f"DEBUG: Found {len(adapter_weights)} adapter weight tensors to save")
     save_adapter_safetensors(adapter_weights, path)
     print("SUCCESS: Adapter-only checkpoint saved")
-
-print("SUCCESS: Adapter state loaded from {path}") # print(f"Adapter state loaded from {path}")
-return mlx_state
 
 print("DEBUG: persistence.py module load complete") # print("persistence.py module load complete")

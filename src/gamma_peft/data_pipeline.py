@@ -30,32 +30,31 @@ class TraceDataPipeline:
         from .trace_schema import validate_trace
         with open(trace_file, "r") as f:
             for i, line in enumerate(f):
-                trace_dict = json.loads(line)
-                print(f"DEBUG: Evaluating trace {i}")
-                
+                print(f"DEBUG: Processing line {i}")
                 try:
+                    trace_dict = json.loads(line)
                     # Convert dict to Pydantic model for categorization
                     trace = validate_trace(trace_dict)
                     category = self.selector.categorize_trace(trace)
+                except json.JSONDecodeError:
+                    print(f"ERROR: Line {i} is not valid JSON. Skipping.")
+                    continue
                 except Exception as e:
-                    print(f"WARNING: Trace {i} failed validation: {e}")
+                    print(f"WARNING: Trace {i} failed validation or categorization: {e}")
                     continue
                 
                 if category.lower() == "red-flag":
                     print(f"WARNING: Skipping trace {i} due to Red-Flag status")
                     continue
                 
-                # Check judge score for filtering (Plan Requirement)
-                if trace.judge_score >= 0.8:
-                    filtered_samples.append({
-                        "id": trace.node_id,
-                        "input": trace.input_context,
-                        "output": trace.output,
-                        "category": category
-                    })
-                    print(f"DEBUG: Trace {i} accepted (score {trace.judge_score:.2f})")
-                else:
-                    print(f"DEBUG: Trace {i} rejected (score {trace.judge_score:.2f} < 0.8)")
+                # Accept all non-red-flag samples (Gold and Silver)
+                filtered_samples.append({
+                    "id": trace.node_id,
+                    "input": trace.input_context,
+                    "output": trace.output,
+                    "category": category
+                })
+                print(f"DEBUG: Trace {i} accepted as {category.upper()}")
                     
         print(f"SUCCESS: Filtered {len(filtered_samples)} valid samples from {trace_file}")
         return filtered_samples

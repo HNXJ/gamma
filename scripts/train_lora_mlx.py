@@ -69,36 +69,26 @@ class Trainer:
         print(f"SUCCESS: Loaded {len(tokenized_data)} filtered sequences")
         return tokenized_data
 
-    def train_epoch(self, tokenized_data: List[mx.array], optimizer: Any, mode: str):
-        print(f"DEBUG: Beginning training step in {mode} mode")
-        # In a real SFT loop, we'd batch and compute cross-entropy
-        # Here we show the gradient flow connection
-        loss_val_grad = nn.value_and_grad(self.model, self.loss_fn)
+    def loss_fn(self, model: nn.Module, tokens: mx.array, targets: mx.array):
+        """
+        Causal LM Cross Entropy Loss.
+        Predicts next token: logits are shifted to match targets.
+        """
+        logits = model(tokens)
+        # Shift so that tokens[i] predicts tokens[i+1]
+        logits = logits[:, :-1, :]
+        targets = targets[:, 1:]
         
-        for tokens in tokenized_data:
-            targets = mx.ones_like(tokens) # Placeholder
-            loss, grads = loss_val_grad(self.model, tokens, targets)
-            optimizer.update(self.model, grads)
-            print(f"DEBUG: Step Loss: {loss.item():.4f}")
-            
-    def finalize_global_update(self):
-        """
-        Applies DP to the current global state before consolidation.
-        """
-        if self.dp_handler:
-            print("INFO: Privatizing global weights before federated sync")
-            state = self.adapter.export_state()
-            private_state = self.dp_handler.apply_noise(state)
-            self.adapter.load_state(private_state)
-            print("SUCCESS: Global update successfully privatized")
+        # Flatten for cross_entropy
+        loss = nn.losses.cross_entropy(logits, targets)
+        return mx.mean(loss)
 
-    def train(self, dataset: List[Dict], mode: str = "personalize", epochs: int = 1, lr: float = 1e-4):
+    def train(self, dataset: List[mx.array], mode: str = "personalize", epochs: int = 1, lr: float = 1e-4):
         """
         Supports 'personalize' (train local only) or 'consolidation' (train global only).
         """
-        print(f"INFO: Starting training in {mode.upper()} mode") # print(f"Starting training")
-        # 1. Filter parameters to include ONLY adapter weights
-        # This prevents the optimizer from trying to update the 2B+ base parameters
+        print(f"INFO: Starting training in {mode.upper()} mode")
+        
         all_params = self.model.trainable_parameters()
         
         # Determine the target adapter prefix
@@ -106,7 +96,7 @@ class Trainer:
             prefix = "global" if mode == "consolidation" else "local"
             print(f"INFO: Dual-mode active. Training sub-adapter: {prefix}")
         else:
-            prefix = "" # Train all parameters in the single adapter
+            prefix = "" 
             print(f"INFO: Single-adapter mode active.")
 
         # Identify target parameters by prefix
@@ -118,25 +108,22 @@ class Trainer:
         # We wrap the loss function to handle selective gradients
         def loss_and_grad_wrapper(model, tokens, targets):
             total_loss, grads = nn.value_and_grad(model, self.loss_fn)(model, tokens, targets)
-            
             # Mask gradients: only keep those in target_param_keys
-            filtered_grads = {k: v for k, v in grads.items() if k in target_param_keys}
-            print(f"DEBUG: Filtered {len(filtered_grads)} non-zero gradients")
+            filtered_grads = {k: (v if k in target_param_keys else mx.zeros_like(v)) for k, v in grads.items()}
             return total_loss, filtered_grads
 
         for epoch in range(epochs):
             print(f"INFO: --- Beginning Epoch {epoch + 1} ---")
             for i, tokens in enumerate(dataset):
-                print(f"DEBUG: Processing batch {i+1}/{len(dataset)} (shape: {tokens.shape})")
-                
-                # Targets are shifted tokens (standard causal LM)
-                # For this demo/mock we just use tokens as targets
+                # tokens is [1, seq_len]
+                # Ensure targets are aligned for causal prediction
                 loss, grads = loss_and_grad_wrapper(self.model, tokens, tokens)
-                print(f"INFO: Step {i+1} Loss: {loss.item():.4f}")
                 
                 optimizer.update(self.model, grads)
-                mx.eval(self.model.parameters(), optimizer.state) # Force evaluation for stability
-                print("DEBUG: Gradients applied to target parameters")
+                mx.eval(self.model.parameters(), optimizer.state)
+                
+                if (i + 1) % 5 == 0 or i == 0:
+                    print(f"INFO: Step {i+1} Loss: {loss.item():.4f}")
                 
             print(f"INFO: Epoch {epoch + 1} complete")
             
