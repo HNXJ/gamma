@@ -10,7 +10,7 @@ When configuring MCP servers in environments with non-standard paths (e.g., `nvm
 ## Pattern: LM Studio Bridge
 To integrate LM Studio as an MCP tool source:
 - **Command**: `npx -y lm-studio-mcp-server`
-- **Required Env**: `LM_STUDIO_BASE_URL` (usually `http://localhost:1234/v1`)
+- **Required Env**: `LMSTUDIO_BASE_URL` (canonical name, e.g., `http://127.0.0.1:1234`)
 
 ## references
 - mcp_config.json:L21-L30
