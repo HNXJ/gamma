@@ -9,3 +9,7 @@ __pycache__/
 *.log
 local_cache/
 outputs/
+
+# UV workspace cache
+.uv_cache/
+.uv_python/
