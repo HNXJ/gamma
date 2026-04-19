@@ -27,7 +27,6 @@ from sse_starlette.sse import EventSourceResponse
 import uvicorn
 import jaxley as jx
 from jaxley.channels import Leak
-from jaxley.synapses import Ionotropic
 
 app = FastAPI()
 
@@ -63,29 +62,36 @@ def broadcast_state():
 # ==========================================
 
 # Base Network
-class BasicCell(jx.Module):
-    def __init__(self):
-        super().__init__()
-        self.soma = jx.Compartment()
-        self.soma.insert(Leak())
+def create_cell():
+    comp = jx.Compartment()
+    comp.insert(Leak())
+    branch = jx.Branch(comp, ncomp=1)
+    cell = jx.Cell(branch)
+    return cell
+
+from jaxley.synapses import IonotropicSynapse
 
 def run_simulation(gaba_gmax, ampa_gmax):
     try:
         # Build cell
-        cell = BasicCell()
-        net = jx.Network([cell, cell])
+        cell = create_cell()
+        cell2 = create_cell()
+        net = jx.Network([cell, cell2])
         
         # Connect G1 (Pre: 0, Post: 1) as Exc (AMPA)
-        net.sparse_connect(0, 1, Ionotropic(), jnp.array([ampa_gmax]))
+        net.sparse_connect(0, 1, IonotropicSynapse())
         # Connect G2 (Pre: 1, Post: 0) as Inh (GABA)
-        net.sparse_connect(1, 0, Ionotropic(), jnp.array([gaba_gmax]))
+        net.sparse_connect(1, 0, IonotropicSynapse())
+        
+        net.edges[0].set("gmax_IonotropicSynapse", float(ampa_gmax))
+        net.edges[1].set("gmax_IonotropicSynapse", float(gaba_gmax))
         
         # JIT compile and simulate 10ms
-        net.make_trainable(["gmax_Ionotropic"])
         v = net.simulate(delta_t=0.1, t_max=10.0)
         return True, v
     except Exception as e:
-        return False, str(e)
+        import traceback
+        return False, f"{str(e)}\n{traceback.format_exc()}"
 
 
 # ==========================================
