@@ -62,29 +62,33 @@ def broadcast_state():
 # ==========================================
 
 # Base Network
-def create_cell():
-    comp = jx.Compartment()
-    comp.insert(Leak())
-    branch = jx.Branch(comp, ncomp=1)
-    cell = jx.Cell(branch)
-    return cell
+class BasicCell(jx.Cell):
+    def __init__(self):
+        super().__init__()
+        self.soma = jx.Compartment()
+        from jaxley.channels import HH
+        self.soma.insert(HH())
+
+# We will let the agents define the Cortical Column later.
 
 from jaxley.synapses import IonotropicSynapse
 
 def run_simulation(gaba_gmax, ampa_gmax):
     try:
+        from jaxley.connect import connect
         # Build cell
-        cell = create_cell()
-        cell2 = create_cell()
+        cell = BasicCell()
+        cell2 = BasicCell()
         net = jx.Network([cell, cell2])
         
         # Connect G1 (Pre: 0, Post: 1) as Exc (AMPA)
-        net.sparse_connect(0, 1, IonotropicSynapse())
+        connect(net.cell(0).branch(0).comp(0), net.cell(1).branch(0).comp(0), IonotropicSynapse())
         # Connect G2 (Pre: 1, Post: 0) as Inh (GABA)
-        net.sparse_connect(1, 0, IonotropicSynapse())
+        connect(net.cell(1).branch(0).comp(0), net.cell(0).branch(0).comp(0), IonotropicSynapse())
         
-        net.edges[0].set("gmax_IonotropicSynapse", float(ampa_gmax))
-        net.edges[1].set("gmax_IonotropicSynapse", float(gaba_gmax))
+        # In Jaxley 0.13.0, setting values globally via array broadcasting
+        import jax.numpy as jnp
+        net.set("IonotropicSynapse_gS", jnp.array([float(ampa_gmax), float(gaba_gmax)]))
         
         # JIT compile and simulate 10ms
         v = net.simulate(delta_t=0.1, t_max=10.0)
@@ -292,10 +296,39 @@ async def stream():
 # AGENT LOGIC
 # ==========================================
 
-async def query_agent(client, agent_id, role_prompt, current_gmax, opp_gmax, mse):
-    # Forced JSON output extraction
-    payload = f"The current system MSE is {mse:.4f}. Your current gmax is {current_gmax}. The opposing agent's gmax is {opp_gmax}. You must propose a new gmax between 0.001 and 0.5 to fit the biophysics. Output ONLY valid JSON containing 'proposed_gmax' as a float."
-    
+class CorticalColumnTask:
+    def __init__(self):
+        self.gaba_val = 0.05
+        self.ampa_val = 0.05
+        self.current_mse = 999.0
+
+    def generate_prompts(self):
+        # The agents are instructed ONLY on the rules of the SDE (state-value preservation) and the current payload constraint.
+        g1_sys = "You are Agent 1. Optimize payload to maximize epistemic gain (x) while preserving biological validity (z). You control the Excitatory (AMPA) conductance. Output JSON with 'proposed_gmax'."
+        g1_idx = f"System MSE: {self.current_mse:.4f}. Current G1 (AMPA): {self.ampa_val}. Current G2 (GABA): {self.gaba_val}. Propose new float (0.001 - 1.0)."
+        return g1_sys, g1_idx
+        
+    def generate_dependent_prompt(self, g1_raw):
+        g2_sys = f"You are Agent 2. Optimize payload for algorithmic synergy and E/I balance. You control Inhibitory (GABA). Agent 1 chose: '{g1_raw}'. Stabilize their excitation. Output JSON 'proposed_gmax'."
+        g2_idx = f"System MSE: {self.current_mse:.4f}. Current G1 (AMPA): {self.ampa_val}. Current G2 (GABA): {self.gaba_val}. Propose new float (0.001 - 1.0)."
+        return g2_sys, g2_idx
+
+    def evaluate(self, res1, res2):
+        try:
+            val1 = float(re.search(r'"proposed_gmax"\s*:\s*([0-9.]+)', res1).group(1))
+        except: val1 = self.ampa_val
+        try:
+            val2 = float(re.search(r'"proposed_gmax"\s*:\s*([0-9.]+)', res2).group(1))
+        except: val2 = self.gaba_val
+
+        self.ampa_val = min(max(val1, 0.0), 1.0)
+        self.gaba_val = min(max(val2, 0.0), 1.0)
+        
+        # Agnostic evaluation call
+        success, trace = run_simulation(self.gaba_val, self.ampa_val)
+        return success, trace, self.ampa_val, self.gaba_val
+
+async def query_agent(client, agent_id, role_prompt, payload):
     start_time = time.time()
     try:
         resp = await client.post(
@@ -306,43 +339,21 @@ async def query_agent(client, agent_id, role_prompt, current_gmax, opp_gmax, mse
                     {"role": "system", "content": role_prompt},
                     {"role": "user", "content": payload}
                 ],
-                "temperature": 0.3,
-                "max_tokens": 128,
-            },
-            timeout=120.0,
+                "temperature": 0.3, "max_tokens": 128,
+            }, timeout=120.0,
         )
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
-        
-        # Extract JSON float roughly
-        match = re.search(r'"proposed_gmax"\s*:\s*([0-9.]+)', content)
-        if match:
-            val = float(match.group(1))
-        else:
-            val = current_gmax # Default if failed
-            print(f"[{agent_id}] Failed to parse JSON: {content}")
-            
-        return {
-            "id": agent_id,
-            "gmax": min(max(val, 0.0), 10.0), # Cap hard limits
-            "speed": time.time() - start_time,
-            "success": True,
-            "raw": content.replace('\n', ' ')
-        }
+        return {"id": agent_id, "speed": time.time() - start_time, "success": True, "raw": content.replace('\n', ' ')}
     except Exception as e:
-        print(f"[{agent_id}] Error: {e}")
-        return {"id": agent_id, "gmax": current_gmax, "speed": 1.0, "success": False, "raw": ""}
+        return {"id": agent_id, "speed": 1.0, "success": False, "raw": ""}
 
 async def game_loop():
     async with httpx.AsyncClient() as client:
         log("[Council] Synchronizing endpoint models...")
+        target_v = jnp.array([[-65.0, -30.0, 10.0, -40.0, -65.0, -65.0]]) 
         
-        target_v = jnp.array([[-65.0, -30.0, 10.0, -40.0, -65.0, -65.0]]) # Mock Target Trace
-
-        # SDE Baselines
-        gaba_val = 0.05
-        ampa_val = 0.05
-        current_mse = 999.0
+        active_task = CorticalColumnTask()
 
         while True:
             state["epoch"] += 1
@@ -350,30 +361,27 @@ async def game_loop():
             broadcast_state()
             log(f"--- PREPARING FED-LORA EPOCH {state['epoch']} ---")
 
-            g1_sys = "You are G1. You control the GABA (Inhibitory) synapse on a cell. Your objective is to discover a stable mathematical parameter."
-            g2_sys = "You are G2. You control the AMPA (Excitatory) synapse on a cell. Your objective is to discover a stable mathematical parameter."
-
-            g1_task = query_agent(client, "G1", g1_sys, gaba_val, ampa_val, current_mse)
-            g2_task = query_agent(client, "G2", g2_sys, ampa_val, gaba_val, current_mse)
-
-            res1, res2 = await asyncio.gather(g1_task, g2_task)
+            g1_sys, g1_user = active_task.generate_prompts()
+            res1 = await query_agent(client, "G1", g1_sys, g1_user)
+            
+            g2_sys, g2_user = active_task.generate_dependent_prompt(res1['raw'])
+            res2 = await query_agent(client, "G2", g2_sys, g2_user)
 
             if not res1["success"] or not res2["success"]:
                 log("[SDE] Edge note timeout. Using momentum defaults.")
-            else:
-                gaba_val = res1["gmax"]
-                ampa_val = res2["gmax"]
+                await asyncio.sleep(4)
+                continue
 
-            log(f"[G1-GABA] Proposed -> {gaba_val:.4f} | Rationale: {res1['raw'][:50]}..")
-            log(f"[G2-AMPA] Proposed -> {ampa_val:.4f} | Rationale: {res2['raw'][:50]}..")
-
-            # Orchestrator Phase: Test the predictions
-            state["status"] = "Jaxley Compilation"
+            # Agnostic Evaluation
+            state["status"] = "Task Evaluation"
             broadcast_state()
 
             comp_start = time.time()
-            success, trace = run_simulation(gaba_val, ampa_val)
+            success, trace, g1_val, g2_val = active_task.evaluate(res1["raw"], res2["raw"])
             comp_time = time.time() - comp_start
+            
+            log(f"[G1] Proposed -> {g1_val:.4f} | Rationale: {res1['raw'][:50]}..")
+            log(f"[G2] Proposed -> {g2_val:.4f} | Rationale: {res2['raw'][:50]}..")
             
             # Y (Speed): Inverse of time taken
             state["y"] = 1.0 / max(comp_time, 0.001)
@@ -383,12 +391,17 @@ async def game_loop():
                 # Calculate X Component (Epistemic Gain / 1/MSE)
                 mse = float(jnp.mean((trace[0, :6] - target_v)**2))
                 state["x"] = max(100.0 - mse, 0.0) / 100.0  # Normalize metric
-                current_mse = mse
+                active_task.current_mse = mse
                 log(f"[A] Epistemic Gain (1-MSE) = {state['x']:.3f}")
                 
-                 # Calculate Bio-Thresholds (Z and W)
-                state["z"] = 1.0 if (0.01 <= gaba_val <= 0.1) else 0.1
-                state["w"] = 1.0 if (0.01 <= ampa_val <= 0.1) else 0.1
+                # Calculate Bio-Thresholds (Z and W) with Exponential Penalty for Physiological Implausibility
+                # If gmax exceeds 0.4, apply steep exponential decay.
+                import math
+                def bio_penalty(val):
+                    return math.exp(-5.0 * (val - 0.4)) if val > 0.4 else 1.0
+                
+                state["z"] = bio_penalty(g1_val) * bio_penalty(g2_val)
+                state["w"] = 1.0 # Successful compile and fedavg simulation
             else:
                 log(f"[A] Jaxley crashed! {trace}")
                 state["x"] = 0.0
