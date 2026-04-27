@@ -118,3 +118,105 @@ ls: scripts/: No such file or directory
 ### 2026-04-27 12:48:01 | ✅ ALLOWED
 **Command**: `ls -F`
 **Return Code**: 0
+
+### 2026-04-27 12:48:10 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:48:19 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:48:28 | ✅ ALLOWED
+**Command**: `ls -d scripts/`
+**Return Code**: 1
+**Stderr**:
+```text
+ls: scripts/: No such file or directory
+
+```
+
+### 2026-04-27 12:48:36 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:48:46 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:48:55 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:49:04 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:49:13 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:49:23 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:49:32 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:49:41 | ✅ ALLOWED
+**Command**: `find . -name "*.py"`
+**Return Code**: 0
+
+### 2026-04-27 12:49:50 | ✅ ALLOWED
+**Command**: `find . -name "*trainer*.py"`
+**Return Code**: 0
+
+### 2026-04-27 12:50:00 | ✅ ALLOWED
+**Command**: `ls -F *.py`
+**Return Code**: 1
+**Stderr**:
+```text
+ls: *.py: No such file or directory
+
+```
+
+### 2026-04-27 12:50:10 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:50:19 | ✅ ALLOWED
+**Command**: `ls -R`
+**Return Code**: 0
+
+### 2026-04-27 12:50:29 | ✅ ALLOWED
+**Command**: `find . -name "*.py"`
+**Return Code**: 0
+
+### 2026-04-27 12:50:39 | ✅ ALLOWED
+**Command**: `ls -R`
+**Return Code**: 0
+
+### 2026-04-27 12:50:49 | ✅ ALLOWED
+**Command**: `find . -name "*fedlora*.py"`
+**Return Code**: 0
+
+### 2026-04-27 12:50:59 | ✅ ALLOWED
+**Command**: `ls -R`
+**Return Code**: 0
+
+### 2026-04-27 12:51:08 | ✅ ALLOWED
+**Command**: `ls -F`
+**Return Code**: 0
+
+### 2026-04-27 12:51:18 | ✅ ALLOWED
+**Command**: `find . -name "*fedlora*.py"`
+**Return Code**: 0
+
+### 2026-04-27 12:51:28 | ✅ ALLOWED
+**Command**: `find . -name "*trainer*.py"`
+**Return Code**: 0
+
+### 2026-04-27 12:51:38 | ✅ ALLOWED
+**Command**: `find . -name "fedlora_trainer.py"`
+**Return Code**: 0
