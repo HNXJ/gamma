@@ -1,101 +1,71 @@
 import os
 import sys
-from pathlib import Path
-import glob
+import json
+import logging
 
-def find_omission_data():
-    """Attempts to locate the OMISSION 2026 dataset within the workspace."""
-    # Target criteria: 13 sessions, 5686 neurons, or filenames containing 'omission'
-    search_patterns = [
-        "**/*omission*.[nN][wW][bB]",
-        "**/*omission*.[mM][aA][tT]",
-        "**/*omission*.[nN][pP][yY]",
-        "**/*omission*.[hH]5",
-        "**/*omission*.[hH][dD][fF]5",
-        "data/*.[nN][wW][bB]",
-        "computational/**/*.[nN][wW][bB]"
-    ]
-    
-    for pattern in search_patterns:
-        matches = glob.glob(pattern, recursive=True)
-        # Filter out obvious non-data directories
-        matches = [m for m in matches if ".venv" not in m and ".uv_cache" not in m]
-        if matches:
-            return matches[0]
-            
-    return None
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger("DataProbe")
 
-def probe_metadata(filepath):
-    """Inspects file headers for laminar/depth metadata."""
-    print(f"--- DATA PROBE: {filepath} ---")
-    ext = Path(filepath).suffix.lower()
-    
-    metadata_keys = set()
-    search_terms = ['depth', 'layer', 'y_coord', 'channel', 'laminar', 'electrode_group']
-    
+def probe_nwb(filepath):
+    """Probes an NWB file for laminar markers."""
     try:
-        if ext == ".nwb" or ext in [".h5", ".hdf5"]:
-            import h5py
-            with h5py.File(filepath, 'r') as f:
-                def visitor(name, obj):
-                    if any(term in name.lower() for term in search_terms):
-                        metadata_keys.add(name)
-                f.visititems(visitor)
+        import h5py
+        with h5py.File(filepath, 'r') as f:
+            logger.info(f"Probing NWB: {filepath}")
+            # Search for laminar keys in electrodes
+            if 'general/extracellular_ephys/electrodes' in f:
+                elec = f['general/extracellular_ephys/electrodes']
+                keys = list(elec.keys())
+                logger.info(f"Available unit metadata keys: {keys}")
                 
-        elif ext == ".mat":
-            import scipy.io as sio
-            data = sio.loadmat(filepath, struct_as_record=False, squeeze_me=True)
-            for key in data.keys():
-                if any(term in key.lower() for term in search_terms):
-                    metadata_keys.add(key)
-                # If it's a struct, check its fields
-                if hasattr(data[key], '_fieldnames'):
-                    for field in data[key]._fieldnames:
-                        if any(term in field.lower() for term in search_terms):
-                            metadata_keys.add(f"{key}.{field}")
-                            
-        elif ext == ".npy":
-            import numpy as np
-            data = np.load(filepath, allow_pickle=True)
-            if hasattr(data, 'dtype') and data.dtype.names:
-                for name in data.dtype.names:
-                    if any(term in name.lower() for term in search_terms):
-                        metadata_keys.add(name)
-            elif isinstance(data, dict):
-                for key in data.keys():
-                    if any(term in key.lower() for term in search_terms):
-                        metadata_keys.add(key)
-                        
+                target_keys = ['depth', 'layer', 'y_coord', 'channel', 'location', 'z']
+                found = [k for k in target_keys if k in keys]
+                if found:
+                    logger.info(f"Laminar markers FOUND: {found}")
+                else:
+                    logger.warning("No explicit laminar markers found in electrode metadata.")
+            else:
+                logger.warning("No electrode metadata found in this NWB file.")
+    except ImportError:
+        logger.error("h5py not installed. Cannot probe NWB.")
     except Exception as e:
-        print(f"Error probing file: {e}")
+        logger.error(f"Error probing NWB: {e}")
+
+def probe_json(filepath):
+    """Probes the simulation_trace.json for depth markers."""
+    try:
+        logger.info(f"Probing JSON: {filepath}")
+        # Only read the first few lines/objects to avoid loading 7.7GB
+        with open(filepath, 'r') as f:
+            # Assume it's a list of objects or one large object
+            first_chunk = f.read(10000)
+            logger.info("JSON Header Sample:")
+            print(first_chunk[:500])
+            
+            if '"depth"' in first_chunk or '"layer"' in first_chunk:
+                logger.info("Laminar markers DETECTED in JSON trace.")
+            else:
+                logger.warning("No 'depth' or 'layer' markers detected in first 10KB of JSON.")
+    except Exception as e:
+        logger.error(f"Error probing JSON: {e}")
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python probe_omission_data.py <path_to_file>")
         return
-        
-    if metadata_keys:
-        print("AVAILABLE UNIT METADATA KEYS:")
-        for k in sorted(list(metadata_keys)):
-            print(f" - {k}")
+
+    path = sys.argv[1]
+    if not os.path.exists(path):
+        logger.error(f"File not found: {path}")
+        return
+
+    if path.endswith('.nwb'):
+        probe_nwb(path)
+    elif path.endswith('.json'):
+        probe_json(path)
     else:
-        print("WARNING: No explicit laminar or depth metadata found in headers.")
+        logger.error("Unsupported file format for probing.")
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        target = sys.argv[1]
-    else:
-        target = find_omission_data()
-    
-    if target:
-        probe_metadata(target)
-    else:
-        # If not found by name, search for the largest scientific file
-        print("OMISSION search by name failed. Searching for largest scientific data file...")
-        candidates = []
-        for ext in [".nwb", ".mat", ".npy", ".h5"]:
-            candidates.extend(glob.glob(f"**/*{ext}", recursive=True))
-        
-        candidates = [c for c in candidates if ".venv" not in c and ".uv_cache" not in c]
-        if candidates:
-            largest = max(candidates, key=os.path.getsize)
-            probe_metadata(largest)
-        else:
-            print("ERROR: Could not locate OMISSION 2026 dataset.")
-            sys.exit(1)
+    main()
