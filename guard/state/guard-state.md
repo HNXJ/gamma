@@ -4090,3 +4090,83 @@ ls: scripts: No such file or directory
 **Return Code**: 0
 
 ---
+
+## 2026-04-27 14:11:02 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 14:11:19 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 14:11:37 | ✅ ALLOWED
+
+**Command**: `find . -type f`
+
+**Return Code**: 0
+
+**Stdout**:
+
+```text
+./.gitkeep
+
+```
+
+---
+
+## 2026-04-27 14:11:53 | ✅ ALLOWED
+
+**Command**: `ls -R`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 14:12:11 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*fedlora*"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 14:12:28 | ✅ ALLOWED
+
+**Command**: `ls -la`
+
+**Return Code**: 0
+
+**Stdout**:
+
+```text
+total 8
+drwxr-xr-x@  3 hamednejat  staff   96 Apr 27 11:08 .
+drwxr-xr-x@ 13 hamednejat  staff  416 Apr 27 13:26 ..
+-rw-r--r--@  1 hamednejat  staff   17 Apr 27 11:08 .gitkeep
+
+```
+
+---
+
+## 2026-04-27 14:12:46 | ✅ ALLOWED
+
+**Command**: `ls -d scripts`
+
+**Return Code**: 1
+
+**Stderr**:
+
+```text
+ls: scripts: No such file or directory
+
+```
+
+---

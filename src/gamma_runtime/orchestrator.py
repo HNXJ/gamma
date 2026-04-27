@@ -37,14 +37,14 @@ class UnifiedOrchestrator:
     async def _execute_run(self, run_type: str, blackboard: Blackboard, **kwargs):
         try:
             if run_type == "council":
-                orchestrator = CouncilOrchestrator(self.scheduler, self.registry)
+                orchestrator = CouncilOrchestrator(self.scheduler, self.registry, blackboard=blackboard)
                 await orchestrator.run_deliberation(
                     team_id=kwargs.get("team_id", "sde_debate_team"),
                     topic=blackboard.topic,
                     rounds=kwargs.get("rounds", 2)
                 )
             elif run_type == "sde":
-                solver = SDESolver(self.scheduler, blackboard)
+                solver = SDESolver(self.scheduler, blackboard=blackboard)
                 # Load proponent/adversary from registry
                 proponent = self.registry.load_agent(kwargs.get("proponent_id", "excitatory_specialist"))
                 adversary = self.registry.load_agent(kwargs.get("adversary_id", "inhibitory_specialist"))

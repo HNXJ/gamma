@@ -1,36 +1,44 @@
-# Gamma: MLX LLM Low-Rank Fine-Tuning & Multi-Agent Episodic Learning
+# Gamma: MLX PEFT Stack & High-Fidelity Scientific Runtime
 
-**Gamma** is a dedicated repository for the implementation, experimentation, and production hardening of parameter-efficient fine-tuning (PEFT) methods—specifically Low-Rank Adaptation (LoRA) and Weight-Decomposed Low-Rank Adaptation (DoRA)—using the **MLX framework on Apple Silicon**.
+**Gamma** is a dedicated research environment for multi-agent biophysical modeling and Slow-Learning consolidation. Built for **Apple Silicon (M3 Max 128GB)**, it transitions the repository from a collection of scripts to a sovereign agentic OS where reasoning (Council) and biophysical optimization (SDE Engine) are unified under a single, resource-aware runtime.
 
-It serves as the long-term consolidation mechanism for a distributed, multi-LLM cluster (e.g., an 8-node homogeneous Gemma-4 MLX cluster), behaving like a distributed scientific institute where learning is treated as a **slow consolidation mechanism** derived from validated traces, separate from the live reasoning loop.
+## 🚀 Realized Functionality
 
-## Core Capabilities
+### 1. The Gamma Runtime
+- **SharedModelPool:** Implements **Singleton Weight Residency**. Models load once into unified memory; multiple logical agents (Macro, Meso, Micro) multiplex across shared weights to minimize memory duplication.
+- **InferenceScheduler:** Managed parallel execution with an explicit **ResourceBudget**. Automatically tracks and reserves KV-cache token pools, enforcing 8-bit quantization (`float8_e4m3fn`) and 16k context windows to protect hardware from Jetsam kills.
+- **Blackboard Pattern:** Centralized state object for multi-agent deliberation. Replaces direct agent-to-agent coroutines with an auditable, write-once/read-many state that acts as the "Common Operating Picture" for scientific convergence.
+- **Hub API:** A zero-dependency REST interface providing a handshake between the M3 Max backend and the **Gamma Hub Dashboard**.
 
-- **Model-Agnostic PEFT Stack:** Designed to target generic linear projections across families (Gemma, Llama, Mistral, Qwen) using MLX array operations.
-- **Composite Adapters (FedLoRA):** Supports an episodic, federated, and rollback-able adaptation pipeline. Multiple adapters (e.g., a "Global Council" LoRA and a "Node-Personal" LoRA) are layered via a `CompositeAdapter` using a bit-exact `forward_delta` additive composition logic that prevents base weight double-counting.
-- **Episodic Learning (Consolidation Mode):** Adapters are trained only during explicit consolidation windows using high-consensus, validated traces (no raw or hallucinated data enters the weights).
-- **Gamma DNA Protocols:** A structured, epigenetic tracking system (using `.gamma` files) that anchors agentic actions into A (Ingredients), B (Preparation), C (Cooking), and D (Serving) phases for absolute reproducibility and hardening.
-- **MCP Server Hardening:** Hardened integration for local environments (such as LM Studio MCP resolution) ensuring unified variable injection and node-aware paths.
+### 2. SDE Engine & Biophysical Optimization
+- **The SDE Solver:** A refactored biophysical optimization engine decoupled from shadow agent logic. It uses the `InferenceScheduler` for all LLM-assisted parameter searches.
+- **The GAMMA Protocol (x, y, z, w):**
+    - **x (Epistemic Gain):** Differentiable Loss (MSE) tracking scientific accuracy.
+    - **y (Methodological Rigor):** Measured JIT compilation and federated efficiency.
+    - **z (Neurobiological Ground Truth):** Soft-penalized biological adherence via exponential decay.
+    - **w (Algorithmic Coherence):** Distributed system stability and consensus metrics.
+- **$\mathcal{L}_{council}$:** A global loss function where agents minimize the variance between biological plausibility ($z$) and code stability ($w$).
+
+### 3. Advanced PEFT Stack
+- **Composite Adapters (FedLoRA):** Layered adaptation via `forward_delta` additive composition. Supports simultaneous "Global Council" and "Personal" LoRA/DoRA adapters without weight double-counting.
+- **Episodic Consolidation:** Adapters are trained only on high-consensus, validated traces staged on the Blackboard, preventing hallucination bleed into the model weights.
+
+## 🛠️ Repository Structure
+
+- `src/gamma_runtime/`: Core engine, scheduler, and model pool management.
+- `src/sde_engine/`: Biophysical optimization metrics and solvers.
+- `apps/`: High-level orchestrators (e.g., `CouncilApp`, `SchizPilot`).
+- `dashboard/`: Scientific telemetry and Guard sentinel UI.
+- `configs/`: Declarative `AgentSpec` and `ModelSpec` configurations.
 
 ## Status
 
-- [x] Repository Initialized
-- [x] Universal `forward_delta` logic for multi-adapter stacking verified
-- [x] Loss functions and parameter filtering established (`train_lora_mlx.py`)
-- [x] MCP LM Studio integration hardened
-- [ ] Hyperparameter Optimization
-- [ ] Evaluation Framework & Catastrophic Forgetting Mitigation
+- [x] **Core Runtime:** SharedModelPool & InferenceScheduler established.
+- [x] **Communication:** Blackboard pattern implemented for unified state.
+- [x] **Orchestration:** UnifiedOrchestrator & Hub API bridge live.
+- [x] **Verification:** Schizophrenia Multi-Scale Pilot (g_inh) successfully executed.
+- [ ] **Consolidation:** Automated Episodic FedLoRA training loop.
+- [ ] **Stability:** Evaluation framework for catastrophic forgetting.
 
-## SDE Game Server: Neuro-Computational Orchestrator
-
-The Gamma repository now includes a dedicated multi-agent orchestration layer, the **SDE Game Server**, which manages scientific debate and parameter extraction tasks across independent Gemma-4 context windows.
-
-### Game Architecture: The XYZW Protocol
-The SDE Game Server models neuro-computational modeling as a game where agents (Gemma-4 context windows) participate in a multi-round debate to converge on accurate biophysical parameters. The engine evaluates the collective session using the **XYZW protocol**:
-
-- **X (Epistemic Gain/Convergence):** A measure of informational overlap. High `x` indicates the council has converged on a shared set of scientific findings.
-- **Y (Methodological Rigor):** A measure of the soundness of the proposed experimental/modeling techniques (e.g., preference for Patch-clamp vs Observation).
-- **Z (Biological Plausibility):** A metric reflecting adherence to valid biological constraints.
-- **W (Consensus/Stability):** A measure of team consistency and hallucination suppression. `W` approaches 1.0 when agents explicitly validate and agree with peer findings (e.g., using "I AGREE").
-
-This system enforces an objective, rigorous, and verifiable path to scientific consensus, grounding speculative reasoning into reproducible Jaxley configurations.
+## The First Flight
+The stack has successfully completed its **Schizophrenia Multi-Scale Pilot**, matching the Berlin MEG 1/f spectral slope flattening by optimizing inhibitory conductance ($g_{inh}$) deficits across a quad-agent ensemble. This marks the transition from theoretical architecture to a production-ready scientific research engine.

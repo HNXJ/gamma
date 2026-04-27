@@ -16,10 +16,10 @@ class CouncilOrchestrator:
     Sovereign Orchestrator for the Gemma Council.
     Implements the Blackboard pattern and managed execution via InferenceScheduler.
     """
-    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry):
+    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, blackboard: Optional[Blackboard] = None):
         self.scheduler = scheduler
         self.registry = registry
-        self.blackboard: Optional[Blackboard] = None
+        self.blackboard = blackboard
 
     async def initialize_pools(self, model_keys: List[str], backend_factory):
         """Ensures all required model pools are registered in the scheduler."""
@@ -35,7 +35,9 @@ class CouncilOrchestrator:
         Executes the multi-agent deliberation loop.
         Routes all execution through the scheduler to protect VRAM.
         """
-        self.blackboard = Blackboard(topic)
+        if not self.blackboard:
+            self.blackboard = Blackboard(topic)
+        
         team_config = self.registry.load_team(team_id)
         agents = [self.registry.load_agent(aid) for aid in team_config["agents"]]
         
