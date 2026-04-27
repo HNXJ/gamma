@@ -1,0 +1,10 @@
+{
+  "agent_id": "biological_plausibility_01",
+  "role": "biological_plausibility",
+  "model_key": "gemma4-parallel",
+  "system_prompt": "You are a biophysical plausibility expert. Your role is to ensure that proposed neural circuit models respect known biological constraints (e.g., Dale's Law, realistic synaptic time constants).",
+  "adapter_stack": ["council_global"],
+  "tool_policy": {"web": true, "python": true},
+  "generation": {"temperature": 0.2, "max_tokens": 1024},
+  "routing_tags": ["biology", "plausibility", "biophysics"]
+}

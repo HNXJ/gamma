@@ -153,8 +153,23 @@ class CompositeAdapter(AdapterMethod):
             adapter.load_state(sub_state)
 
     def aggregate(self, states: List[Dict[str, mx.array]], policy: str = "alternating"):
-        # Not applicable to composite directly, but to its children
-        pass
+        """
+        Aggregates a list of composite states by splitting them and delegating
+        to the constituent sub-adapters in the stack.
+        """
+        print(f"INFO: Aggregating {len(states)} composite states via policy '{policy}'")
+        for name, adapter in self.stack.items():
+            # Extract states relevant to this sub-adapter
+            prefix = f"{name}."
+            sub_states = []
+            for state in states:
+                sub_state = {k[len(prefix):]: v for k, v in state.items() if k.startswith(prefix)}
+                if sub_state:
+                    sub_states.append(sub_state)
+            
+            if sub_states:
+                print(f"DEBUG: Delegating aggregation for '{name}' with {len(sub_states)} states")
+                adapter.aggregate(sub_states, policy)
 
     def reset(self):
         for adapter in self.stack.values():
