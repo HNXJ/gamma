@@ -10062,3 +10062,66 @@ drwxr-xr-x@ 13 hamednejat  staff  416 Apr 27 13:26 ..
 **Return Code**: 0
 
 ---
+
+## 2026-04-27 16:25:52 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*lora*"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:26:05 | ✅ ALLOWED
+
+**Command**: `ls -F`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:26:19 | ✅ ALLOWED
+
+**Command**: `ls -F scripts/`
+
+**Return Code**: 1
+
+**Stderr**:
+
+```text
+ls: scripts/: No such file or directory
+
+```
+
+---
+
+## 2026-04-27 16:26:33 | ✅ ALLOWED
+
+**Command**: `find . -type d -name "scripts"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:26:48 | ✅ ALLOWED
+
+**Command**: `ls -F`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:27:02 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*train*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:27:16 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*lora*.py"`
+
+**Return Code**: 0
+
+---

@@ -59,13 +59,26 @@ async def main():
     
     logger.info(f"Launching Task: {topic}")
     
-    # 4. Execute the Run
-    # Launching in 'council' mode with the 4-agent team
+    # 4. Connection Guard: Wait for LM Studio to be responsive
+    logger.info("Verifying LM Studio availability...")
+    connected = False
+    while not connected:
+        try:
+            # Simple health check via direct httpx call
+            resp = await backend.client.get(f"{backend.base_url}/v1/models")
+            if resp.status_code == 200:
+                connected = True
+                logger.info("LM Studio connection established.")
+        except Exception as e:
+            logger.warning(f"LM Studio not reachable: {e}. Retrying in 15s...")
+            await asyncio.sleep(15)
+
+    # 5. Execute the Run
     session_id = await orchestrator.launch_run(
         run_type="council",
         topic=topic,
         team_id="e4b_overnight_team",
-        rounds=50, # Sufficient for overnight deliberation
+        rounds=50, 
         auto_consolidate=True
     )
     
