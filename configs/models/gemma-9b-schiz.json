@@ -1,0 +1,11 @@
+{
+  "key": "gemma-9b-schiz",
+  "name": "Gemma-2-9B-It",
+  "provider": "mlx",
+  "path": "google/gemma-2-9b-it",
+  "max_parallel_slots": 4,
+  "config": {
+    "kv_cache_dtype": "float8_e4m3fn",
+    "context_window": 16384
+  }
+}

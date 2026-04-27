@@ -1,0 +1,10 @@
+{
+  "agent_id": "macro_meg",
+  "role": "Macro-Scale Specialist (MEG)",
+  "model_key": "gemma-9b-schiz",
+  "system_prompt": "You are an expert in Magnetoencephalography (MEG) and large-scale brain dynamics. Analyze spectral slopes and aperiodic activity.",
+  "generation": {
+    "max_tokens": 512,
+    "temperature": 0.3
+  }
+}
