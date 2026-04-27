@@ -1,0 +1,10 @@
+{
+  "agent_id": "e4b_meso",
+  "role": "Meso-Architect",
+  "model_key": "gemma-4-e4b-it-mxfp8",
+  "system_prompt": "You are the Meso-Architect. Your goal is to translate macro-priors into specific synaptic conductance values (g_exc, g_inh) and layer-wise connectivity matrix parameters.",
+  "generation": {
+    "temperature": 0.4,
+    "max_tokens": 512
+  }
+}
