@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guard | Defensive Sentinel</title>
+    <link rel="stylesheet" href="../static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-dot" style="background: var(--error); box-shadow: 0 0 10px var(--error);"></div>
+            GUARD
+        </div>
+
+        <div class="nav-section">
+            <div class="section-label">Navigation</div>
+            <a href="index.html" class="nav-item">
+                <span>Gamma Hub</span>
+            </a>
+            <a href="guard.html" class="nav-item active">
+                <span>Guard Security</span>
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <div class="section-label">Controls</div>
+            <button class="btn btn-primary" style="width: 100%; border-color: var(--error); color: var(--error);">Purge Stale Processes</button>
+        </div>
+    </aside>
+
+    <main class="main-layout">
+        <header class="top-bar">
+            <div class="system-status">
+                <div class="status-indicator">
+                    <div class="dot active pulse"></div>
+                    SENTINEL ACTIVE
+                </div>
+                <div class="status-indicator">
+                    <span style="color: var(--text-dim)">MODE:</span>
+                    <span style="color: var(--error)">STRICT</span>
+                </div>
+            </div>
+            
+            <div class="system-status">
+                <div class="status-indicator">
+                    <span style="color: var(--text-dim)">FORBIDDEN COMMANDS:</span>
+                    <span style="color: var(--error)">0</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="content-viewport">
+            <div class="card glass">
+                <div class="card-title">Security Log | Live Stream</div>
+                <div id="log-stream" style="font-family: var(--mono); font-size: 13px; height: 400px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px;">
+                    <div style="color: var(--success)">[2026-04-27 13:32:01] Initializing Sentinel... OK</div>
+                    <div style="color: var(--text-dim)">[2026-04-27 13:32:05] Watching PID 45211 (gemma_council)</div>
+                    <div style="color: var(--text-dim)">[2026-04-27 13:33:10] ALLOWED: ls -l (PID 45211)</div>
+                    <div style="color: var(--text-dim)">[2026-04-27 13:33:12] ALLOWED: python3 script.py (PID 45211)</div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card glass">
+                    <div class="card-title">Halt Protocol</div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn" style="border-color: var(--error); color: var(--error);">Kill Council</button>
+                        <button class="btn">Clean VRAM</button>
+                    </div>
+                </div>
+                <div class="card glass">
+                    <div class="card-title">Markdown Compliance</div>
+                    <div class="metric-value" style="color: var(--success)">100%</div>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
