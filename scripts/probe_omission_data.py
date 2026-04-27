@@ -1,71 +1,65 @@
+import h5py
 import os
 import sys
-import json
-import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-logger = logging.getLogger("DataProbe")
+# Define the target NWB file path (directly from Drive sync)
+NWB_PATH = "/Users/hamednejat/Library/CloudStorage/GoogleDrive-hamednejat7@gmail.com/My Drive/Workspace/Analysis/NWBData/misc/sub-C31_ses-230630.nwb"
 
-def probe_nwb(filepath):
-    """Probes an NWB file for laminar markers."""
-    try:
-        import h5py
-        with h5py.File(filepath, 'r') as f:
-            logger.info(f"Probing NWB: {filepath}")
-            # Search for laminar keys in electrodes
-            if 'general/extracellular_ephys/electrodes' in f:
-                elec = f['general/extracellular_ephys/electrodes']
-                keys = list(elec.keys())
-                logger.info(f"Available unit metadata keys: {keys}")
-                
-                target_keys = ['depth', 'layer', 'y_coord', 'channel', 'location', 'z']
-                found = [k for k in target_keys if k in keys]
-                if found:
-                    logger.info(f"Laminar markers FOUND: {found}")
-                else:
-                    logger.warning("No explicit laminar markers found in electrode metadata.")
-            else:
-                logger.warning("No electrode metadata found in this NWB file.")
-    except ImportError:
-        logger.error("h5py not installed. Cannot probe NWB.")
-    except Exception as e:
-        logger.error(f"Error probing NWB: {e}")
-
-def probe_json(filepath):
-    """Probes the simulation_trace.json for depth markers."""
-    try:
-        logger.info(f"Probing JSON: {filepath}")
-        # Only read the first few lines/objects to avoid loading 7.7GB
-        with open(filepath, 'r') as f:
-            # Assume it's a list of objects or one large object
-            first_chunk = f.read(10000)
-            logger.info("JSON Header Sample:")
-            print(first_chunk[:500])
-            
-            if '"depth"' in first_chunk or '"layer"' in first_chunk:
-                logger.info("Laminar markers DETECTED in JSON trace.")
-            else:
-                logger.warning("No 'depth' or 'layer' markers detected in first 10KB of JSON.")
-    except Exception as e:
-        logger.error(f"Error probing JSON: {e}")
-
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python probe_omission_data.py <path_to_file>")
-        return
-
-    path = sys.argv[1]
+def probe_omission_metadata(path):
+    """
+    Inspects the NWB file for laminar and depth metadata.
+    """
+    print(f"--- OMISSION 2026 Data Probe ---")
+    print(f"Target: {path}")
+    
     if not os.path.exists(path):
-        logger.error(f"File not found: {path}")
+        print(f"CRITICAL ERROR: File not found at {path}")
+        # List directory to help debug
+        parent = os.path.dirname(path)
+        if os.path.exists(parent):
+            print(f"Available files in {parent}:")
+            for f in os.listdir(parent):
+                print(f" - {f}")
         return
 
-    if path.endswith('.nwb'):
-        probe_nwb(path)
-    elif path.endswith('.json'):
-        probe_json(path)
-    else:
-        logger.error("Unsupported file format for probing.")
+    try:
+        with h5py.File(path, 'r') as f:
+            # 1. Check Extracellular Ephys (Electrode Table)
+            print("\n[Checking general/extracellular_ephys/electrodes]")
+            if 'general/extracellular_ephys/electrodes' in f:
+                electrodes = f['general/extracellular_ephys/electrodes']
+                keys = list(electrodes.keys())
+                print(f"Keys found: {keys}")
+                
+                # Check for laminar indicators
+                laminar_keys = ['depth', 'layer', 'y', 'z', 'location', 'label']
+                for lk in laminar_keys:
+                    if lk in keys:
+                        # Print a sample of the data
+                        data = electrodes[lk][0:5]
+                        print(f" - {lk}: {data}")
+            else:
+                print(" - NOT FOUND")
+
+            # 2. Check Units table
+            print("\n[Checking units]")
+            if 'units' in f:
+                units = f['units']
+                keys = list(units.keys())
+                print(f"Keys found: {keys}")
+            else:
+                print(" - NOT FOUND")
+
+            # 3. Check for Laminar specific groups in analysis
+            print("\n[Checking analysis/]")
+            if 'analysis' in f:
+                analysis = f['analysis']
+                print(f"Groups in analysis: {list(analysis.keys())}")
+            else:
+                print(" - NOT FOUND")
+
+    except Exception as e:
+        print(f"FAILURE: Could not read NWB file. Error: {e}")
 
 if __name__ == "__main__":
-    main()
+    probe_omission_metadata(NWB_PATH)
