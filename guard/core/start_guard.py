@@ -22,11 +22,12 @@ def run_guard(max_iterations=None):
         print(f"\n--- Iteration {iterations} ---")
         
         # 1. Read state
-        ego = Path("state/ego.md").read_text()
-        task = Path("state/task-state.md").read_text()
+        ego = Path("state/ego.md").read_text().strip()
+        task = Path("state/task-state.md").read_text().strip()
         memory = Path("state/guard-state.md").read_text()[-config.max_memory_chars:]
         
         system_prompt = ego
+        print(f"DEBUG: System Prompt Chars: {len(system_prompt)}")
         user_prompt = f"### Task State\n{task}\n\n### Recent History\n{memory}\n\nWhat is your next safe diagnostic command?"
         
         # 2. Call model

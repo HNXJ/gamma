@@ -12,10 +12,13 @@ AgentId = str
 class ModelSpec:
     key: ModelKey
     provider: Literal["lmstudio", "mlx"]
+    name: str | None = None
+    path: str | None = None
     context_length: int = 4096
     quantization: str | None = None
     max_parallel_slots: int = 1
     device: str | None = None
+    config: dict[str, Any] = field(default_factory=dict)
 
 @dataclass(frozen=True)
 class AdapterRef:

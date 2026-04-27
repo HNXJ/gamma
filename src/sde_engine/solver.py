@@ -14,27 +14,36 @@ class SDESolver:
     Refactored to remove shadow agent logic and integrate with the Gamma Runtime.
     Tracks trajectories and convergence metrics directly on the Blackboard.
     """
-    def __init__(self, scheduler: InferenceScheduler, blackboard: Blackboard):
+    def __init__(self, scheduler: InferenceScheduler, blackboard: Blackboard, registry: Optional[RuntimeRegistry] = None):
         self.scheduler = scheduler
         self.blackboard = blackboard
+        self.registry = registry or RuntimeRegistry("configs")
         self.metrics = SDEMetrics()
 
-    async def run_optimization_cycle(self, proponent: AgentSpec, adversary: AgentSpec):
+    async def run_optimization_cycle(
+        self, 
+        proponent: Any, 
+        adversary: Any, 
+        batch_data: Optional[List[Dict[str, Any]]] = None
+    ):
         """
         Executes a single adversarial SDE optimization cycle.
-        1. Proponent proposes parameters via Scheduler.
-        2. SDE Engine calculates x, y, z metrics.
-        3. Adversary critiques via Scheduler.
-        4. SDE Engine calculates w and global Council Loss.
-        5. Results committed to Blackboard.
+        Supports passing AgentSpec objects or AgentIds (strings).
+        If batch_data is provided, it is injected into the proponent's context.
         """
+        prop_spec = proponent if isinstance(proponent, AgentSpec) else self.registry.load_agent(proponent)
+        adv_spec = adversary if isinstance(adversary, AgentSpec) else self.registry.load_agent(adversary)
+
         # 1. Proponent Turn
-        proposal_req = self._build_inference_request(proponent, "Propose optimal E-I parameters.")
-        proposal_res = await self.scheduler.schedule(proponent.model_key, proposal_req)
+        prompt = "Propose optimal E-I parameters."
+        if batch_data:
+            prompt += f"\n\n### Batch Data ({len(batch_data)} neurons):\n{batch_data}"
+            
+        proposal_req = self._build_inference_request(prop_spec, prompt)
+        proposal_res = await self.scheduler.schedule(prop_spec.model_key, proposal_req)
         proposal_text = proposal_res.text
         
         # 2. Heuristic Parameter Extraction (Mocked for Phase 2)
-        # In a full run, this would be a specialized parser or sub-agent call
         gmax_estimate = 0.42 # Extracted from proposal_text
         mse_estimate = 0.05
         
@@ -42,24 +51,24 @@ class SDESolver:
         z = self.metrics.calculate_z(gmax_estimate)
         
         # 3. Adversary Turn (Critique)
-        critique_req = self._build_inference_request(adversary, f"Attack this proposal:\n{proposal_text}")
-        critique_res = await self.scheduler.schedule(adversary.model_key, critique_req)
+        critique_req = self._build_inference_request(adv_spec, f"Attack this proposal:\n{proposal_text}")
+        critique_res = await self.scheduler.schedule(adv_spec.model_key, critique_req)
         
         # 4. Final Aggregation
-        w = self.metrics.calculate_w(0.0) # Assume 0 crash for this cycle
-        y = 0.85 # Measured JIT efficiency
+        w = self.metrics.calculate_w(0.0) 
+        y = 0.85 
         
         council_loss = self.metrics.council_loss(x, y, z, w)
         
         # 5. Blackboard Commitment
         await self.blackboard.add_entry(
-            sender=proponent.agent_id,
+            sender=prop_spec.agent_id,
             content=proposal_text,
-            metadata={"kind": "sde_proposal", "x": x, "z": z}
+            metadata={"kind": "sde_proposal", "x": x, "z": z, "batch_size": len(batch_data) if batch_data else 0}
         )
         
         await self.blackboard.add_entry(
-            sender=adversary.agent_id,
+            sender=adv_spec.agent_id,
             content=critique_res.text,
             metadata={"kind": "sde_critique"}
         )

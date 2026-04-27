@@ -5,6 +5,7 @@ from .types import AgentId, InferenceRequest
 from .scheduler import InferenceScheduler
 from .blackboard import Blackboard
 from .registry import RuntimeRegistry
+from .consolidation import ConsolidationManager
 from apps.council_app import CouncilOrchestrator
 from sde_engine.solver import SDESolver
 
@@ -18,6 +19,7 @@ class UnifiedOrchestrator:
     def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry):
         self.scheduler = scheduler
         self.registry = registry
+        self.consolidation = ConsolidationManager()
         self._active_sessions: Dict[str, Blackboard] = {}
 
     async def launch_run(self, run_type: str, topic: str, **kwargs) -> str:
@@ -37,14 +39,14 @@ class UnifiedOrchestrator:
     async def _execute_run(self, run_type: str, blackboard: Blackboard, **kwargs):
         try:
             if run_type == "council":
-                orchestrator = CouncilOrchestrator(self.scheduler, self.registry)
+                orchestrator = CouncilOrchestrator(self.scheduler, self.registry, blackboard=blackboard)
                 await orchestrator.run_deliberation(
                     team_id=kwargs.get("team_id", "sde_debate_team"),
                     topic=blackboard.topic,
                     rounds=kwargs.get("rounds", 2)
                 )
             elif run_type == "sde":
-                solver = SDESolver(self.scheduler, blackboard)
+                solver = SDESolver(self.scheduler, blackboard=blackboard)
                 # Load proponent/adversary from registry
                 proponent = self.registry.load_agent(kwargs.get("proponent_id", "excitatory_specialist"))
                 adversary = self.registry.load_agent(kwargs.get("adversary_id", "inhibitory_specialist"))
@@ -56,6 +58,14 @@ class UnifiedOrchestrator:
                 pass
             
             logger.info(f"Session {run_type} completed successfully.")
+            
+            # AUTOMATED CONSOLIDATION: Trigger FedLoRA if consensus is reached
+            if kwargs.get("auto_consolidate", True):
+                payload_path = self.consolidation.extract_validated_traces(blackboard, blackboard.topic[:10])
+                if payload_path:
+                    # In a real run, we'd use the model_key from the agents
+                    await self.consolidation.trigger_training(payload_path, "gemma-9b-schiz")
+                    
         except Exception as e:
             logger.error(f"Session failed: {e}")
             await blackboard.add_entry(sender="SYSTEM", content=f"ERROR: {str(e)}")
