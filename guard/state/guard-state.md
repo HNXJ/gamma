@@ -5456,3 +5456,114 @@ ls: scripts: No such file or directory
 **Return Code**: 0
 
 ---
+
+## 2026-04-27 14:43:28 | ✅ ALLOWED
+
+**Command**: `ls -d scripts`
+
+**Return Code**: 1
+
+**Stderr**:
+
+```text
+ls: scripts: No such file or directory
+
+```
+
+---
+
+## 2026-04-27 14:43:42 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 14:43:56 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py" -print`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 14:44:10 | ✅ ALLOWED
+
+**Command**: `python3 train_lora_mlx.py`
+
+**Return Code**: 2
+
+**Stderr**:
+
+```text
+/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/hamednejat/workspace/computational/gamma/guard/sandbox/train_lora_mlx.py': [Errno 2] No such file or directory
+
+```
+
+---
+
+## 2026-04-27 14:44:25 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py" -print`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 14:44:38 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 14:44:52 | ✅ ALLOWED
+
+**Command**: `ls -R`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 14:45:07 | ✅ ALLOWED
+
+**Command**: `ls -l training.log`
+
+**Return Code**: 1
+
+**Stderr**:
+
+```text
+ls: training.log: No such file or directory
+
+```
+
+---
+
+## 2026-04-27 14:45:20 | ✅ ALLOWED
+
+**Command**: `ls -la`
+
+**Return Code**: 0
+
+**Stdout**:
+
+```text
+total 8
+drwxr-xr-x@  3 hamednejat  staff   96 Apr 27 11:08 .
+drwxr-xr-x@ 13 hamednejat  staff  416 Apr 27 13:26 ..
+-rw-r--r--@  1 hamednejat  staff   17 Apr 27 11:08 .gitkeep
+
+```
+
+---
+
+## 2026-04-27 14:45:34 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
