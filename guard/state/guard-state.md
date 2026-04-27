@@ -220,3 +220,12 @@ ls: *.py: No such file or directory
 ### 2026-04-27 12:51:38 | ✅ ALLOWED
 **Command**: `find . -name "fedlora_trainer.py"`
 **Return Code**: 0
+
+### 2026-04-27 12:51:49 | ✅ ALLOWED
+**Command**: `ls -l fedlora_trainer.py`
+**Return Code**: 1
+**Stderr**:
+```text
+ls: fedlora_trainer.py: No such file or directory
+
+```
