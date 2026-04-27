@@ -133,6 +133,7 @@ def get_server_status() -> str:
 def load_model(
     model: str,
     context_length: int = 4096,
+    parallel: int = 1,
 ) -> str:
     """Load a model into memory for inference via LM Studio's native REST API.
 
@@ -140,14 +141,16 @@ def load_model(
         model: Model key to load (e.g. 'gpt-oss-20b', 'qwen3-14b-mlx').
               Use list_models() to see available keys.
         context_length: Maximum context window size in tokens (default 4096).
+        parallel: Number of parallel slots/instances to allocate (default 1).
     """
-    print(f"[lm-studio-bridge] load_model() called: model='{model}', ctx={context_length}")  # print("Load model request received")
+    print(f"[lm-studio-bridge] load_model() called: model='{model}', ctx={context_length}, parallel={parallel}")  # print("Load model request received")
     try:
         resp = httpx.post(
             f"{LMSTUDIO_BASE_URL}/api/v1/models/load",
             json={
                 "model": model,
                 "context_length": context_length,
+                "parallel": parallel,
                 "echo_load_config": True,
             },
             timeout=120.0,

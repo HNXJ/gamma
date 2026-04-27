@@ -21,8 +21,16 @@ It serves as the long-term consolidation mechanism for a distributed, multi-LLM 
 - [ ] Hyperparameter Optimization
 - [ ] Evaluation Framework & Catastrophic Forgetting Mitigation
 
-## Architecture & Philosophy
+## SDE Game Server: Neuro-Computational Orchestrator
 
-Gamma enforces a hard separation between **runtime cognition** (reading, routing, debate) and **slow learning** (federated aggregation, adapter training). The base model remains frozen and stable. Validated experiences are converted into low-rank adapter deltas, allowing role specialization without forking the base model and guaranteeing safe, reversible updates.
+The Gamma repository now includes a dedicated multi-agent orchestration layer, the **SDE Game Server**, which manages scientific debate and parameter extraction tasks across independent Gemma-4 context windows.
 
-For a full breakdown of the clustered federated LoRA vision, review `GAMMA_FEDLORA_PLAN.md`.
+### Game Architecture: The XYZW Protocol
+The SDE Game Server models neuro-computational modeling as a game where agents (Gemma-4 context windows) participate in a multi-round debate to converge on accurate biophysical parameters. The engine evaluates the collective session using the **XYZW protocol**:
+
+- **X (Epistemic Gain/Convergence):** A measure of informational overlap. High `x` indicates the council has converged on a shared set of scientific findings.
+- **Y (Methodological Rigor):** A measure of the soundness of the proposed experimental/modeling techniques (e.g., preference for Patch-clamp vs Observation).
+- **Z (Biological Plausibility):** A metric reflecting adherence to valid biological constraints.
+- **W (Consensus/Stability):** A measure of team consistency and hallucination suppression. `W` approaches 1.0 when agents explicitly validate and agree with peer findings (e.g., using "I AGREE").
+
+This system enforces an objective, rigorous, and verifiable path to scientific consensus, grounding speculative reasoning into reproducible Jaxley configurations.
