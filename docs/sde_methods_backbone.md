@@ -3,7 +3,7 @@
 ## 1. INTRODUCTION: PROBLEM & PARADIGM SHIFT
 
 ### The Monolith Bottleneck
-Traditional scientific AI analysis suffers from a **Monolith Bottleneck**: a static, sequential execution model where a single LLM attempts to integrate literature, parse raw data, and optimize parameters. This paradigm is prone to informational degradation and serial hallucination. We propose the **SDE Game**, a parallel, adversarial architecture where specialized agents compete to establish a **Scientific Discovery Equilibrium (SDE)**.
+Traditional scientific AI analysis suffers from a **Monolith Bottleneck**: a static, sequential execution model where a single LLM attempts to integrate literature, parse raw data, and optimize parameters. This paradigm is prone to informational degradation and serial hallucination. We propose the **SDE Game**, a parallel, adversarial architecture where specialized agents compete to establish a **Scientific Discovery Equilibrium (SDE)**. This process is driven by the **Adaptive Genetic-Stochastic Delta-Rule (AGSDR) optimizer**, which acts as the mathematical engine driving parameter exploration.
 
 ### Consensus-as-Search
 The system implements a **Consensus-as-Search** framework. Multi-agent deliberation on a centralized **Blackboard** approximates a **Monte Carlo Tree Search (MCTS)** for biophysical parameters. This allows the runtime to navigate the high-dimensional space of neurophysiological conductances with the rigor of an adversarial peer-review loop.
@@ -56,7 +56,7 @@ The objective function minimized by the **AGSDR optimizer** is:
 $$\mathcal{L}_{council} = \alpha(z - w)^2 - \beta(x + y)$$
 
 - **$x$ (Epistemic Gain)**: Measures differentiable loss reduction ($1 - \text{MSE}$) between simulation and target data.
-- **$y$ (Adversarial Penalty)**: The uncertainty threshold calculated from agent disagreement. High $y$ penalizes proposals with low consensus or high epistemic variance.
+- **$y$ (Adversarial Penalty)**: Defined as the Jensen-Shannon Divergence ($D_{JS}$) across agent parameter proposals. $y$ acts as a stochastic uncertainty threshold, penalizing proposals with low consensus or extreme epistemic variance among the council.
 - **$z$ (Ground Truth)**: Exponential penalty for physiological divergence from established biophysical bounds.
 - **$w$ (Coherence)**: Measures distributed system stability and the strength of cross-agent validation.
 
@@ -83,8 +83,8 @@ The **AGSDR optimizer** successfully optimized the inhibitory conductance to:
 ### Shared Context Pool (Singleton Weight Residency)
 The Gamma Runtime utilizes the **MLX framework** to implement **Singleton Weight Residency**, which is critical for hardware stability on the M3 Max (128GB Unified Memory). 
 - **Mechanism**: The system loads exactly **ONE resident base model** into VRAM.
-- **Multiplexing**: The Inference Scheduler then multiplexes **TWO parallel logical agent sessions (n=2)** across these shared weights.
-- **Outcome**: This prevents the fatal VRAM overflow that would occur if the system attempted to load multiple separate model instances, while maintaining the adversarial deliberation loop within a strict VRAM budget.
+- **Multiplexing**: The Inference Scheduler then multiplexes exactly **TWO parallel logical agent sessions (n=2)** across these shared weights.
+- **Outcome**: This prevents the fatal VRAM overflow that would occur if the system attempted to load multiple separate model instances, while maintaining the adversarial deliberation loop within the strict 128GB VRAM budget of the M3 Max.
 
 ### Episodic FedLoRA Consolidation
 Phase 4 successfully closed the loop by extracting and staging the deliberation results:

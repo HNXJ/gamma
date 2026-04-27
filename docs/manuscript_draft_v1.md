@@ -24,7 +24,7 @@ Agent interaction is governed by the **Blackboard Pattern**. Agents do not commu
 
 The deliberation loop follows a three-mode cognitive lifecycle:
 1.  **Discovery Mode**: Specialized modality agents parse raw neurophysiological data.
-2.  **Plan Mode**: The SDE-Solver proposes biophysical parameter updates.
+2.  **Plan Mode**: The **AGSDR Optimizer** proposes biophysical parameter updates.
 3.  **Consolidation Mode**: High-consensus traces are extracted for episodic learning.
 
 ### 2.3 Mathematical Formulation
@@ -36,6 +36,7 @@ Optimization is driven by the **Council Loss Function** ($\mathcal{L}_{council}$
 $$\mathcal{L}_{council} = \alpha(z - w)^2 - \beta(x + y)$$
 Where:
 - $x$ (Epistemic Gain) represents the reduction in spectral residual.
+- $y$ (Adversarial Penalty) defined as the Jensen-Shannon Divergence across agent proposals.
 - $z$ (Ground Truth) enforces neurobiological constraints.
 - $w$ (Coherence) measures the stability of the agentic consensus.
 

@@ -78,7 +78,11 @@ def probe_metadata(filepath):
         print("WARNING: No explicit laminar or depth metadata found in headers.")
 
 if __name__ == "__main__":
-    target = find_omission_data()
+    if len(sys.argv) > 1:
+        target = sys.argv[1]
+    else:
+        target = find_omission_data()
+    
     if target:
         probe_metadata(target)
     else:
