@@ -33,6 +33,7 @@ def run_guard(max_iterations=None):
         print("Contacting model...")
         response = client.get_response(system_prompt, user_prompt)
         print(f"Model response received.")
+        print(f"DEBUG Response: {response}")
         
         # 3. Parse commands
         candidate_commands = extract_bash_commands(response)

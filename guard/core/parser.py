@@ -9,7 +9,7 @@ def extract_bash_commands(text: str) -> List[str]:
     - Each remaining line is treated as a single command.
     """
     # Regex for ```bash ... ``` blocks
-    pattern = re.compile(r'```bash\n(.*?)\n```', re.DOTALL)
+    pattern = re.compile(r'```bash\s*\n(.*?)\n\s*```', re.DOTALL)
     matches = pattern.findall(text)
     
     commands = []
