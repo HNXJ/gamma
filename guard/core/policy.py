@@ -18,7 +18,7 @@ class GuardPolicy:
         # Initial allowlist
         self.allowed_binaries = {
             "ls", "cat", "echo", "git", "python3", "grep", "tail", "pwd", "find", "wc",
-            "pytest", "ruff", "mkdir"
+            "pytest", "ruff", "mkdir", "pgrep", "kill"
         }
         
         # Denied shell metacharacters
@@ -114,14 +114,14 @@ class GuardPolicy:
         return PolicyDecision(True, "Git command validated", raw_command, argv)
 
     def _validate_python(self, argv: List[str], raw_command: str) -> PolicyDecision:
-        # python3 path/to/script.py only
-        forbidden_flags = {"-c", "-m", "-"}
+        # python3 execution policy
+        forbidden_flags = {"-c", "-"}
         for arg in argv:
             if arg in forbidden_flags:
                 return PolicyDecision(False, f"Forbidden python flag: {arg}", raw_command, argv)
         
-        if len(argv) != 2:
-            return PolicyDecision(False, "Python restricted to: python3 <script_path>", raw_command, argv)
+        if len(argv) < 2:
+            return PolicyDecision(False, "Missing python script or module", raw_command, argv)
         
         script_path = argv[1]
         is_safe, reason = self._is_path_safe(script_path)

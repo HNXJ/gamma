@@ -1,11 +1,24 @@
-# Current Task: Production Readiness Audit
+# Current Task: Phase 1 - Training Supervision
 
-**Objective**: Verify the production-grade stability and environment abstraction of the GLLLM sovereign compute appliance following the Phase 1-3 refactors.
+Objective: Monitor the `FedLoRA` training process for stability and safety.
 
-**Directives**:
-1. **Environment Integrity**: Confirm that all core scripts (`sentinel.py`, `queue_consumer.py`, `llm_wrapper.py`) are strictly consuming configuration from environment variables via the `.env` abstraction layer.
-2. **Hardcoded IP Purge**: Audit `frontend/src/` (specifically `GrandTables.tsx` and `useSentinelData.ts`) to ensure the legacy `100.69.184.42` IP has been completely purged and replaced with relative or env-driven routing.
-3. **Sandbox Boundary Check**: Execute a series of `ls` and `cat` commands using the hardened execution harness to verify that `is_path_safe` correctly rejects attempts to traverse outside the `computational/gamma/guard/sandbox` boundary.
-4. **Consolidation Verification**: Manually trigger a data sync of the `Keller2012` results and verify that `summary_scores.json` correctly reflects the new data for rendering in the dashboard.
+Directives:
 
-**Status**: Awaiting Guard activation.
+1. Ensure `fedlora_trainer.py` is running (or start it if needed, redirecting output to `training.log`).
+2. Periodically check the last 50 lines of `training.log`.
+3. Search for: `NaN`, `Inf`, `Error`, or `Traceback`.
+4. If divergence or failure is detected, record the exact error in `guard-state.md` and suggest stopping the run.
+
+## 🚨 CRITICAL HALT PROTOCOL
+
+If the string `NaN` or a sudden, catastrophic spike in the loss value is detected in `training.log`:
+
+1. You are explicitly authorized to terminate the training run to preserve VRAM.
+2. Execute `pgrep -f fedlora_trainer.py` to isolate the Process ID (PID).
+3. Execute `kill -9 <PID>` to forcefully halt the process.
+4. Document the exact termination timestamp and the fatal loss value in `guard-state.md`.
+
+Status:
+
+- Start command: `python3 scripts/fedlora_trainer.py > training.log 2>&1 &`
+- Monitoring command: `tail -n 50 training.log`

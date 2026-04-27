@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamma Hub | Decentralized Research Runtime</title>
+    <link rel="stylesheet" href="../static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-dot"></div>
+            GAMMA
+        </div>
+
+        <div class="nav-section">
+            <div class="section-label">Core Runtime</div>
+            <a href="index.html" class="nav-item active">
+                <span>Hub Dashboard</span>
+            </a>
+            <a href="index.html" class="nav-item">
+                <span>Gemma Council</span>
+            </a>
+            <a href="index.html" class="nav-item">
+                <span>SDE Engine</span>
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <div class="section-label">Monitoring</div>
+            <a href="guard.html" class="nav-item">
+                <span>Guard Security</span>
+            </a>
+            <a href="/metrics" class="nav-item">
+                <span>Pool Metrics</span>
+            </a>
+        </div>
+
+        <div class="nav-section" style="margin-top: auto;">
+            <button class="btn btn-primary" style="width: 100%;">Emergency Halt</button>
+        </div>
+    </aside>
+
+    <main class="main-layout">
+        <header class="top-bar">
+            <div class="system-status">
+                <div class="status-indicator">
+                    <div class="dot idle pulse"></div>
+                    IDLE
+                </div>
+                <div class="status-indicator">
+                    <span style="color: var(--text-dim)">SYSTEM:</span>
+                    <span>GAMMA-M3MAX-01</span>
+                </div>
+            </div>
+
+            <div class="system-status">
+                <div class="status-indicator">
+                    <span style="color: var(--text-dim)">VRAM:</span>
+                    <span style="color: var(--border)">14.2 / 96.0 GB</span>
+                </div>
+                <div class="status-indicator">
+                    <span style="color: var(--text-dim)">UPTIME:</span>
+                    <span>04:32:11</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="content-viewport">
+            <div class="grid">
+                <div class="card glass">
+                    <div class="card-title">
+                        Active Model Pools
+                        <span class="status-indicator"><div class="dot active"></div></span>
+                    </div>
+                    <div class="metric-value">01</div>
+                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
+                        Primary: google/gemma-2-9b-it (MLX)
+                    </div>
+                </div>
+
+                <div class="card glass">
+                    <div class="card-title">KV-Cache Budget</div>
+                    <div class="metric-value">4.2%</div>
+                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
+                        Consumed: 5,420 / 128,000 tokens
+                    </div>
+                </div>
+
+                <div class="card glass">
+                    <div class="card-title">Agent Sessions</div>
+                    <div class="metric-value">04</div>
+                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
+                        Queue: 0 pending
+                    </div>
+                </div>
+            </div>
+
+            <div class="card glass" style="flex-grow: 1;">
+                <div class="card-title">Blackboard State | SDE Convergence</div>
+                <div style="display: flex; justify-content: center; align-items: center; height: 100%; border: 1px dashed rgba(207, 184, 124, 0.2);">
+                    <span style="color: var(--text-dim); font-family: var(--mono); font-size: 12px;">Waiting for active SDE session...</span>
+                </div>
+            </div>
+        </section>
+
+        <footer class="console">
+            <div class="log-line">
+                <span class="log-time">[2026-04-27 13:30:00]</span>
+                <span class="log-tag">[SYSTEM]</span>
+                <span>InferenceScheduler initialized. Budget set to 128k tokens.</span>
+            </div>
+            <div class="log-line">
+                <span class="log-time">[2026-04-27 13:30:01]</span>
+                <span class="log-tag">[RUNTIME]</span>
+                <span>Model pool 'gemma-2-9b-it' registered via MLX backend.</span>
+            </div>
+            <div class="log-line">
+                <span class="log-time">[2026-04-27 13:30:05]</span>
+                <span class="log-tag">[GUARD]</span>
+                <span>Memory watchdog active. Jetsam threshold: 12.0GB.</span>
+            </div>
+        </footer>
+    </main>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import os
 from typing import Dict
 import mlx.core as mx
+import mlx.nn as nn
 from safetensors.numpy import save_file, load_file
 
 print("INFO: Initializing Gamma Persistence Module") # print("Initializing Gamma Persistence Module")

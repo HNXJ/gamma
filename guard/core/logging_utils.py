@@ -13,25 +13,28 @@ class GuardLogger:
         self.memory_path.parent.mkdir(parents=True, exist_ok=True)
 
     def log_attempt(self, result: Dict[str, Any]):
-        # JSONL Audit Log
+        """Logs a command execution attempt to both JSONL and Markdown memory."""
+        # 1. JSONL Audit Log
         with open(self.audit_path, "a") as f:
             f.write(json.dumps(result) + "\n")
             
-        # Markdown Memory Log
+        # 2. Markdown Memory Log
         timestamp_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(result["timestamp"]))
         status = "✅ ALLOWED" if result["allowed"] else "❌ DENIED"
         
-        log_entry = f"\n### {timestamp_str} | {status}\n"
-        log_entry += f"**Command**: `{result['command']}`\n"
+        log_entry = f"\n## {timestamp_str} | {status}\n\n"
+        log_entry += f"**Command**: `{result['command']}`\n\n"
         
         if not result["allowed"]:
-            log_entry += f"**Reason**: {result['reason']}\n"
+            log_entry += f"**Reason**: {result['reason']}\n\n"
         else:
-            log_entry += f"**Return Code**: {result['return_code']}\n"
+            log_entry += f"**Return Code**: {result['return_code']}\n\n"
             if result["stdout"]:
-                log_entry += f"**Stdout**:\n```text\n{result['stdout']}\n```\n"
+                log_entry += f"**Stdout**:\n\n```text\n{result['stdout']}\n```\n\n"
             if result["stderr"]:
-                log_entry += f"**Stderr**:\n```text\n{result['stderr']}\n```\n"
+                log_entry += f"**Stderr**:\n\n```text\n{result['stderr']}\n```\n\n"
+        
+        log_entry += "---\n"
         
         with open(self.memory_path, "a") as f:
             f.write(log_entry)
