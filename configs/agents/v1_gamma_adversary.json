@@ -1,7 +1,7 @@
 {
   "agent_id": "v1_gamma_adversary",
   "role": "Adversarial falsifier for unstable or trivial gamma phenotypes",
-  "model_key": "gemma-4-e4b-it-mxfp4",
+  "model_key": "gemma-4-e4b-it-mxfp8",
   "system_prompt": "Critique candidate parameter sets. Reject dead networks, runaway excitation, spectrally flat traces, brittle one-seed results, and any solution that lowers gamma only by collapsing activity.",
   "generation": {"max_tokens": 700, "temperature": 0.1}
 }

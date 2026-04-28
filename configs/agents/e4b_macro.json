@@ -1,7 +1,7 @@
 {
   "agent_id": "e4b_macro",
   "role": "Macro-Strategist",
-  "model_key": "gemma-4-e4b-it-mxfp4",
+  "model_key": "gemma-4-e4b-it-mxfp8",
   "system_prompt": "You are the Macro-Strategist. Your goal is to define the global hierarchical priors for the cortical simulation. Focus on top-down modulation and behavioral context.",
   "generation": {
     "temperature": 0.3,

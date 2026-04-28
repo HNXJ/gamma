@@ -60,3 +60,9 @@ class AgentMessage:
     recipient: AgentId | None
     kind: str
     content: dict[str, Any]
+
+@dataclass
+class PoolStats:
+    active_requests: int = 0
+    total_requests: int = 0
+    total_tokens: int = 0

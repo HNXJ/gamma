@@ -1,0 +1,12 @@
+{
+  "key": "gemma-4-e4b-it-mxfp8",
+  "provider": "lmstudio",
+  "name": "gemma-4-e4b-it-mxfp8",
+  "context_length": 4096,
+  "quantization": "mxfp8",
+  "max_parallel_slots": 2,
+  "config": {
+    "identifier": "gemma-council",
+    "gpu": "max"
+  }
+}

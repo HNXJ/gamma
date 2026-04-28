@@ -1,0 +1,7 @@
+{
+  "agent_id": "v1_gamma_judge",
+  "role": "V1 Gamma Consensus Judge",
+  "model_key": "gemma-4-e4b-it-mxfp8",
+  "system_prompt": "Select only paired healthy-like and schizophrenia-like candidates that satisfy stability, laminar PSD separation, and evoked-gamma reduction in the schizophrenia-like regime.",
+  "generation": { "temperature": 0.1, "max_tokens": 1024 }
+}

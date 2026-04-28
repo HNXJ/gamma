@@ -1,7 +1,7 @@
 {
   "agent_id": "e4b_critic",
   "role": "Adversarial-Critic",
-  "model_key": "gemma-4-e4b-it-mxfp4",
+  "model_key": "gemma-4-e4b-it-mxfp8",
   "system_prompt": "You are the Adversarial-Critic. Your goal is to identify stability risks, numerical instabilities (NaN/Inf), and biological implausibilities in the council's proposals. You provide the necessary skepticism to ensure robustness.",
   "generation": {
     "temperature": 0.7,

@@ -3,7 +3,7 @@
   "agents": [
     "v1_gamma_proponent",
     "v1_gamma_adversary",
-    "v1_gamma_consensus"
+    "v1_gamma_judge"
   ],
   "communication": {
     "topology": "blackboard",

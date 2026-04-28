@@ -1,103 +1,88 @@
-import sys
-import os
+import argparse
 import asyncio
 import logging
+import sys
+from pathlib import Path
 
-# Anchor to project root for module imports
-ROOT = "/Users/hamednejat/workspace/computational/gamma"
-sys.path.append(ROOT)
-sys.path.append(os.path.join(ROOT, "src"))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
-from src.gamma_runtime.scheduler import InferenceScheduler
-from src.gamma_runtime.registry import RuntimeRegistry
-from src.gamma_runtime.orchestrator import UnifiedOrchestrator
-from src.gamma_runtime.types import ModelSpec
+from gamma_runtime.scheduler import InferenceScheduler
+from gamma_runtime.backend_lmstudio import LMStudioBackend
+from gamma_runtime.registry import RuntimeRegistry
+from gamma_runtime.orchestrator import UnifiedOrchestrator
+from gamma_runtime.model_pool import SharedModelPool
 
-# 1. Setup Robust Logging
-log_file = os.path.join(ROOT, "data/overnight_run_v2.log")
-os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger("OvernightConsensus")
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--run_type", default="council", choices=["council", "sde", "synthesis"])
+    p.add_argument("--team", default="v1_gamma_sde_team")
+    p.add_argument("--rounds", type=int, default=12)
+    p.add_argument("--topic", default="V1 gamma SDE optimization")
+    p.add_argument("--dashboard_port", type=int, default=3012)
+    p.add_argument("--model_key", default="gemma-4-e4b-it-mxfp8")
+    p.add_argument("--lmstudio_url", default="http://127.0.0.1:1234")
+    p.add_argument("--start_server", action="store_true")
+    p.add_argument("--auto_consolidate", action="store_true")
+    return p.parse_args()
+
 
 async def main():
-    logger.info("=== GAMMA OVERNIGHT CONSENSUS INITIATED ===")
-    logger.info(f"Targeting: M3 Max (Shared Context Pool, n=4)")
-    
-    # 2. Initialize Infrastructure
-    registry = RuntimeRegistry(os.path.join(ROOT, "configs"))
-    from src.gamma_runtime.backend_mlx import MLXEngineBackend
-    backend = MLXEngineBackend(base_url="http://100.69.184.42:4474")
+    args = parse_args()
 
-    # Define Model Spec for the Gemma model
-    model_spec = ModelSpec(
-        key="gemma-4-e4b-it-mxfp4",
-        provider="mlx",
-        context_length=4096,
-        max_parallel_slots=1
+    log_dir = ROOT / "local" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_dir / "overnight_run.log"),
+            logging.StreamHandler(sys.stdout),
+        ],
     )
+    logger = logging.getLogger("OvernightConsensus")
+    logger.info("=== GAMMA OVERNIGHT CONSENSUS INITIATED (n=2) ===")
 
-    # Correct Scheduler/Pool Initialization
-    from src.gamma_runtime.model_pool import SharedModelPool
-    from src.gamma_runtime.scheduler import InferenceScheduler
+    registry = RuntimeRegistry(str(ROOT / "configs"))
+    model_spec = registry.load_model(args.model_key)
 
     scheduler = InferenceScheduler()
+    backend = LMStudioBackend(
+        base_url=args.lmstudio_url,
+        preload_via_cli=True,
+        start_server=args.start_server,
+    )
     pool = SharedModelPool(model_spec, backend)
     await scheduler.register_pool(pool)
 
     orchestrator = UnifiedOrchestrator(scheduler, registry)
 
-    # 3. Define the Overnight Scientific Objective
-    topic = "Hierarchical Predictive Coding (HPC) Optimization: Mapping inhibitory landscapes across 13 laminar epochs to maximize Epistemic Gain (x) and Bio-Plausibility (z)."
-
-    logger.info(f"Launching Task: {topic}")
-
-    # 4. Connection Guard: Wait for MLX Engine to be responsive
-    logger.info("Verifying MLX Engine availability...")
-    connected = False
-    while not connected:
-        try:
-            # Simple health check via direct httpx call
-            resp = await backend.client.get(f"{backend.base_url}/status")
-            if resp.status_code == 200:
-                connected = True
-                logger.info("MLX Engine connection established.")
-        except Exception as e:
-            logger.warning(f"MLX Engine not reachable: {e}. Retrying in 15s...")
-            await asyncio.sleep(15)
-    # 5. Execute the Run
     session_id = await orchestrator.launch_run(
-        run_type="council",
-        topic=topic,
-        team_id="e4b_overnight_team",
-        rounds=50, 
-        auto_consolidate=True
+        run_type=args.run_type,
+        topic=args.topic,
+        team_id=args.team,
+        rounds=args.rounds,
+        auto_consolidate=args.auto_consolidate,
     )
-    
-    logger.info(f"Session {session_id} is now active in the Shared Context Pool.")
-    logger.info("Agents: Macro-Strategist, Meso-Architect, Micro-Validator, Adversarial-Critic.")
-    
-    # 5. Persistent Monitoring Loop
-    # This keeps the main process alive while the background task executes
+
+    logger.info("Session %s active.", session_id)
+
     try:
         while True:
             state = orchestrator.get_session_state(session_id)
             if state:
-                num_entries = len(state["entries"])
-                logger.info(f"Heartbeat: {num_entries} entries in Blackboard for {session_id}")
-            await asyncio.sleep(600) # Heartbeat every 10 minutes
-    except Exception as e:
-        logger.error(f"Monitoring loop encountered an error: {e}")
+                logger.info(
+                    "Heartbeat: %d entries in Blackboard for %s",
+                    len(state["entries"]),
+                    session_id,
+                )
+            await asyncio.sleep(600)
+    finally:
+        await backend.handler.close()
+
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Process received SIGINT. Shutting down gracefully.")
+    asyncio.run(main())
