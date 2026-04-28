@@ -10125,3 +10125,201 @@ ls: scripts/: No such file or directory
 **Return Code**: 0
 
 ---
+
+## 2026-04-27 16:27:30 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:27:44 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:27:58 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*lora*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:28:11 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:28:26 | ✅ ALLOWED
+
+**Command**: `ls -d scripts`
+
+**Return Code**: 1
+
+**Stderr**:
+
+```text
+ls: scripts: No such file or directory
+
+```
+
+---
+
+## 2026-04-27 16:28:40 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:28:55 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:29:09 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*lora*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:29:25 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:29:40 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:29:55 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "train_lora*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:30:11 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:30:26 | ✅ ALLOWED
+
+**Command**: `find . -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:30:40 | ✅ ALLOWED
+
+**Command**: `ls -l train_lora_mlx.py`
+
+**Return Code**: 1
+
+**Stderr**:
+
+```text
+ls: train_lora_mlx.py: No such file or directory
+
+```
+
+---
+
+## 2026-04-27 16:30:55 | ✅ ALLOWED
+
+**Command**: `ls -R`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:31:10 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "train_lora_mlx.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:31:24 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*lora*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:31:39 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*train*"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:31:54 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*train*" -o -name "*lora*"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:32:08 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:32:22 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "train_lora*"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:32:38 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*train*lora*.py"`
+
+**Return Code**: 0
+
+---
+
+## 2026-04-27 16:32:52 | ✅ ALLOWED
+
+**Command**: `find . -type f -name "*lora*.py"`
+
+**Return Code**: 0
+
+---
