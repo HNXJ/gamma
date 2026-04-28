@@ -92,4 +92,6 @@ class LMStudioBackend(InferenceBackend):
         return InferenceResult(
             text=data["choices"][0]["message"]["content"],
             raw=data,
+            usage=data.get("usage", {}),
+            latency_s=t1 - t0
         )
