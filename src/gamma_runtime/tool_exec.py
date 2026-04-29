@@ -9,18 +9,27 @@ logger = logging.getLogger('ToolExec')
 class PythonExecutor:
     def __init__(self, python_path: str = '/Users/HN/miniconda3/envs/mllm/bin/python3'):
         self.python_path = python_path
+        self.workspace_root = '/Users/HN/MLLM/gamma'
+        self.src_root = os.path.join(self.workspace_root, 'src')
 
     def execute(self, code: str, timeout: int = 30) -> Dict[str, Any]:
+        # Prepend import paths to ensure skills_lib and other modules are available
         with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as tmp:
             tmp.write(code.encode())
             tmp_path = tmp.name
+        
+        env = os.environ.copy()
+        # Add workspace and src to PYTHONPATH for the subprocess
+        env['PYTHONPATH'] = f"{self.workspace_root}:{self.src_root}:" + env.get('PYTHONPATH', '')
         
         try:
             result = subprocess.run(
                 [self.python_path, tmp_path],
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
+                env=env,
+                cwd=self.workspace_root
             )
             return {
                 'stdout': result.stdout,
