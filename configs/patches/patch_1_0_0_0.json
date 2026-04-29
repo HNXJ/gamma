@@ -1,0 +1,10 @@
+{
+    "id": "1.0.0.0",
+    "name": "Initial Bootstrap Composition",
+    "rules": {
+        "composition": {"PC": 7, "PV": 2, "SST": 1},
+        "v_max_target": 80.0,
+        "streak_requirement": 3
+    },
+    "status": "active"
+}

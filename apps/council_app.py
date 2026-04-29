@@ -12,6 +12,7 @@ from gamma_runtime.registry import RuntimeRegistry
 from gamma_runtime.bridge.v1_gamma_bridge import V1GammaBridge
 from gamma_runtime.bridge.path_topology import GameLogTopology
 from gamma_runtime.tool_loop import execute_tool_loop
+from gamma_runtime.mailbox import Mailbox
 
 logger = logging.getLogger('CouncilApp')
 
@@ -25,6 +26,7 @@ class CouncilOrchestrator:
         self.root = Path('/Users/HN/MLLM/gamma')
         self.topology = GameLogTopology(self.root, game_id)
         self.bridge = V1GammaBridge(self.blackboard, enabled=True, game_id=game_id)
+        self.mailbox = Mailbox(os.path.join(self.root, 'local', self.game_id, 'mail'))
         
         self.logger = logging.getLogger('Orchestrator')
         self.logger.setLevel(logging.INFO)
@@ -38,19 +40,31 @@ class CouncilOrchestrator:
 
     async def run_deliberation(self, topic: str, team_id: str, rounds: int = 1, audit_mode: bool = True):
         self.logger.info(f"🚀 INITIATING ROLE-ISOLATION AUDIT: '{topic}' [Game: {self.game_id}]")
-        agent_ids = ["v1_gamma_proponent", "v1_gamma_adversary", "v1_gamma_judge"]
+        
+        # Load agents from team config
+        team = self.registry.get_team(team_id)
+        if isinstance(team, dict) and team.get('agents'):
+            agent_ids = team.get('agents')
+        else:
+            # Fallback to hardcoded list if team not found or missing agents
+            agent_ids = ["v1_gamma_proponent", "v1_gamma_adversary", "v1_gamma_judge", "v1_gamma_tester"]
+        
+        self.logger.info(f"Configured agents for team {team_id}: {agent_ids}")
         
         nonces = {
             "v1_gamma_proponent": "ALPHA-77",
             "v1_gamma_adversary": "BETA-91",
-            "v1_gamma_judge": "GAMMA-23"
+            "v1_gamma_judge": "GAMMA-23",
+            "v1_gamma_tester": "DELTA-44"
         }
 
         for r in range(1, rounds + 1):
             self.logger.info(f"--- Round {r} ---")
             for agent_id in agent_ids:
                 agent = self.registry.get_agent(agent_id)
-                if not agent: continue
+                if not agent: 
+                    self.logger.warning(f"Agent {agent_id} not found in registry!")
+                    continue
                 
                 agent_logger = logging.getLogger(f'Agent_{agent_id}')
                 agent_logger.setLevel(logging.INFO)
@@ -65,11 +79,19 @@ class CouncilOrchestrator:
                     role_goal = "PROPOSE stable parameters. CITE YOUR NONCE."
                 elif "adversary" in agent_id:
                     role_goal = "CRITIQUE proposals. CITE YOUR NONCE."
-                else:
+                elif "judge" in agent_id:
                     role_goal = "AUDIT system state. CITE YOUR NONCE."
+                elif "tester" in agent_id:
+                    role_goal = "VALIDATE and TEST proposals. CITE YOUR NONCE."
+                else:
+                    role_goal = "CONTRIBUTE to deliberation. CITE YOUR NONCE."
 
                 sys_prompt = agent.system_prompt + f"\n\nYOUR ROLE GOAL: {role_goal}\nNONCE: {nonce}\nMANDATE: You MUST use run_python for simulation. Cite your NONCE in every response."
-                user_prompt = f"Topic: {topic}. Previous deliberation: {self.blackboard.get_recent_summary()}. Current Round: {r}."
+                
+                # Integration of Mailbox
+                blackboard_summary = self.blackboard.get_recent_summary()
+                normal_task = f"Topic: {topic}. Current Round: {r}."
+                user_prompt = self.mailbox.build_agent_input(agent_id, self.game_id, blackboard_summary, normal_task)
 
                 self.logger.info(f"AUDIT [{agent_id}] - SysHash: {self._get_hash(sys_prompt)} | UserHash: {self._get_hash(user_prompt)}")
                 self.logger.info(f"AUDIT [{agent_id}] - Nonce: {nonce} | Temp: {agent.generation.get('temperature', 0.4)}")

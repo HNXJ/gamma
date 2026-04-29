@@ -7,7 +7,7 @@ from gamma_runtime.orchestrator import UnifiedOrchestrator
 from gamma_runtime.hub_api import HubAPIServer
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("Launcher")
+logger = logging.getLogger('Launcher')
 
 async def main():
     root = Path('/Users/HN/MLLM/gamma')
@@ -21,9 +21,20 @@ async def main():
     server = HubAPIServer(orchestrator, port=8001)
     server.start()
     
-    logger.info("Gamma Hub & Orchestrator live with Auto-Provisioning. Press Ctrl+C to stop.")
+    logger.info('Gamma Hub & Orchestrator live. Auto-launching game001...')
+    
+    # Auto-launch persistent mission for game001
+    await orchestrator.launch_run(
+        'council', 
+        'Grounded Bootstrap Mission: Stabilize 10-neuron Circuit', 
+        game_id='game001',
+        rounds=5
+    )
+    
+    logger.info('Persistent mission launched. Monitoring for idleness...')
+    
     while True:
         await asyncio.sleep(3600)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     asyncio.run(main())

@@ -20,6 +20,19 @@ def run_v1_gamma_bridge_payload(payload_dict: dict) -> ScientificResult:
         status = STATUS_ACCEPTED if raw_result['is_stable'] else STATUS_REJECTED
         rejection_reason = None if raw_result['is_stable'] else 'Stability gate failed'
         
+        metadata = raw_result.get('metadata', {})
+        h_stab = metadata.get('healthy_stability', {})
+        
+        # Populate mandatory metrics block
+        metrics = {
+            "firing_rate": h_stab.get('firing_rate'),
+            "v_min": h_stab.get('v_min'),
+            "v_max": h_stab.get('v_max'),
+            "has_nan": not h_stab.get('checks', {}).get('nan_inf', True),
+            "has_inf": not h_stab.get('checks', {}).get('nan_inf', True),
+            "stability_score": 1.0 if raw_result['is_stable'] else 0.0
+        }
+        
         return ScientificResult(
             proposal_id=proposal_id,
             status=status,
@@ -27,7 +40,8 @@ def run_v1_gamma_bridge_payload(payload_dict: dict) -> ScientificResult:
             schiz=raw_result['results']['schiz'],
             delta={},
             rejection_reason=rejection_reason,
-            metadata=raw_result.get('metadata', {}),
+            metadata=metadata,
+            metrics=metrics,
             artifacts={'engine': 'jaxley-v0.13.0'}
         )
     except Exception as e:
@@ -35,5 +49,13 @@ def run_v1_gamma_bridge_payload(payload_dict: dict) -> ScientificResult:
         return ScientificResult(
             proposal_id=proposal_id,
             status=STATUS_ERROR,
-            rejection_reason=f'Simulation error: {str(e)}'
+            rejection_reason=f'Simulation error: {str(e)}',
+            metrics={
+                "firing_rate": None,
+                "v_min": None,
+                "v_max": None,
+                "has_nan": False,
+                "has_inf": False,
+                "stability_score": 0.0
+            }
         )
