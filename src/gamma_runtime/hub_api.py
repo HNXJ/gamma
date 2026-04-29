@@ -60,9 +60,21 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         elif path.startswith('/api/heartbeat/'):
             game_id = path.split('/')[-1]
             self._serve_heartbeat_status(game_id)
+        elif path.startswith('/api/arena/streak/'):
+            game_id = path.split('/')[-1]
+            self._serve_file(self.root_dir / f'local/{game_id}/streak_ledger.json', 'application/json')
+        elif path.startswith('/api/arena/state/'):
+            game_id = path.split('/')[-1]
+            self._serve_file(self.root_dir / f'local/{game_id}/council_state.json', 'application/json')
         elif path.startswith('/api/notes/heartbeat/'):
             game_id = path.split('/')[-1]
             self._serve_heartbeat_notes(game_id)
+        elif path.startswith('/api/arena/state/'):
+            game_id = path.split('/')[-1]
+            self._serve_arena_state(game_id)
+        elif path.startswith('/api/arena/streak/'):
+            game_id = path.split('/')[-1]
+            self._serve_streak_ledger(game_id)
         elif path == '/api/terminal/lms':
             self._serve_lms_status()
         else:
@@ -75,6 +87,14 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(f.read())
         else:
             self._set_headers(404)
+
+    def _serve_arena_state(self, game_id):
+        state_path = self.root_dir / 'local' / game_id / 'council_state.json'
+        self._serve_file(state_path, 'application/json')
+
+    def _serve_streak_ledger(self, game_id):
+        ledger_path = self.root_dir / 'local' / game_id / 'streak_ledger.json'
+        self._serve_file(ledger_path, 'application/json')
 
     def _serve_log(self, game_id, subsystem):
         topology = GameLogTopology(self.root_dir, game_id)

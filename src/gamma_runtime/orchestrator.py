@@ -66,41 +66,37 @@ class UnifiedOrchestrator:
             logger.error(f"Session {game_id} failed: {e}")
 
     async def _idle_monitoring_loop(self):
-        # 5 Minute (300s) Threshold and 15 Minute (900s) Cadence
-        logger.info("Idle monitoring loop started (Threshold: 300s, Cadence: 900s).")
+        logger.info("Idle monitoring loop started (Rule: Continuous activity for persistent missions).")
         while True:
-            await asyncio.sleep(60) 
+            await asyncio.sleep(15) 
             
             now = time.time()
             hb_state = self.heartbeat.get_state()
             last_real = hb_state.get('last_real_task_time', 0)
             
-            for game_id, manager in self.idle_review_managers.items():
-                if self._is_science_accepted(game_id):
-                    self.heartbeat.record_real_activity()
-                    continue
+            for game_id, manager in list(self.idle_review_managers.items()):
+                is_persistent = self._check_if_persistent(game_id)
+                
+                # If persistent, we want near 100% agent activity.
+                threshold = 30 if is_persistent else 300
+                cadence = 45 if is_persistent else 900
                 
                 idle_duration = now - last_real
-                if idle_duration >= 300: # 5 Minutes Idleness
-                    if now - manager.last_idle_review_time >= 900: # 15 Minutes Cadence
+                
+                if idle_duration >= threshold:
+                    if now - manager.last_idle_review_time >= cadence:
                         if not self._is_proposal_running(game_id):
+                            logger.info(f"Persistent mission {game_id} idle for {idle_duration:.1f}s. Triggering heartbeat.")
                             await manager.run_heartbeat(idle_duration)
 
-    def _is_science_accepted(self, game_id: str) -> bool:
-        topology = self.idle_review_managers[game_id].topology
-        if topology.proposals_file.exists():
-            with open(topology.proposals_file, 'r') as f:
-                for line in f:
-                    try:
-                        data = json.loads(line)
-                        if data.get('status') == 'completed':
-                            res_path = Path(data.get('result_path', ''))
-                            if res_path.exists():
-                                with open(res_path, 'r') as rf:
-                                    res_data = json.load(rf)
-                                    if res_data.get('status') == 'accepted':
-                                        return True
-                    except: continue
+    def _check_if_persistent(self, game_id: str) -> bool:
+        state_path = self.root / 'local' / game_id / 'arena_season_state.json'
+        if state_path.exists():
+            try:
+                with open(state_path, 'r') as f:
+                    state = json.load(f)
+                    return "grow to" in state.get("objective", "").lower()
+            except: pass
         return False
 
     def _is_proposal_running(self, game_id: str) -> bool:

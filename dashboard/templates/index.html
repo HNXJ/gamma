@@ -62,6 +62,16 @@
         .memo-card { border-left: 3px solid var(--info); background: rgba(0,170,255,0.05); padding: 15px; margin-bottom: 15px; }
         .memo-header { font-size: 11px; color: var(--info); margin-bottom: 10px; border-bottom: 1px solid rgba(0,170,255,0.2); padding-bottom: 5px; }
         .memo-content { font-size: 12px; line-height: 1.4; color: #ddd; }
+
+        /* Arena Specific */
+        .progression-ladder { border-left: 2px solid #333; padding-left: 20px; margin-left: 10px; }
+        .level-node { position: relative; margin-bottom: 30px; }
+        .level-node::before { content: ''; position: absolute; left: -26px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: #333; border: 2px solid var(--bg); }
+        .level-node.active::before { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .level-node.completed::before { background: var(--success); }
+        .level-info { font-size: 12px; }
+        .level-title { font-weight: bold; color: var(--border); }
+        .level-status { font-size: 10px; color: var(--text-dim); }
     </style>
 </head>
 <body>
@@ -84,6 +94,7 @@
 
     <nav class="tab-bar">
         <div class="tab active" onclick="showPanel('overview')">Overview</div>
+        <div class="tab" onclick="showPanel('arena')">Arena</div>
         <div class="tab" onclick="showPanel('terminal')">Terminal (LMS)</div>
         <div class="tab" onclick="showPanel('council')">Orchestrator Log</div>
         <div class="tab" onclick="showPanel('proposals')">Ledger</div>
@@ -104,6 +115,94 @@
                 <div class="card-label">Recent Ledger Entries</div>
                 <div id="mini-ledger" style="font-size: 11px; margin-top: 10px;"></div>
             </div>
+        </div>
+
+        <div id="panel-arena" class="panel">
+            <div class="grid" style="margin-bottom: 20px;">
+                <div class="card"><div class="card-label">Current Level</div><div class="card-value" id="arena-level">Level 1</div></div>
+                <div class="card"><div class="card-label">Accepted Streak</div><div class="card-value" id="arena-streak">0 / 3</div></div>
+                <div class="card"><div class="card-label">Active Patch</div><div class="card-value" id="arena-patch">NONE</div></div>
+                <div class="card"><div class="card-label">Arena Status</div><div class="card-value" id="arena-status">READY</div></div>
+            </div>
+            
+            <div style="display: flex; gap: 40px;">
+                <div style="flex: 1;">
+                    <div class="card-label" style="margin-bottom: 20px;">Progression Ladder</div>
+                    <div class="progression-ladder" id="arena-ladder">
+                        <div class="level-node active">
+                            <div class="level-info">
+                                <div class="level-title">Level 1: 10 Neurons</div>
+                                <div class="level-status">Bootstrap Stability [v_max < 80mV]</div>
+                            </div>
+                        </div>
+                        <div class="level-node">
+                            <div class="level-info">
+                                <div class="level-title">Level 2: 50 Neurons</div>
+                                <div class="level-status">Laminar Separation (L2/3 vs L5) [LOCKED]</div>
+                            </div>
+                        </div>
+                        <div class="level-node">
+                            <div class="level-info">
+                                <div class="level-title">Level 3: 100 Neurons</div>
+                                <div class="level-status">Gamma Synchronization [LOCKED]</div>
+                            </div>
+                        </div>
+                        <div class="level-node">
+                            <div class="level-info">
+                                <div class="level-title">Level 4: 500 Neurons</div>
+                                <div class="level-status">Complex Network Pathology [LOCKED]</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-label" style="margin-top: 30px;">Current Level Checks</div>
+                    <div id="arena-level-checks" class="memo-card" style="margin-top: 10px;">
+                        No level checks available.
+                    </div>
+                </div>
+                
+                <div style="flex: 1;">
+                    <div class="card-label">Active Council (Roster)</div>
+                    <table style="margin-top: 10px;">
+                        <thead><tr><th>ID</th><th>Alias</th><th>Status</th></tr></thead>
+                        <tbody id="arena-agents-body"></tbody>
+                    </table>
+                    
+                    <div class="card-label" style="margin-top: 30px;">Patch Board</div>
+                    <div id="arena-patch-board" class="memo-card" style="margin-top: 10px;">
+                        Patch manifest unavailable (read-only mode).
+                    </div>
+                    
+                    <div class="card-label" style="margin-top: 30px;">Issues Summary</div>
+                    <div id="arena-issues" class="memo-card" style="margin-top: 10px; border-left-color: var(--warning);">
+                        No issues data available (read-only mode).
+                    </div>
+                </div>
+            
+            <div style="margin-top: 40px; border-top: 1px solid #333; padding-top: 20px;">
+                <div class="card-label" style="margin-bottom: 20px; font-size: 14px; color: var(--border);">Science Snapshot</div>
+                <div class="grid">
+                    <div class="card">
+                        <div class="card-label">Current Simulation Summary</div>
+                        <div id="arena-sim-summary" class="memo-content" style="margin-top: 10px;">
+                            <span style="color: var(--text-dim);">[Graceful Degradation] Waiting for simulation data...</span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Spectral Target Summary</div>
+                        <div id="arena-spectral-summary" class="memo-content" style="margin-top: 10px;">
+                            <span style="color: var(--text-dim);">[Graceful Degradation] Spectral data not exposed in read-only mode.</span>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Win-Condition Progress</div>
+                        <div id="arena-win-condition" class="memo-content" style="margin-top: 10px;">
+                            <span style="color: var(--text-dim);">[Graceful Degradation] Waiting for state data...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+</div>
         </div>
 
         <div id="panel-terminal" class="panel">
@@ -154,7 +253,8 @@
         function showPanel(name) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.getElementById('panel-' + name).classList.add('active');
+            const p = document.getElementById('panel-' + name);
+            if (p) p.classList.add('active');
             event.currentTarget.classList.add('active');
         }
 
@@ -175,6 +275,93 @@
                 const res = await fetch('/api/terminal/lms');
                 if (res.ok) { document.getElementById('log-terminal').innerText = await res.text(); }
             } catch (e) {}
+        }
+
+        async function updateArena() {
+            try {
+                const stateRes = await fetch(`/api/arena/state/${GAME_ID}`);
+                if (stateRes.ok) {
+                    const state = await stateRes.json();
+                    document.getElementById('arena-level').innerText = state.phase;
+                    document.getElementById('arena-patch').innerText = state.active_patch;
+                    document.getElementById('arena-status').innerText = state.status;
+                    
+                    document.getElementById('arena-agents-body').innerHTML = Object.entries(state.agents || {}).map(([id, info]) => `
+                        <tr>
+                            <td>${id}</td>
+                            <td>${info.alias}</td>
+                            <td><span class="status-tag ${info.status.toLowerCase()}">${info.status}</span></td>
+                        </tr>
+                    `).join('');
+
+                    // Current level checks
+                    const vmaxHit = state.v_max_target_hit ? '<span style="color: var(--success)">PASS</span>' : '<span style="color: var(--error)">FAIL</span>';
+                    document.getElementById('arena-level-checks').innerHTML = `
+                        <div class="memo-header">Gate Requirements</div>
+                        <div class="memo-content">
+                            v_max_target_hit: ${vmaxHit}<br>
+                            Current Streak: ${state.streak_count || 0} / 3
+                        </div>
+                    `;
+                }
+
+                const ledgerRes = await fetch(`/api/arena/streak/${GAME_ID}`);
+                if (ledgerRes.ok) {
+                    const ledger = await ledgerRes.json();
+                    document.getElementById('arena-streak').innerText = `${ledger.gate_accepted_streak || 0} / 3`;
+                }
+                    // Phase D: Update Simulation Summary from latest ledger entry
+                    const latestEntry = ledger.history && ledger.history.length > 0 ? ledger.history[ledger.history.length - 1] : null;
+                    if (latestEntry) {
+                        const vmaxStr = latestEntry.v_max !== undefined ? `${latestEntry.v_max.toFixed(2)}mV` : 'N/A';
+                        const frStr = latestEntry.firing_rate !== undefined ? `${latestEntry.firing_rate.toFixed(2)}Hz` : 'N/A';
+                        const statusColor = latestEntry.accepted ? 'var(--success)' : 'var(--error)';
+                        document.getElementById('arena-sim-summary').innerHTML = `
+                            Proposal ID: ${latestEntry.proposal_id || 'N/A'}<br>
+                            Status: <span style="color: ${statusColor}">${latestEntry.accepted ? 'ACCEPTED' : 'REJECTED'}</span><br>
+                            V_MAX: ${vmaxStr}<br>
+                            Firing Rate: ${frStr}
+                        `;
+                    } else {
+                        document.getElementById('arena-sim-summary').innerHTML = '<span style="color: var(--text-dim);">No history available.</span>';
+                    }
+
+                    // Phase D: Update Win-Condition Progress
+                    // Note: 'state' variable is already available from the previous fetch in this function.
+                    if (typeof state !== 'undefined') {
+                        const targetHit = state.v_max_target_hit;
+                        const streakCount = state.streak_count || 0;
+                        document.getElementById('arena-win-condition').innerHTML = `
+                            Target V_MAX (< 80mV): ${targetHit ? '<span style="color: var(--success)">MET</span>' : '<span style="color: var(--warning)">PENDING</span>'}<br>
+                            Acceptance Streak: ${streakCount} / 3<br>
+                            <div style="margin-top: 10px; font-size: 10px; color: var(--text-dim);">Requires 3 consecutive accepted results to advance level.</div>
+                        `;
+                    }
+
+
+                // Graceful degradation for Patch Board
+                try {
+                    const patchRes = await fetch(`/api/arena/patch/${GAME_ID}`);
+                    if (!patchRes.ok) throw new Error('Not found');
+                } catch(e) {
+                    document.getElementById('arena-patch-board').innerHTML = `
+                        <div class="memo-content" style="color: var(--text-dim);">[Graceful Degradation] Patch manifest not exposed in read-only mode. Active patch tracked via state: <span style="color: var(--border)">1.0.0.0</span></div>
+                    `;
+                }
+
+                // Graceful degradation for Issues Summary
+                try {
+                    const issueRes = await fetch(`/api/arena/issues/${GAME_ID}`);
+                    if (!issueRes.ok) throw new Error('Not found');
+                } catch(e) {
+                    document.getElementById('arena-issues').innerHTML = `
+                        <div class="memo-content" style="color: var(--text-dim);">[Graceful Degradation] Issues summary not exposed in read-only mode.</div>
+                    `;
+                }
+
+            } catch (e) {
+                console.error("Arena update failed:", e);
+            }
         }
 
         async function updateData() {
@@ -248,6 +435,7 @@
             fetchLog('orchestrator', 'log-orchestrator');
             fetchTerminal();
             updateData();
+            updateArena();
             if (currentAgent) loadAgentLog(currentAgent);
         }
 

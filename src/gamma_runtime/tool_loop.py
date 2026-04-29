@@ -65,7 +65,11 @@ async def execute_tool_loop(
         
         if result.tool_calls:
             tool_calls_count += len(result.tool_calls)
-            total_output_chars += sum(len(str(tc.get('function', {}).get('arguments', ''))) for tc in result.tool_calls)
+            # Safe metrics calculation
+            for tc in result.tool_calls:
+                fn = tc.get('function', {})
+                args = fn.get('arguments', '')
+                total_output_chars += len(str(args))
 
         logger_instance.info(f"TURN {turn} | Text Length: {len(result.text or '')} | Tool Calls: {len(result.tool_calls or [])}")
         
@@ -83,15 +87,27 @@ async def execute_tool_loop(
                 )
 
         if result.tool_calls:
-            assistant_msg = {"role": "assistant", "content": result.text or "", "tool_calls": result.tool_calls}
+            # Emergency Hotfix: Normalize tool calls for the next message
+            normalized_tool_calls = []
+            for tc in result.tool_calls:
+                tc_type = tc.get("type", "function")
+                normalized_tool_calls.append({
+                    "id": tc.get("id", f"call_{turn}_{tool_calls_count}"),
+                    "type": tc_type,
+                    "function": tc.get("function", {})
+                })
+            
+            assistant_msg = {"role": "assistant", "content": result.text or "", "tool_calls": normalized_tool_calls}
             messages.append(assistant_msg)
             
-            for tool_call in result.tool_calls:
-                fn_name = tool_call['function']['name']
+            for tc in normalized_tool_calls:
+                fn_payload = tc.get('function', {})
+                fn_name = fn_payload.get('name')
                 last_tool_name = fn_name
                 if fn_name == 'run_python':
                     try:
-                        args = json.loads(tool_call['function']['arguments'])
+                        args_str = fn_payload.get('arguments', '{}')
+                        args = json.loads(args_str) if isinstance(args_str, str) else args_str
                         code = args.get('code', '')
                         output = run_python(code)
                     except Exception as e:
@@ -99,7 +115,7 @@ async def execute_tool_loop(
                     
                     messages.append({
                         "role": "tool",
-                        "tool_call_id": tool_call['id'],
+                        "tool_call_id": tc.get('id'),
                         "name": fn_name,
                         "content": output
                     })

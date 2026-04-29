@@ -19,6 +19,7 @@ class ScientificResult:
     rejection_reason: Optional[str] = None
     artifacts: Dict[str, str] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    metrics: Dict[str, Any] = field(default_factory=dict)
     timestamp: Optional[float] = None
 
 # Status taxonomy for Dashboard

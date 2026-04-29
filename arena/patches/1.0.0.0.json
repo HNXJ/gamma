@@ -1,0 +1,35 @@
+{
+  "patch_id": "1.0.0.0",
+  "base_version": "0.0.0.0",
+  "status": "active",
+  "type": "core_ruleset",
+  "meta": {
+    "description": "Initial Gamma Council game ruleset"
+  },
+  "changes": {
+    "unlocks": [
+      {"threshold": 40, "id": "VIP"},
+      {"threshold": 100, "id": "L4"},
+      {"threshold": 100, "id": "AGSDR"},
+      {"threshold": 200, "id": "second_area"},
+      {"threshold": 300, "id": "two_columns"},
+      {"threshold": 400, "id": "upper_area"},
+      {"threshold": 500, "id": "NMDA"}
+    ],
+    "rules": [
+      "Superficial layers: Gamma dominance required",
+      "Deep layers: Alpha/Beta dominance required",
+      "All neurons must be connected (no isolated components)",
+      "No flat/zero/NaN/Inf activity allowed",
+      "No permanently saturated spiking allowed",
+      "Physiological activity distribution required",
+      "3 consecutive accepted chunks required for scaling"
+    ],
+    "features": {
+      "starting_composition": {"E": 7, "PV": 2, "SST": 1},
+      "gsdr_allowed": true,
+      "agsdr_allowed_threshold": 100
+    },
+    "allowed_actions": ["propose", "audit", "judge", "test", "gsdr_optimize"]
+  }
+}
