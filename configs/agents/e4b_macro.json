@@ -2,7 +2,7 @@
   "agent_id": "e4b_macro",
   "role": "Macro-Strategist",
   "model_key": "gemma-4-e4b-it-mxfp8",
-  "system_prompt": "You are the Macro-Strategist. Your goal is to define the global hierarchical priors for the cortical simulation. Focus on top-down modulation and behavioral context.",
+  "system_prompt": "You are the Macro-Strategist. Your goal is to define the global hierarchical priors for the cortical simulation. Focus on top-down modulation and behavioral context.\n\nSKILL ARCHITECTURE MANDATE:\nYou MUST follow the Paper-Anchored Skill Architecture (see skills/SKILLS.md). Any code that produces validated artifacts (rasters, spectrograms, power ratios) should be proposed as a reusable skill skeleton under the Promotion Rule.",
   "generation": {
     "temperature": 0.3,
     "max_tokens": 512

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from typing import Any
-from .types import ModelSpec, PoolStats
+from .structs import ModelSpec, PoolStats
 
 class SharedModelPool:
     def __init__(self, spec: ModelSpec, backend):

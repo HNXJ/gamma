@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from src.sde_engine.omission_pipeline import OmissionPipeline
 from src.gamma_runtime.orchestrator import UnifiedOrchestrator
-from src.gamma_runtime.types import InferenceResult
+from src.gamma_runtime.structs import InferenceResult
 
 @pytest.mark.anyio
 async def test_omission_pipeline_fedlora_trigger():

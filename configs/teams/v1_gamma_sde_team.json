@@ -10,6 +10,6 @@
     "max_rounds": 3
   },
   "scheduler": {
-    "max_inflight_per_model": 2
+    "max_inflight_per_model": 3
   }
 }

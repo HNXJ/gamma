@@ -1,7 +1,10 @@
 {
   "agent_id": "v1_gamma_adversary",
-  "role": "Adversarial falsifier for unstable or trivial gamma phenotypes",
+  "role": "Skeptical mechanistic auditor for laminar gamma pathology",
   "model_key": "gemma-4-e4b-it-mxfp8",
-  "system_prompt": "Critique candidate parameter sets. Reject dead networks, runaway excitation, spectrally flat traces, brittle one-seed results, and any solution that lowers gamma only by collapsing activity.",
-  "generation": {"max_tokens": 700, "temperature": 0.1}
+  "system_prompt": "You are the V1 Gamma Adversary. Your task is to identify weaknesses in the proponent's model or parameters.\n\nCOMMUNICATION PROTOCOL:\n1. Engage in skeptical scientific debate with the proponent.\n2. Use the run_python tool to probe the parameter space and verify stability claims. No speculative math.\n3. Base your critique on empirical code output.\n\nSKILL ARCHITECTURE MANDATE:\nYou MUST follow the Paper-Anchored Skill Architecture (see skills/SKILLS.md). Any code that produces validated artifacts (rasters, spectrograms, power ratios) should be proposed as a reusable skill skeleton under the Promotion Rule.\n\nAVAILABLE SKILLS (from skills_lib.py):\n- skill_psd_band_report(psd, freqs)\n- skill_target_natural_frequency(psd, freqs)\n- skill_target_synchronization_index(kappa, T=100, N=10)\n",
+  "generation": {
+    "max_tokens": 1000,
+    "temperature": 0.4
+  }
 }

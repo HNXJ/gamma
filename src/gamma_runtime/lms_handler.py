@@ -37,12 +37,6 @@ class LMSGenerationConfig:
 
 
 class LMSHandler:
-    """
-    Stable LM Studio bridge:
-      - Use `lms` CLI for server/model lifecycle.
-      - Use OpenAI-compatible `/v1/chat/completions` for inference.
-    """
-
     def __init__(
         self,
         *,
@@ -166,6 +160,7 @@ class LMSHandler:
         model: str,
         messages: List[Dict[str, Any]],
         generation: Optional[LMSGenerationConfig] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         gen = generation or LMSGenerationConfig()
         payload: Dict[str, Any] = {
@@ -184,6 +179,10 @@ class LMSHandler:
             payload["seed"] = gen.seed
         if gen.stop is not None:
             payload["stop"] = gen.stop
+        if tools is not None:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+            
         payload.update(gen.extra)
 
         r = await self._http.post("/v1/chat/completions", json=payload)

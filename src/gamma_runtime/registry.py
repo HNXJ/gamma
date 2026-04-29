@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from .types import ModelSpec, AgentSpec
+from .structs import ModelSpec, AgentSpec
 
 class RuntimeRegistry:
     def __init__(self, root: str):

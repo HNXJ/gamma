@@ -2,7 +2,7 @@ import time
 import logging
 from typing import Any, Dict
 
-from .types import ModelSpec, InferenceRequest, InferenceResult
+from .structs import ModelSpec, InferenceRequest, InferenceResult
 from .backend_base import InferenceBackend
 from .lms_handler import LMSHandler, LMSGenerationConfig
 
@@ -10,12 +10,6 @@ logger = logging.getLogger("LMStudioBackend")
 
 
 class LMStudioBackend(InferenceBackend):
-    """
-    Stable LM Studio backend:
-      - CLI handles model lifecycle via `lms`.
-      - HTTP handles inference via `/v1/chat/completions`.
-    """
-
     def __init__(
         self,
         base_url: str = "http://127.0.0.1:1234",
@@ -87,11 +81,15 @@ class LMStudioBackend(InferenceBackend):
             model=request.model_key,
             messages=request.messages,
             generation=gen_cfg,
+            tools=request.tools
         )
         t1 = time.perf_counter()
+        
+        msg = data["choices"][0]["message"]
         return InferenceResult(
-            text=data["choices"][0]["message"]["content"],
+            text=msg.get("content") or "",
             raw=data,
             usage=data.get("usage", {}),
-            latency_s=t1 - t0
+            latency_s=t1 - t0,
+            tool_calls=msg.get("tool_calls")
         )

@@ -11,7 +11,7 @@ from gamma_runtime.orchestrator import UnifiedOrchestrator
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.registry import RuntimeRegistry
 from gamma_runtime.model_pool import SharedModelPool
-from gamma_runtime.types import InferenceResult
+from gamma_runtime.structs import InferenceResult
 
 # Mock backend for sandbox execution, but configured to follow the real specs
 from gamma_runtime.backend_base import InferenceBackend
