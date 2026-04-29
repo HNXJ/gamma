@@ -1,41 +1,31 @@
 # Gamma: MLX PEFT Stack & High-Fidelity Scientific Runtime
 
-**Gamma** is a dedicated research environment for multi-agent biophysical modeling and Slow-Learning consolidation. Built for **Apple Silicon (M3 Max 128GB)**, it transitions the repository from a collection of scripts to a sovereign agentic OS where reasoning (Council) and biophysical optimization (SDE Engine) are unified under a single, resource-aware runtime.
+**Gamma** is a **scientific operating system** designed as a single control plane for multi-agent biophysical research. Built for **Apple Silicon (M3 Max 128GB)**, it unifies high-level Council reasoning with low-level SDE optimization into a resource-aware, sovereign research environment.
+
+## 🏗️ The Four-Pillar Architecture
+Gamma is organized around four decoupled layers to ensure scientific legitimacy and system stability:
+
+1.  **Multi-Agent Runtime (`gamma_runtime`):** A substrate providing model residency (`SharedModelPool`), request scheduling (`InferenceScheduler`), and tool execution with forensic metric tracking.
+2.  **Biophysical SDE Engine:** A decoupled optimization loop for parameter search (e.g., inhibitory conductance deficits) anchored in the **GAMMA Protocol (x, y, z, w)**.
+3.  **Observability & Telemetry (The Hub):** A dedicated forensic surface separating **Maintenance Truth** (Heartbeat API) from **Science Truth** (The Ledger).
+4.  **PEFT/FedLoRA Consolidation:** A mechanism for localizing scientific knowledge into persistent model adapters across distributed nodes.
 
 ## 🏛️ Paper-Anchored Skill Architecture
-The Gamma Council uses the foundational scientific paper (HN et al., 2026) as its **Reference Specification**. The paper defines the **visual grammar** of figures, the **metric ontology**, and the **objective scaffolding** for all research tasks.
+The Gamma Council uses the foundational scientific paper (HN et al., 2026) as its **Reference Specification**.
+- **The Skill Promotion Rule:** Validated code paths (e.g., peak power detection, synchronization indices) are promoted into reusable primitives in `skills_lib.py`.
+- **Audit Hardening:** All core logic and configurations are fingerprinted via **SHA-256** for courtroom-grade provenance.
 
-### 📋 The Skill Promotion Rule
-To move from ephemeral scripts to a stable neuroscience toolkit, the council enforces the **Promotion Rule**:
-- Any validated code path that produces a paper-aligned artifact (e.g., Fig. 3 Raster, Fig. 8 Spectrogram) is auto-promoted into a reusable skill.
-- **Promotion Test:** Successful Execution, Structural Validity, Reusability, Strict Typing, and Paper Alignment.
-- **Audit Hardening:** All core logic (skills, configs) is fingerprinted via **SHA-256** to ensure courtroom-grade provenance.
-- Agents are mandated to check `skills/SKILLS.md` before writing new analysis code.
-
-## 🚀 Realized Functionality (Production-Grade Audit)
-
-### 1. The Gamma Runtime
-- **SharedModelPool:** Implements **Singleton Weight Residency**. Models load once into unified memory; agents multiplex across shared weights.
-- **InferenceScheduler:** Managed parallel execution with an explicit **ResourceBudget** (8-bit quantization, 64k/65536 context).
-- **Blackboard Pattern:** Centralized state object for multi-agent deliberation.
-
-### 2. SDE Engine & Biophysical Optimization
-- **The SDE Solver:** A biophysical optimization engine decoupled from agent logic.
-- **The GAMMA Protocol (x, y, z, w):**
-    - **x (Epistemic Gain):** Differentiable Loss (MSE) tracking scientific accuracy.
-    - **y (Methodological Rigor):** Measured JIT compilation and federated efficiency.
-    - **z (Neurobiological Ground Truth):** Soft-penalized biological adherence via exponential decay.
-    - **w (Algorithmic Coherence):** Distributed system stability and consensus metrics.
-
-### 3. Forensic Observability (Phase 2)
-Gamma implements a strict **Separation of Concerns** between maintenance and science:
-- **Maintenance Truth (Heartbeat API):** Real-time monitoring of agent health, token consumption, and input/output sizes. Served via a dedicated `/api/heartbeat` endpoint.
-- **Science Truth (The Ledger):** Auditable record of scientific results and parameter accepted by the bridge.
+## 🚀 Runtime Specifications
+- **SharedModelPool:** Implements Singleton Weight Residency to minimize VRAM pressure.
+- **InferenceScheduler:** Managed parallel execution with an explicit ResourceBudget and **65,536 (64k)** context windows.
+- **Auto-Provisioning:** The scheduler safely auto-provisions model pools only for models registered in the declarative `configs/` registry.
 
 ## 🛠️ Repository Structure
-- `src/gamma_runtime/`: Core engine and `skills_lib.py`.
-- `skills/`: Paper-anchored skill definitions and promotion templates.
-- `apps/`: High-level orchestrators (e.g., `SchizPilot`).
+- `src/gamma_runtime/`: Core engine, heartbeat management, and `skills_lib.py`.
+- `apps/`: High-level orchestrators (e.g., `council_app.py`).
+- `configs/`: Declarative identity for agents, models, teams, and families.
+- `skills/`: Paper-anchored skill definitions and promotion logs.
+- `dashboard/`: Telemetry UI for real-time council monitoring.
 
 ---
-*Reference Paper: HN et al. (2026) - Generalized Slow-Learning Discovery and Reporting (GSDR).*
+*Status: Phase 2 (Forensic Observability) Certified. Integrated Proof verified via live skill-call audit.*
