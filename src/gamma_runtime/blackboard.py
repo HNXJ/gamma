@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from .types import AgentId
+from .structs import AgentId
 
 @dataclass
 class BlackboardEntry:
@@ -12,10 +12,6 @@ class BlackboardEntry:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 class Blackboard:
-    """
-    Central state object for multi-agent deliberation.
-    Implements a write-once/read-many pattern per round to ensure convergence.
-    """
     def __init__(self, topic: str):
         self.topic = topic
         self.entries: List[BlackboardEntry] = []
@@ -33,11 +29,13 @@ class Blackboard:
             self.entries.append(entry)
             return entry
 
+    def get_recent_summary(self) -> str:
+        if not self.entries:
+            return "No previous deliberation."
+        # Take last 5 entries as summary
+        recent = self.entries[-5:]
+        summary = "\n".join([f"{e.sender}: {e.content[:200]}..." for e in recent])
+        return summary
+
     def get_history(self) -> List[BlackboardEntry]:
         return list(self.entries)
-
-    def get_latest_entry(self) -> Optional[BlackboardEntry]:
-        return self.entries[-1] if self.entries else None
-
-    def __repr__(self):
-        return f"<Blackboard topic='{self.topic}' round={self.round} entries={len(self.entries)}>"

@@ -1,102 +1,120 @@
 import asyncio
 import logging
-from typing import List, Dict
-from gamma_runtime.types import AgentSpec, InferenceRequest
+import json
+import os
+import hashlib
+from typing import List, Dict, Optional
+from pathlib import Path
+from gamma_runtime.structs import AgentSpec, InferenceRequest, InferenceResult, ToolLoopResult
 from gamma_runtime.scheduler import InferenceScheduler, ResourceBudget
 from gamma_runtime.blackboard import Blackboard
 from gamma_runtime.registry import RuntimeRegistry
-from gamma_runtime.model_pool import SharedModelPool
+from gamma_runtime.bridge.v1_gamma_bridge import V1GammaBridge
+from gamma_runtime.bridge.path_topology import GameLogTopology
+from gamma_runtime.tool_loop import execute_tool_loop
 
-# Configure logging for scientific transparency
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("CouncilApp")
+logger = logging.getLogger('CouncilApp')
 
 class CouncilOrchestrator:
-    """
-    Sovereign Orchestrator for the Gemma Council.
-    Implements the Blackboard pattern and managed execution via InferenceScheduler.
-    """
-    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, blackboard: Optional[Blackboard] = None):
+    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, heartbeat, blackboard: Optional[Blackboard] = None, game_id: str = 'game001'):
         self.scheduler = scheduler
         self.registry = registry
-        self.blackboard = blackboard
-
-    async def initialize_pools(self, model_keys: List[str], backend_factory):
-        """Ensures all required model pools are registered in the scheduler."""
-        for key in model_keys:
-            spec = self.registry.load_model(key)
-            backend = backend_factory(spec)
-            pool = SharedModelPool(spec, backend)
-            await self.scheduler.register_pool(pool)
-            logger.info(f"Registered model pool: {key}")
-
-    async def run_deliberation(self, team_id: str, topic: str, rounds: int = 2):
-        """
-        Executes the multi-agent deliberation loop.
-        Routes all execution through the scheduler to protect VRAM.
-        """
-        if not self.blackboard:
-            self.blackboard = Blackboard(topic)
+        self.heartbeat = heartbeat
+        self.blackboard = blackboard or Blackboard("Council Deliberation")
+        self.game_id = game_id
+        self.root = Path('/Users/HN/MLLM/gamma')
+        self.topology = GameLogTopology(self.root, game_id)
+        self.bridge = V1GammaBridge(self.blackboard, enabled=True, game_id=game_id)
         
-        team_config = self.registry.load_team(team_id)
-        agents = [self.registry.load_agent(aid) for aid in team_config["agents"]]
+        self.logger = logging.getLogger('Orchestrator')
+        self.logger.setLevel(logging.INFO)
+        if not self.logger.handlers:
+            fh = logging.FileHandler(self.topology.get_log_path('orchestrator'))
+            fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+            self.logger.addHandler(fh)
+
+    def _get_hash(self, content: str) -> str:
+        return hashlib.sha256(content.encode()).hexdigest()[:12]
+
+    async def run_deliberation(self, topic: str, team_id: str, rounds: int = 1, audit_mode: bool = True):
+        self.logger.info(f"🚀 INITIATING ROLE-ISOLATION AUDIT: '{topic}' [Game: {self.game_id}]")
+        agent_ids = ["v1_gamma_proponent", "v1_gamma_adversary", "v1_gamma_judge"]
         
-        logger.info(f"🚀 INITIATING DELIBERATION: '{topic}'")
-        logger.info(f"Team: {team_id} ({len(agents)} agents)")
+        nonces = {
+            "v1_gamma_proponent": "ALPHA-77",
+            "v1_gamma_adversary": "BETA-91",
+            "v1_gamma_judge": "GAMMA-23"
+        }
 
-        for r in range(rounds):
-            self.blackboard.round = r + 1
-            logger.info(f"--- Round {self.blackboard.round} ---")
-            
-            # Managed Parallel Execution via Scheduler
-            # We construct a list of (model_key, request) tuples for the scheduler
-            requests = []
-            for agent in agents:
-                req = self._build_request(agent)
-                requests.append((agent.model_key, req))
-            
-            # Execute batch through the scheduler's budget check
-            results = await self.scheduler.batch_run(requests)
-            
-            # Update blackboard with results
-            for i, result in enumerate(results):
-                agent_id = agents[i].agent_id
-                await self.blackboard.add_entry(agent_id, result.text)
-                logger.info(f"[{agent_id}] Entry committed to blackboard.")
+        for r in range(1, rounds + 1):
+            self.logger.info(f"--- Round {r} ---")
+            for agent_id in agent_ids:
+                agent = self.registry.get_agent(agent_id)
+                if not agent: continue
+                
+                agent_logger = logging.getLogger(f'Agent_{agent_id}')
+                agent_logger.setLevel(logging.INFO)
+                if not agent_logger.handlers:
+                    afh = logging.FileHandler(self.topology.get_log_path(f'agent-{agent_id}'))
+                    afh.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+                    agent_logger.addHandler(afh)
 
-        logger.info(f"✅ DELIBERATION COMPLETE. Entries: {len(self.blackboard.entries)}")
-        return self.blackboard
+                nonce = nonces.get(agent_id, "DEFAULT-0")
+                
+                if "proponent" in agent_id:
+                    role_goal = "PROPOSE stable parameters. CITE YOUR NONCE."
+                elif "adversary" in agent_id:
+                    role_goal = "CRITIQUE proposals. CITE YOUR NONCE."
+                else:
+                    role_goal = "AUDIT system state. CITE YOUR NONCE."
 
-    def _build_request(self, agent: AgentSpec) -> InferenceRequest:
-        """Constructs an InferenceRequest using the current blackboard state."""
-        history = self.blackboard.get_history()
-        
-        # Simple context synthesis: Provide previous entries to the agent
-        context = "\n".join([f"{e.sender}: {e.content}" for e in history])
-        
-        prompt = (
-            f"Topic of Discussion: {self.blackboard.topic}\n"
-            f"Round: {self.blackboard.round}\n\n"
-            f"Deliberation History:\n{context}\n\n"
-            f"Your Task: Provide your specialized analysis based on your role."
-        )
+                sys_prompt = agent.system_prompt + f"\n\nYOUR ROLE GOAL: {role_goal}\nNONCE: {nonce}\nMANDATE: You MUST use run_python for simulation. Cite your NONCE in every response."
+                user_prompt = f"Topic: {topic}. Previous deliberation: {self.blackboard.get_recent_summary()}. Current Round: {r}."
 
-        return InferenceRequest(
-            session_id=f"council-{self.blackboard.topic[:10]}",
-            agent_id=agent.agent_id,
-            model_key=agent.model_key,
-            messages=[
-                {"role": "system", "content": agent.system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            generation=agent.generation,
-            adapter_stack=agent.adapter_stack
-        )
+                self.logger.info(f"AUDIT [{agent_id}] - SysHash: {self._get_hash(sys_prompt)} | UserHash: {self._get_hash(user_prompt)}")
+                self.logger.info(f"AUDIT [{agent_id}] - Nonce: {nonce} | Temp: {agent.generation.get('temperature', 0.4)}")
 
-async def main():
-    """Entry point for manual council execution."""
-    # This would normally be called by a higher-level script or the Hub API
-    pass
+                messages = [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": user_prompt}
+                ]
 
-if __name__ == "__main__":
-    asyncio.run(main())
+                # Run tool loop
+                result: ToolLoopResult = await execute_tool_loop(
+                    self.scheduler, agent, messages, self.game_id, agent_logger
+                )
+                
+                # Update Heartbeat State
+                self.heartbeat.update_agent(agent_id, {
+                    "input_chars": result.input_chars,
+                    "output_chars": result.output_chars,
+                    "usage_tokens": result.usage_tokens,
+                    "last_tool_name": result.last_tool_name,
+                    "is_idle_review": False
+                })
+
+                self.logger.info(f"AUDIT [{agent_id}] - Raw Output Length: {len(result.final_text)}")
+                if nonce not in result.final_text:
+                    self.logger.error(f"AUDIT [{agent_id}] - NONCE MISSING IN OUTPUT!")
+                else:
+                    self.logger.info(f"AUDIT [{agent_id}] - NONCE VERIFIED.")
+
+                await self.blackboard.add_entry(
+                    sender=agent_id,
+                    content=result.final_text,
+                    metadata={
+                        "round": r, 
+                        "mode": "audit", 
+                        "nonce": nonce,
+                        "metrics": {
+                            "input_chars": result.input_chars,
+                            "output_chars": result.output_chars,
+                            "usage_tokens": result.usage_tokens
+                        }
+                    }
+                )
+                
+                if "proponent" in agent_id or "adversary" in agent_id:
+                    asyncio.create_task(self.bridge.process_proposal(agent_id, result.final_text, r))
+                    
+        return "success"

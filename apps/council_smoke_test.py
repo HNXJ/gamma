@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 sys.path.append(str(Path(__file__).parent.parent))
 
-from gamma_runtime.types import ModelSpec, InferenceResult
+from gamma_runtime.structs import ModelSpec, InferenceResult
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.registry import RuntimeRegistry
 from gamma_runtime.backend_base import InferenceBackend

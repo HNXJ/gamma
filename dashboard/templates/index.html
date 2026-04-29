@@ -3,125 +3,256 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gamma Hub | Decentralized Research Runtime</title>
-    <link rel="stylesheet" href="../static/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+    <title>GAMMA | Scientific Control Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0b;
+            --surface: #141416;
+            --border: #CFB87C;
+            --accent: #9400D3;
+            --text: #f0f0f0;
+            --text-dim: #888;
+            --error: #ff4444;
+            --success: #00ff00;
+            --warning: #ffaa00;
+            --info: #00aaff;
+            --mono: 'JetBrains Mono', monospace;
+        }
+        body { background: var(--bg); color: var(--text); font-family: var(--mono); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        .top-bar { height: 60px; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 20px; background: rgba(0,0,0,0.5); }
+        .status-pill { display: flex; align-items: center; gap: 8px; font-size: 11px; border: 1px solid rgba(207,184,124,0.3); padding: 4px 10px; border-radius: 4px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot.active { background: var(--success); box-shadow: 0 0 10px var(--success); }
+        .dot.error { background: var(--error); }
+        .dot.idle { background: var(--text-dim); }
+        .dot.idle-review { background: var(--info); box-shadow: 0 0 10px var(--info); }
+        .dot.pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        .tab-bar { display: flex; gap: 5px; padding: 10px 20px; border-bottom: 1px solid #333; background: #0e0e10; }
+        .tab { padding: 8px 15px; border: 1px solid transparent; cursor: pointer; font-size: 12px; color: var(--text-dim); }
+        .tab.active { border: 1px solid var(--border); border-bottom: none; color: var(--border); background: var(--surface); margin-bottom: -11px; z-index: 10; }
+        .tab:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.05); }
+
+        .viewport { flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--surface); }
+        .panel { display: none; flex-grow: 1; flex-direction: column; padding: 20px; overflow: auto; }
+        .panel.active { display: flex; }
+
+        .warning-box { border: 2px solid var(--error); padding: 20px; margin-bottom: 20px; background: rgba(255,68,68,0.1); color: var(--error); font-weight: bold; text-align: center; }
+        .success-box { border: 2px solid var(--success); padding: 20px; margin-bottom: 20px; background: rgba(0,255,0,0.1); color: var(--success); font-weight: bold; text-align: center; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .card { background: rgba(255,255,255,0.05); border: 1px solid #333; padding: 15px; }
+        .card-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; }
+        .card-value { font-size: 20px; color: var(--border); margin-top: 5px; }
+
+        .log-viewer { flex-grow: 1; background: #000; border: 1px solid #222; padding: 10px; font-size: 11px; overflow-y: scroll; white-space: pre-wrap; font-family: var(--mono); }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); color: var(--border); }
+        td { padding: 10px; border-bottom: 1px solid #222; }
+        .status-tag { padding: 2px 6px; font-size: 10px; border-radius: 3px; }
+        .status-tag.pending { background: var(--warning); color: #000; }
+        .status-tag.running { background: var(--accent); color: #fff; }
+        .status-tag.completed { background: var(--success); color: #000; }
+        .status-tag.accepted { background: var(--success); color: #000; }
+        .status-tag.rejected { background: var(--error); color: #fff; }
+
+        .memo-card { border-left: 3px solid var(--info); background: rgba(0,170,255,0.05); padding: 15px; margin-bottom: 15px; }
+        .memo-header { font-size: 11px; color: var(--info); margin-bottom: 10px; border-bottom: 1px solid rgba(0,170,255,0.2); padding-bottom: 5px; }
+        .memo-content { font-size: 12px; line-height: 1.4; color: #ddd; }
+    </style>
 </head>
 <body>
-    <aside class="sidebar">
-        <div class="brand">
-            <div class="brand-dot"></div>
-            GAMMA
+    <header class="top-bar">
+        <div style="font-weight: bold; border-right: 1px solid #333; padding-right: 20px;">GAMMA CONTROL</div>
+        
+        <div class="status-pill">
+            <div id="dot-orchestrator" class="dot active pulse"></div>
+            COUNCIL: <span id="txt-orchestrator">ACTIVE</span>
         </div>
-
-        <div class="nav-section">
-            <div class="section-label">Core Runtime</div>
-            <a href="index.html" class="nav-item active">
-                <span>Hub Dashboard</span>
-            </a>
-            <a href="index.html" class="nav-item">
-                <span>Gemma Council</span>
-            </a>
-            <a href="index.html" class="nav-item">
-                <span>SDE Engine</span>
-            </a>
+        <div class="status-pill">
+            <div id="dot-science" class="dot idle"></div>
+            SCIENCE: <span id="txt-science">IDLE</span>
         </div>
-
-        <div class="nav-section">
-            <div class="section-label">Monitoring</div>
-            <a href="guard.html" class="nav-item">
-                <span>Guard Security</span>
-            </a>
-            <a href="/metrics" class="nav-item">
-                <span>Pool Metrics</span>
-            </a>
+        
+        <div style="margin-left: auto; font-size: 12px;">
+            GAME: <span id="current-game-display">game001</span> | IDLE: <span id="txt-idle-time">0s</span>
         </div>
+    </header>
 
-        <div class="nav-section" style="margin-top: auto;">
-            <button class="btn btn-primary" style="width: 100%;">Emergency Halt</button>
-        </div>
-    </aside>
+    <nav class="tab-bar">
+        <div class="tab active" onclick="showPanel('overview')">Overview</div>
+        <div class="tab" onclick="showPanel('terminal')">Terminal (LMS)</div>
+        <div class="tab" onclick="showPanel('council')">Orchestrator Log</div>
+        <div class="tab" onclick="showPanel('proposals')">Ledger</div>
+        <div class="tab" onclick="showPanel('agents')">Agent Streams</div>
+        <div class="tab" onclick="showPanel('notes')">Heartbeats</div>
+        <div class="tab" onclick="showPanel('forensics')">Forensics</div>
+    </nav>
 
-    <main class="main-layout">
-        <header class="top-bar">
-            <div class="system-status">
-                <div class="status-indicator">
-                    <div class="dot idle pulse"></div>
-                    IDLE
-                </div>
-                <div class="status-indicator">
-                    <span style="color: var(--text-dim)">SYSTEM:</span>
-                    <span>GAMMA-M3MAX-01</span>
-                </div>
-            </div>
-
-            <div class="system-status">
-                <div class="status-indicator">
-                    <span style="color: var(--text-dim)">VRAM:</span>
-                    <span style="color: var(--border)">14.2 / 96.0 GB</span>
-                </div>
-                <div class="status-indicator">
-                    <span style="color: var(--text-dim)">UPTIME:</span>
-                    <span>04:32:11</span>
-                </div>
-            </div>
-        </header>
-
-        <section class="content-viewport">
+    <main class="viewport">
+        <div id="panel-overview" class="panel active">
+            <div id="legitimacy-guardrail" class="warning-box">Council runtime active; scientific execution pending.</div>
             <div class="grid">
-                <div class="card glass">
-                    <div class="card-title">
-                        Active Model Pools
-                        <span class="status-indicator"><div class="dot active"></div></span>
-                    </div>
-                    <div class="metric-value">01</div>
-                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
-                        Primary: google/gemma-2-9b-it (MLX)
-                    </div>
-                </div>
+                <div class="card"><div class="card-label">Accepted</div><div class="card-value" id="stat-results">0</div></div>
+                <div class="card"><div class="card-label">Idle</div><div class="card-value" id="stat-idle">0s</div></div>
+                <div class="card"><div class="card-label">Status</div><div class="card-value" id="stat-status">ACTIVE</div></div>
+            </div>
+            <div style="margin-top: 20px;">
+                <div class="card-label">Recent Ledger Entries</div>
+                <div id="mini-ledger" style="font-size: 11px; margin-top: 10px;"></div>
+            </div>
+        </div>
 
-                <div class="card glass">
-                    <div class="card-title">KV-Cache Budget</div>
-                    <div class="metric-value">4.2%</div>
-                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
-                        Consumed: 5,420 / 128,000 tokens
-                    </div>
-                </div>
+        <div id="panel-terminal" class="panel">
+            <div class="card-label">LM Studio Process Status (lms ps)</div>
+            <div class="log-viewer" id="log-terminal" style="margin-top: 10px;"></div>
+        </div>
 
-                <div class="card glass">
-                    <div class="card-title">Agent Sessions</div>
-                    <div class="metric-value">04</div>
-                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
-                        Queue: 0 pending
-                    </div>
-                </div>
-            </div>
+        <div id="panel-council" class="panel"><div class="log-viewer" id="log-orchestrator"></div></div>
+        
+        <div id="panel-proposals" class="panel">
+            <table>
+                <thead><tr><th>ID</th><th>Agent</th><th>Status</th><th>Payload</th></tr></thead>
+                <tbody id="proposal-table-body"></tbody>
+            </table>
+        </div>
 
-            <div class="card glass" style="flex-grow: 1;">
-                <div class="card-title">Blackboard State | SDE Convergence</div>
-                <div style="display: flex; justify-content: center; align-items: center; height: 100%; border: 1px dashed rgba(207, 184, 124, 0.2);">
-                    <span style="color: var(--text-dim); font-family: var(--mono); font-size: 12px;">Waiting for active SDE session...</span>
-                </div>
+        <div id="panel-agents" class="panel">
+            <div style="margin-bottom: 10px;">
+                <select id="agent-selector" onchange="loadAgentLog(this.value)" style="background:#000; color:#fff; border:1px solid var(--border);">
+                    <option value="">Select Agent...</option>
+                    <option value="v1_gamma_proponent">Proponent</option>
+                    <option value="v1_gamma_adversary">Adversary</option>
+                    <option value="v1_gamma_judge">Judge</option>
+                </select>
             </div>
-        </section>
+            <div class="log-viewer" id="log-agent"></div>
+        </div>
+        
+        <div id="panel-notes" class="panel"><div id="heartbeat-container"></div></div>
 
-        <footer class="console">
-            <div class="log-line">
-                <span class="log-time">[2026-04-27 13:30:00]</span>
-                <span class="log-tag">[SYSTEM]</span>
-                <span>InferenceScheduler initialized. Budget set to 128k tokens.</span>
+        <div id="panel-forensics" class="panel">
+            <div class="grid" style="margin-bottom: 20px;">
+                <div class="card"><div class="card-label">Skills Made</div><div class="card-value" id="stat-skills">0</div></div>
+                <div class="card"><div class="card-label">Last Activity</div><div class="card-value" id="stat-last-activity">N/A</div></div>
             </div>
-            <div class="log-line">
-                <span class="log-time">[2026-04-27 13:30:01]</span>
-                <span class="log-tag">[RUNTIME]</span>
-                <span>Model pool 'gemma-2-9b-it' registered via MLX backend.</span>
-            </div>
-            <div class="log-line">
-                <span class="log-time">[2026-04-27 13:30:05]</span>
-                <span class="log-tag">[GUARD]</span>
-                <span>Memory watchdog active. Jetsam threshold: 12.0GB.</span>
-            </div>
-        </footer>
+            <div class="card-label">Agent Heartbeat Matrix</div>
+            <table style="margin-top: 10px;">
+                <thead><tr><th>Agent</th><th>Last Heartbeat</th><th>Input Size</th><th>Output Size</th><th>Prompt Tokens</th><th>Compl Tokens</th></tr></thead>
+                <tbody id="heartbeat-table-body"></tbody>
+            </table>
+        </div>
     </main>
+
+    <script>
+        const GAME_ID = 'game001';
+        let currentAgent = '';
+
+        function showPanel(name) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('panel-' + name).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        async function fetchLog(subsystem, elementId) {
+            try {
+                const res = await fetch(`/api/logs/${GAME_ID}/${subsystem}`);
+                if (res.ok) {
+                    const text = await res.text();
+                    const el = document.getElementById(elementId);
+                    el.innerText = text;
+                    el.scrollTop = el.scrollHeight;
+                }
+            } catch (e) {}
+        }
+
+        async function fetchTerminal() {
+            try {
+                const res = await fetch('/api/terminal/lms');
+                if (res.ok) { document.getElementById('log-terminal').innerText = await res.text(); }
+            } catch (e) {}
+        }
+
+        async function updateData() {
+            try {
+                const res = await fetch(`/api/status/${GAME_ID}`);
+                const data = await res.json();
+                
+                document.getElementById('txt-orchestrator').innerText = data.system_status;
+                document.getElementById('stat-status').innerText = data.system_status;
+                document.getElementById('stat-idle').innerText = Math.round(data.idle_duration) + 's';
+                document.getElementById('txt-idle-time').innerText = Math.round(data.idle_duration) + 's';
+                document.getElementById('stat-results').innerText = data.results_count;
+
+                const guard = document.getElementById('legitimacy-guardrail');
+                if (data.scientific_execution_evidenced) {
+                    guard.className = 'success-box';
+                    guard.innerText = 'SCIENTIFIC EXECUTION EVIDENCED';
+                }
+
+                const propRes = await fetch(`/api/proposals/${GAME_ID}`);
+                if (propRes.ok) {
+                    const lines = (await propRes.text()).split('\n').filter(l => l);
+                    const props = lines.map(l => JSON.parse(l));
+                    document.getElementById('proposal-table-body').innerHTML = props.map(p => `
+                        <tr>
+                            <td>${p.proposal_id}</td>
+                            <td>${p.agent_id}</td>
+                            <td><span class="status-tag ${p.status.toLowerCase()}">${p.status}</span></td>
+                            <td>${p.payload ? 'VALID' : 'EMPTY'}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                const noteRes = await fetch(`/api/notes/heartbeat/${GAME_ID}`);
+                if (noteRes.ok) {
+                    const notes = await noteRes.json();
+                    document.getElementById('heartbeat-container').innerHTML = notes.map(n => `
+                        <div class="memo-card">
+                            <div class="memo-header">${n.timestamp} | IDLE: ${Math.round(n.idle_duration_seconds)}s</div>
+                            <div class="memo-content">${n.content.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    `).join('');
+                }
+
+                const hbRes = await fetch(`/api/heartbeat/${GAME_ID}`);
+                if (hbRes.ok) {
+                    const hb = await hbRes.json();
+                    document.getElementById('stat-skills').innerText = hb.skills_count;
+                    document.getElementById('stat-last-activity').innerText = new Date(hb.last_real_task_time * 1000).toLocaleTimeString();
+                    
+                    document.getElementById('heartbeat-table-body').innerHTML = Object.entries(hb.agents).map(([id, stats]) => `
+                        <tr>
+                            <td>${id}</td>
+                            <td>${new Date(stats.last_heartbeat).toLocaleTimeString()}</td>
+                            <td>${stats.last_input_size}</td>
+                            <td>${stats.last_output_size}</td>
+                            <td>${stats.total_prompt_tokens}</td>
+                            <td>${stats.total_completion_tokens}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {}
+        }
+
+        function loadAgentLog(agent) {
+            currentAgent = agent;
+            if (agent) fetchLog(`agent-${agent}`, 'log-agent');
+        }
+
+        function refresh() {
+            fetchLog('orchestrator', 'log-orchestrator');
+            fetchTerminal();
+            updateData();
+            if (currentAgent) loadAgentLog(currentAgent);
+        }
+
+        setInterval(refresh, 5000);
+        refresh();
+    </script>
 </body>
 </html>

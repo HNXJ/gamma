@@ -3,7 +3,7 @@ import logging
 import os
 from typing import List, Dict, Any
 from .blackboard import Blackboard
-from gamma_peft.trace_schema import Trace, ConsensusLevel, TraceMode
+from gamma_runtime.trace_schema import Trace, ConsensusLevel, TraceMode
 
 logger = logging.getLogger("Consolidation")
 
