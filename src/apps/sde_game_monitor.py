@@ -70,31 +70,49 @@ threading.Thread(target=update_monitor_data, daemon=True).start()
 async def index(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
 
+@app.get("/council", response_class=HTMLResponse)
+async def council(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/council", response_class=HTMLResponse)
+async def council(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/guard", response_class=HTMLResponse)
+async def guard(request: Request):
+    return templates.TemplateResponse(request=request, name="index.html")
+
 @app.get("/api/status")
 async def get_status():
     """
     Grounded status endpoint for the infused dashboard.
-    Returns real metrics from logs/DB; returns None for unavailable data.
+    Returns real metrics from logs/DB; returns empty strings for unavailable data.
     """
+    latest_msg = council_dialogue[-1] if council_dialogue else {}
+    
     return {
         "system": {
             "status": "ACTIVE" if council_dialogue else "IDLE",
-            "vram": None, 
-            "uptime": None, 
-            "boot_epoch": None, 
+            "vram": "", 
+            "uptime": "", 
+            "boot_epoch": "", 
             "heartbeat": time.time()
         },
         "research": {
-            "pass_network": "14-Node (Grounded Log)" if council_dialogue else None,
-            "active_patch": None, 
+            "pass_network": "14-Node (Grounded)" if council_dialogue else "",
+            "active_patch": "", 
             "omissions": 0 
         },
         "sessions": [
             {
                 "id": "G01",
-                "topic": council_dialogue[-1]["msg"][:30] + "..." if council_dialogue else "Global Monitor",
+                "topic": (latest_msg.get("msg", "")[:30] + "...") if latest_msg else "Global Monitor",
                 "round": len(council_dialogue),
-                "last_active": council_dialogue[-1]["time"] if council_dialogue else None,
+                "last_active": latest_msg.get("time", ""),
                 "status": "MONITORING"
             }
         ]
