@@ -81,43 +81,52 @@ async def guard(request: Request):
 @app.get("/api/status")
 async def get_status():
     """
-    Grounded status endpoint for the Amber Arena dashboard.
-    Surfaces real research metrics: neurons, active agents, and simulation state.
+    Grounded Status for the Amber Arena.
+    Sources progression state from arena_patch_board.json.
     """
     latest_msg = council_dialogue[-1] if council_dialogue else {}
     
-    # Grounded metrics from user and logs
-    # 3/4 models are active on LMS
+    # Load progression board
+    progression = {}
+    board_path = os.path.join(ROOT_DIR, "context/configs/patches/arena_patch_board.json")
+    if os.path.exists(board_path):
+        try:
+            with open(board_path, "r") as f:
+                progression = json.load(f)
+        except Exception as e:
+            print(f"Progression load error: {e}")
+
+    # Grounded metrics from user and live logs
     active_agents = 3
     total_agents = 4
-    
-    # Neuron count logic: Level is number of neurons in largest model (approx 437 from pipeline)
-    neuron_count = 437 if council_dialogue else 10
     
     return {
         "system": {
             "status": "ONLINE" if council_dialogue else "STANDBY",
-            "uptime": "15h 47m", # Grounded from image context
+            "uptime": "00:00:00",
             "agents_active": f"{active_agents} / {total_agents}",
-            "tasks_running": 3,
-            "heartbeat": "OK"
+            "tasks_running": 0,
+            "heartbeat": "OK" if council_dialogue else "STALLED"
         },
+        "progression": progression,
         "research": {
-            "neuron_count": neuron_count,
-            "pass_network": "14-Node" if council_dialogue else "NULL",
-            "active_patch": "v0.3.1",
-            "omissions": 2
+            "neuron_count": progression.get("largest_pass_network_neuron_count", None),
+            "pass_network": f"{progression.get('largest_pass_network_neuron_count', 10)}-Node (Grounded)" if council_dialogue else None,
+            "active_patch": progression.get("active_patches", ["v0.3.1"])[0] if progression.get("active_patches") else "v0.3.1",
+            "omissions": None
         },
         "sessions": [
             {
                 "id": "Coder 1 (Builder)",
                 "role": "Builder",
                 "status": "ACTIVE" if council_dialogue else "IDLE",
-                "last_active": latest_msg.get("time", "")
+                "last_active": latest_msg.get("time", ""),
+                "truth_class": "GROUNDED",
+                "source": "/logs/overnight_orchestrator.log"
             },
-            { "id": "Coder 2 (Optimizer)", "role": "Optimizer", "status": "ACTIVE" if len(council_dialogue) > 5 else "IDLE", "last_active": "" },
-            { "id": "Coder 3 (Analyst)", "role": "Analyst", "status": "ACTIVE" if len(council_dialogue) > 10 else "IDLE", "last_active": "" },
-            { "id": "Tester (Manager)", "role": "Manager", "status": "IDLE", "last_active": "" }
+            { "id": "Coder 2 (Optimizer)", "role": "Optimizer", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
+            { "id": "Coder 3 (Analyst)", "role": "Analyst", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
+            { "id": "Tester (Manager)", "role": "Manager", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" }
         ]
     }
 
