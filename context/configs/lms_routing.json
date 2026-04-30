@@ -1,0 +1,18 @@
+{
+  "biological_plausibility_01": "G03-analyst",
+  "consensus_judge_01": "J01-judge",
+  "e4b_critic": "G03-analyst",
+  "e4b_macro": "G01-builder",
+  "e4b_meso": "G02-tuner",
+  "e4b_micro": "G01-builder",
+  "hypothesis_builder_01": "G01-builder",
+  "methods_skeptic_01": "G03-analyst",
+  "v1_gamma_adversary": "G03-analyst",
+  "v1_gamma_consensus": "J01-judge",
+  "v1_gamma_proponent": "G01-builder",
+  "G01": "G01-builder",
+  "G02": "G02-tuner",
+  "G03": "G03-analyst",
+  "J01": "J01-judge",
+  "M01": "M01-monitor"
+}

@@ -1,27 +1,22 @@
 import logging
+import json
+import os
 
 logger = logging.getLogger("ModelRouter")
 
-LMS_ROLE_MAPPING = {
-    "biological_plausibility_01": "G03-analyst",
-    "consensus_judge_01": "J01-judge",
-    "e4b_critic": "G03-analyst",
-    "e4b_macro": "G01-builder",
-    "e4b_meso": "G02-tuner",
-    "e4b_micro": "G01-builder",
-    "hypothesis_builder_01": "G01-builder",
-    "methods_skeptic_01": "G03-analyst",
-    "v1_gamma_adversary": "G03-analyst",
-    "v1_gamma_consensus": "J01-judge",
-    "v1_gamma_proponent": "G01-builder",
-    "G01": "G01-builder",
-    "G02": "G02-tuner",
-    "G03": "G03-analyst",
-    "J01": "J01-judge",
-    "M01": "M01-monitor"
-}
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "context", "configs", "lms_routing.json")
 
-def resolve_lms_identifier(agent_id: str, original_model_key: str) -> str:
+class RoutingError(Exception):
+    pass
+
+def load_routing_config() -> dict:
+    if not os.path.exists(CONFIG_PATH):
+        logger.warning(f"Routing config not found at {CONFIG_PATH}")
+        return {}
+    with open(CONFIG_PATH, "r") as f:
+        return json.load(f)
+
+def resolve_lms_identifier(agent_id: str, original_model_key: str, allow_fallback: bool = False) -> str:
     """
     Resolves a logical model key (e.g. 'gemma4-parallel') into a physical LMS
     identifier (e.g. 'G01-builder') based on the agent_id requesting it.
@@ -30,6 +25,15 @@ def resolve_lms_identifier(agent_id: str, original_model_key: str) -> str:
     if original_model_key in ["G01-builder", "G02-tuner", "G03-analyst", "J01-judge", "M01-monitor"]:
         return original_model_key
         
-    resolved = LMS_ROLE_MAPPING.get(agent_id, "G01-builder") # Default fallback
-    logger.debug(f"Routed agent '{agent_id}' from logical key '{original_model_key}' to LMS identifier '{resolved}'")
-    return resolved
+    mapping = load_routing_config()
+    
+    if agent_id in mapping:
+        resolved = mapping[agent_id]
+        logger.debug(f"Routed agent '{agent_id}' from logical key '{original_model_key}' to LMS identifier '{resolved}'")
+        return resolved
+        
+    if allow_fallback:
+        logger.warning(f"Using degraded-mode fallback to 'G01-builder' for unmapped agent '{agent_id}'")
+        return "G01-builder"
+        
+    raise RoutingError(f"No explicit LMS routing mapping found for agent '{agent_id}'. Original logical key was '{original_model_key}'.")
