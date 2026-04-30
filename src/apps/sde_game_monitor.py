@@ -114,7 +114,10 @@ async def get_status():
                 "round": len(council_dialogue),
                 "last_active": latest_msg.get("time", ""),
                 "status": "MONITORING"
-            }
+            },
+            { "id": "G02", "topic": "Standby", "round": 0, "last_active": "", "status": "IDLE" },
+            { "id": "G03", "topic": "Standby", "round": 0, "last_active": "", "status": "IDLE" },
+            { "id": "G04", "topic": "Standby", "round": 0, "last_active": "", "status": "IDLE" }
         ]
     }
 
