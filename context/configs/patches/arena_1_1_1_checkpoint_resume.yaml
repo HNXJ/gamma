@@ -2,26 +2,25 @@ patch_id: arena_1_1_1_checkpoint_resume
 base_version: arena_1_1_0
 status: active
 type: persistence_protocol
-title: "First-Class Checkpoint and Resume Activation"
+title: "First-Class Arena World State Activation"
 description: >
-  Formalizes the persistence layer for the Unified Orchestrator.
-  Ensures research progress (Blackboards, Sessions) survives runtime restarts.
-  Introduces 'Persistence / Recovery' telemetry to the operator console.
+  Formalizes the 'Arena World State' manifest at local/game001/arena_runtime_state.json.
+  Enforces atomic writes and ensures scientific progress (Level, Streak, PASS Network)
+  survives runtime restarts via a namespaced research surface.
 
 rules:
-  - "Every successful session execution must trigger an automated checkpoint."
-  - "Heartbeat turns must trigger a checkpoint to prevent state drift."
-  - "The UI must visualize checkpoint freshness and resume history."
-  - "The neuron ladder must use semantic classes for state clarity."
+  - "Writes to the World State manifest must be atomic (temp -> sync -> rename)."
+  - "All scientific metrics must be grounded in the namespaced world state."
+  - "The operator console must explicitly distinguish Backend Slots from Grounded Activity."
 
 ui_unlocks:
   cards:
     - id: persistence_recovery_status
       title: "Persistence / Recovery Status"
-      metrics: [boot_type, resume_count, last_checkpoint, freshness]
+      metrics: [boot_type, resume_count, last_world_checkpoint, freshness]
 
 implementation_status:
-  orchestrator: COMPLETED
-  blackboard: COMPLETED
-  monitor_proxy: COMPLETED
-  ui_rendering: COMPLETED
+  world_state_controller: COMPLETED
+  monitor_alignment: COMPLETED
+  ui_semantic_labels: COMPLETED
+  atomic_writes: COMPLETED

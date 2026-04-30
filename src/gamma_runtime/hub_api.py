@@ -56,7 +56,6 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                     "active_patch": "v1.2.4-hotfix",
                     "omissions": 0
                 },
-                "persistence": self.orchestrator.get_persistence_status(),
                 "sessions": self.orchestrator.get_all_sessions()
             }
             self._set_headers()

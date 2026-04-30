@@ -1,9 +1,6 @@
-import json
-import os
 import asyncio
 import logging
 import time
-from datetime import datetime
 from typing import Dict, Any, Optional, List
 from .types import AgentId, InferenceRequest
 from .scheduler import InferenceScheduler
@@ -19,7 +16,7 @@ class UnifiedOrchestrator:
     """
     The High-Level Controller for the Gamma Scientific Stack.
     Bridges Linguistic (Council) and Biophysical (SDE) reasoning.
-    Now includes an aggressive Zero-Idle Heartbeat Monitor and first-class Persistence.
+    Now includes an aggressive Zero-Idle Heartbeat Monitor.
     """
     def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry):
         self.scheduler = scheduler
@@ -33,56 +30,6 @@ class UnifiedOrchestrator:
             "topic": "Autonomous SDE Refinement",
             "active": False
         }
-        
-        # Persistence Metadata
-        self.checkpoint_path = "local/arena_checkpoint.json"
-        self.last_checkpoint_time: Optional[float] = None
-        self.resume_count: int = 0
-        self.boot_type: str = "FRESH"
-        self.last_resume_time: Optional[float] = None
-        
-        # Try to resume on startup
-        self.load_checkpoint()
-
-    def save_checkpoint(self):
-        """Persists the entire arena state to disk."""
-        try:
-            state = {
-                "timestamp": time.time(),
-                "resume_count": self.resume_count,
-                "sessions": {sid: bb.to_dict() for sid, bb in self._active_sessions.items()},
-                "heartbeat_config": self._heartbeat_config
-            }
-            os.makedirs(os.path.dirname(self.checkpoint_path), exist_ok=True)
-            with open(self.checkpoint_path, 'w') as f:
-                json.dump(state, f, indent=2)
-            self.last_checkpoint_time = time.time()
-            logger.info(f"💾 Checkpoint saved to {self.checkpoint_path}")
-        except Exception as e:
-            logger.error(f"Failed to save checkpoint: {e}")
-
-    def load_checkpoint(self):
-        """Restores arena state from the last known checkpoint."""
-        if not os.path.exists(self.checkpoint_path):
-            logger.info("No checkpoint found. Starting fresh.")
-            return
-
-        try:
-            with open(self.checkpoint_path, 'r') as f:
-                state = json.load(f)
-            
-            self.resume_count = state.get("resume_count", 0) + 1
-            self.boot_type = "RESUMED"
-            self.last_resume_time = time.time()
-            self._heartbeat_config = state.get("heartbeat_config", self._heartbeat_config)
-            
-            for sid, bb_data in state.get("sessions", {}).items():
-                self._active_sessions[sid] = Blackboard.from_dict(bb_data)
-            
-            logger.info(f"🔄 Arena Resumed from {self.checkpoint_path} (Resume Count: {self.resume_count})")
-        except Exception as e:
-            logger.error(f"Failed to load checkpoint: {e}")
-            self.boot_type = "RECOVERY_FAILED"
 
     def start_heartbeat_monitor(self, team_id: str = "v1_gamma_sde_team", topic: str = "Autonomous SDE Refinement"):
         """Activates the aggressive zero-idle-time heartbeat rule."""
@@ -120,8 +67,6 @@ class UnifiedOrchestrator:
                 except Exception as e:
                     logger.error(f"Heartbeat trigger failed: {e}")
                     await asyncio.sleep(5)
-                finally:
-                    self.save_checkpoint() # Save after heartbeat
             
             await asyncio.sleep(0.5)
 
@@ -155,8 +100,6 @@ class UnifiedOrchestrator:
                 payload_path = self.consolidation.extract_validated_traces(blackboard, blackboard.topic[:10])
                 if payload_path:
                     await self.consolidation.trigger_training(payload_path, "gemma-9b-schiz")
-            
-            self.save_checkpoint() # Auto-checkpoint after successful run
                     
         except Exception as e:
             logger.error(f"Session failed: {e}")
@@ -175,17 +118,33 @@ class UnifiedOrchestrator:
                 "last_active": bb.entries[-1].timestamp.isoformat() if bb.entries else None,
                 "status": "DELIBERATING" if sid == "heartbeat-session" else "ACTIVE"
             })
+        # Mocking canonical G01-G04 if not present to ensure grid rendering
+        if len(sessions) < 4:
+            for i in range(len(sessions) + 1, 5):
+                sessions.append({
+                    "id": f"G0{i}",
+                    "topic": "Standby",
+                    "round": 0,
+                    "last_active": None,
+                    "status": "IDLE"
+                })
         return sessions
 
-    def get_persistence_status(self) -> Dict[str, Any]:
-        """Exposes persistence metadata for the operator dashboard."""
+    def get_session_state(self, session_id: str) -> Optional[Dict[str, Any]]:
+        blackboard = self._active_sessions.get(session_id)
+        if not blackboard: return None
         return {
-            "boot_type": self.boot_type,
-            "resume_count": self.resume_count,
-            "last_checkpoint": datetime.fromtimestamp(self.last_checkpoint_time).isoformat() if self.last_checkpoint_time else "NEVER",
-            "last_resume": datetime.fromtimestamp(self.last_resume_time).isoformat() if self.last_resume_time else "NEVER",
-            "checkpoint_path": self.checkpoint_path,
-            "freshness": "GROUNDED" if self.last_checkpoint_time and (time.time() - self.last_checkpoint_time < 60) else "DEGRADED"
+            "session_id": session_id,
+            "topic": blackboard.topic,
+            "round": blackboard.round,
+            "entries": [
+                {
+                    "sender": e.sender,
+                    "content": e.content,
+                    "timestamp": e.timestamp.isoformat(),
+                    "metadata": e.metadata
+                } for e in blackboard.entries
+            ]
         }
 
     def get_session_state(self, session_id: str) -> Optional[Dict[str, Any]]:

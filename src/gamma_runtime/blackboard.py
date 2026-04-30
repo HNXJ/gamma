@@ -50,22 +50,6 @@ class Blackboard:
             self.entries.append(entry)
             return entry
 
-    def to_dict(self):
-        return {
-            "topic": self.topic,
-            "round": self.round,
-            "consensus_reached": self.consensus_reached,
-            "entries": [e.to_dict() for e in self.entries]
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]):
-        bb = cls(data["topic"])
-        bb.round = data["round"]
-        bb.consensus_reached = data["consensus_reached"]
-        bb.entries = [BlackboardEntry.from_dict(e) for e in data["entries"]]
-        return bb
-
     def get_history(self) -> List[BlackboardEntry]:
         return list(self.entries)
 
