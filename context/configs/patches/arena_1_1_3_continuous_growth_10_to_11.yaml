@@ -1,0 +1,28 @@
+patch_id: arena_1_1_3_continuous_growth_10_to_11
+mode: mission_scope_update
+applies_to:
+  team: v1_gamma_sde_team
+current_state:
+  official_level_neurons: 10
+  next_level_target_neurons: 11
+  next_milestone:
+    neurons: 40
+    label: VIP unlock
+objective:
+  description: "Execute one grounded PASS-network expansion from 10 to 11 neurons."
+acceptance_conditions:
+  - connected_network
+  - physiological_validity
+  - validated_result_artifact_with_metrics
+  - progression_updates_only_on_pass
+constraints:
+  - do_not_optimize_for_40_yet
+  - do_not_skip_to_milestones
+  - continuous_growth_semantics_only
+mission_text: >
+  Continuous-growth mode is now active.
+  Current official level: 10
+  Next level target: 11
+  Next milestone: 40 (VIP unlock)
+  Objective: achieve one grounded PASS expansion from 10 to 11 neurons under physiological validity and validated artifact output.
+  Do not optimize for 40 yet.

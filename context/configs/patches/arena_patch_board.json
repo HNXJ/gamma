@@ -1,12 +1,16 @@
 {
   "canonical_ladder": "arena_growth_ladder.yaml",
-  "active_patches": [],
+  "active_patches": [
+    "arena_1_1_3_continuous_growth_10_to_11.yaml"
+  ],
   "staged_patches": [
     "arena_1_2_0_vip_unlock.yaml",
     "arena_1_3_0_l4_apical_predictive.yaml"
   ],
   "official_level_metric": "largest_pass_network_neuron_count",
   "largest_pass_network_neuron_count": 10,
+  "active_mission_target": 11,
+  "active_mission_topic": "Continuous Growth Mode: 10 to 11 Neurons",
   "next_unlock_threshold": 40,
   "omissions": 0,
   "sessions": [

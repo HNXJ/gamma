@@ -1,0 +1,21 @@
+patch_id: arena_1_1_2_incremental_growth_11
+base_version: arena_1_1_0_growth_ladder_to_1000
+status: active
+type: steering_patch
+title: "Mission Scaling: Incremental Growth N=11"
+description: >
+  Updates the research cycle objective to target an 11-neuron configuration.
+  Focuses on the stable integration of the 11th neuron into the current bootstrap circuit.
+
+steering_objective:
+  target_neurons: 11
+  topic: "Autonomous Expansion: Transitioning 10-neuron Bootstrap to 11-neuron Continuous Growth"
+  constraints:
+    - "Preserve 70/20/10 E-I-SST ratio during expansion (8E/2PV/1SST)"
+    - "Ensure the 11th neuron is fully integrated into the existing PASS network"
+    - "Minimize transient instability during the addition of the new node"
+
+grounding_metrics:
+  official_level: 10
+  active_target: 11
+  truth_class: GROUNDED
