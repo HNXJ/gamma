@@ -162,6 +162,23 @@ async def get_agent_logs(agent_id: str, lines: int = 100):
         return {"id": agent_id, "content": result.stdout, "path": path}
     except Exception as e:
         return {"error": str(e)}
+@app.get("/api/agent-logs")
+async def get_all_agent_logs(lines: int = 10):
+    all_logs = {}
+    for agent_id, path in AGENT_LOGS.items():
+        if os.path.exists(path):
+            try:
+                result = subprocess.run(["tail", "-n", str(lines), path], capture_output=True, text=True, timeout=1)
+                all_logs[agent_id] = result.stdout
+            except Exception:
+                all_logs[agent_id] = "LOG_READ_ERROR"
+        else:
+            all_logs[agent_id] = "LOG_NOT_FOUND"
+    return {
+        "logs": all_logs,
+        "truth_class": "GROUNDED",
+        "source": "Council Log Matrix"
+    }
 
 @app.get("/api/persistence")
 async def get_persistence():
