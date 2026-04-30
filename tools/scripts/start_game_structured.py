@@ -75,17 +75,31 @@ async def main():
     from src.gamma_runtime.hub_api import HubAPIServer
     from src.gamma_runtime.events import EventEmitter
     from src.gamma_runtime.config import HUB_PORT
+    from src.gamma_runtime.tool_harness import ToolRouter, ContextHydrator
     
     # 1. Initialize Registry and Scheduler
     registry = RuntimeRegistry(os.path.join(ROOT, "context/configs"))
     scheduler = InferenceScheduler()
+    
+    # 1.5 Initialize Tool Harness
+    hydrator = ContextHydrator(ROOT)
+    routers = {}
+    agents = ["G01", "G02", "G03", "J01", "M01"]
+    for agent in agents:
+        routers[agent] = ToolRouter(agent, os.path.join(ROOT, "local/inventory"))
     
     # 2. Initialize Event Emitter
     events_path = os.path.join(ROOT, "local/events.jsonl")
     emitter = EventEmitter(events_path)
     
     # 3. Initialize Orchestrator
-    orchestrator = UnifiedOrchestrator(scheduler, registry, emitter=emitter)
+    orchestrator = UnifiedOrchestrator(
+        scheduler, 
+        registry, 
+        emitter=emitter,
+        tool_routers=routers,
+        context_hydrator=hydrator
+    )
     
     # 4. Initialize Hub API Server
     hub_server = HubAPIServer(orchestrator, port=HUB_PORT)
