@@ -16,8 +16,8 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
-# Absolute Path Resolution for Office Mac stability
-ROOT_DIR = "/Users/HN/MLLM/gamma"
+# Dynamic Path Resolution
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TEMPLATES_DIR = os.path.join(ROOT_DIR, "dashboard", "templates")
 STATIC_DIR = os.path.join(ROOT_DIR, "dashboard", "static")
 
@@ -25,8 +25,9 @@ STATIC_DIR = os.path.join(ROOT_DIR, "dashboard", "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
-DB_PATH = "file:/Users/HN/MLLM/data/test_got_ledger.db?mode=ro"
-LOG_PATH = "/Users/HN/MLLM/logs/overnight_orchestrator.log"
+# Environment-based paths for logs and DB
+DB_PATH = os.getenv("GAMMA_DB_PATH", "file::memory:?cache=shared")
+LOG_PATH = os.getenv("GAMMA_LOG_PATH", "/dev/null")
 
 # Global state for streaming logs
 council_dialogue = []
@@ -59,12 +60,13 @@ def update_monitor_data():
                             tps_stats["tps"] = (len(lines) * 5) / 5 # Simplified
                             tps_stats["last_tps_check"] = now
         except Exception as e:
-            print(f"Log streaming error: {e}")
+            pass # Keep monitor quiet during path discovery
         time.sleep(1)
 
 # Start background thread
 import threading
-threading.Thread(target=update_monitor_data, daemon=True).start()
+if LOG_PATH != "/dev/null":
+    threading.Thread(target=update_monitor_data, daemon=True).start()
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -96,31 +98,15 @@ async def get_status():
         except Exception as e:
             print(f"Progression load error: {e}")
 
-    # Grounded metrics from user and live logs
-    active_agents = 3
-    total_agents = 4
+    # Persistence metadata from prospective runtime state (Patch 2)
+    persistence = { "boot_type": "UNKNOWN", "freshness": "DEGRADED" }
     
-    # Load persistence state
-    persistence = { "boot_type": "UNKNOWN", "resume_count": 0, "freshness": "DEGRADED" }
-    checkpoint_path = os.path.join(ROOT_DIR, "local/arena_checkpoint.json")
-    if os.path.exists(checkpoint_path):
-        try:
-            with open(checkpoint_path, "r") as f:
-                ckpt = json.load(f)
-                persistence["boot_type"] = "RESUMED" if ckpt.get("resume_count", 0) > 0 else "FRESH"
-                persistence["resume_count"] = ckpt.get("resume_count", 0)
-                last_ts = ckpt.get("timestamp", 0)
-                persistence["last_checkpoint"] = datetime.fromtimestamp(last_ts).isoformat()
-                persistence["freshness"] = "GROUNDED" if (time.time() - last_ts < 300) else "STALE"
-        except Exception:
-            pass
-
     return {
         "system": {
             "status": "ONLINE" if council_dialogue else "STANDBY",
-            "uptime": "00:00:00",
-            "agents_active": f"{active_agents} / {total_agents}",
-            "tasks_running": 0,
+            "uptime": None, # Purged hardcoded truth
+            "agents_active": None, # Purged hardcoded truth
+            "tasks_running": None, # Purged hardcoded truth
             "heartbeat": "OK" if council_dialogue else "STALLED"
         },
         "progression": progression,
@@ -129,21 +115,9 @@ async def get_status():
             "neuron_count": progression.get("largest_pass_network_neuron_count"),
             "pass_network": f"{progression.get('largest_pass_network_neuron_count')}-Node" if progression.get('largest_pass_network_neuron_count') else None,
             "active_patch": progression.get("active_patches", ["v1.1.0"])[0] if progression.get("active_patches") else "v1.1.0",
-            "omissions": progression.get("omissions", 0)
+            "omissions": progression.get("omissions")
         },
-        "sessions": progression.get("sessions", [
-            {
-                "id": "G01",
-                "role": "Monitor",
-                "status": "ACTIVE" if council_dialogue else "IDLE",
-                "last_active": latest_msg.get("time", ""),
-                "truth_class": "GROUNDED",
-                "source": LOG_PATH
-            },
-            { "id": "G02", "role": "Optimizer", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
-            { "id": "G03", "role": "Analyst", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
-            { "id": "G04", "role": "Manager", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" }
-        ])
+        "sessions": progression.get("sessions", [])
     }
 
 if __name__ == "__main__":
