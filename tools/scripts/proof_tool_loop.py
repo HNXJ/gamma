@@ -20,29 +20,23 @@ async def prove_tool_loop():
     os.makedirs(sandbox_path, exist_ok=True)
     
     router = ToolRouter(agent_id, sandbox_path)
-    lms_url = get_lms_url()
+    lms_url = "http://localhost:1234"
     
     # We'll use a prompt that strongly encourages tool use
     system_prompt = (
         "You are a biophysical simulation assistant. "
         "You have access to a tool called 'python_execute'. "
-        "Always use 'python_execute' to calculate anything or analyze data. "
-        "Core libraries like numpy (as np) are already available."
+        "ALWAYS use 'python_execute' for calculations. "
+        "To use the tool, output a tool call to 'python_execute' with a 'code' argument."
     )
-    user_prompt = "Calculate the mean of 100 random numbers using numpy and tell me the result."
+    user_prompt = "Calculate 123 * 456 using python_execute."
     
-    # We use v1_gamma_proponent -> G01-builder
-    model = "G01-builder"
+    # Try gpt-oss-20b
+    model = "gpt-oss-20b"
     
     print(f"Sending request to LMS at {lms_url} with model {model}...")
     
     try:
-        # Use the router's internal run_loop logic (which I previously wrote in a different version, 
-        # let's re-verify what's in tool_harness.py)
-        # Actually, the current tool_harness.py has 'handle_tool_calls' but not 'run_loop'.
-        # The 'run_loop' logic is in CouncilOrchestrator._run_tool_loop.
-        
-        # I'll implement a standalone test loop here to prove the concept.
         async with httpx.AsyncClient(timeout=120.0) as client:
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -60,11 +54,14 @@ async def prove_tool_loop():
                     "tool_choice": "auto"
                 }
             )
-            resp.raise_for_status()
+            if resp.status_code != 200:
+                print(f"Error {resp.status_code}: {resp.text}")
+                resp.raise_for_status()
+            
             data = resp.json()
             
             assistant_msg = data["choices"][0]["message"]
-            print(f"Assistant Response: {assistant_msg.get('content') or '[Tool Call]'}")
+            print(f"Assistant Message: {json.dumps(assistant_msg, indent=2)}")
             
             if assistant_msg.get("tool_calls"):
                 print(f"Detected {len(assistant_msg['tool_calls'])} tool calls.")

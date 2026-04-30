@@ -90,7 +90,7 @@ class ExecutionAdapter:
             str(proposal_n),
             str(config_hash),
             str(self.solver_id),
-            str(issued_at),
+            "{:.3f}".format(float(issued_at)),
             str(self.adapter_version)
         ])
         attestation = self._sign_attestation(auth_tuple)
@@ -138,7 +138,7 @@ class ExecutionAdapter:
             str(metadata.get("neuron_count")),
             str(config_hash),
             str(provenance.get("solver_id")),
-            str(provenance.get("issued_at")),
+            "{:.3f}".format(float(provenance.get("issued_at", 0))),
             str(provenance.get("adapter_version"))
         ])
         

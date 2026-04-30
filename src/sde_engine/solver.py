@@ -1,10 +1,10 @@
 import asyncio
 import logging
 from typing import Dict, Any, Optional, List
-from gamma_runtime.types import AgentId, InferenceRequest, AgentSpec
-from gamma_runtime.scheduler import InferenceScheduler
-from gamma_runtime.blackboard import Blackboard
-from gamma_runtime.registry import RuntimeRegistry
+from src.gamma_runtime.types import AgentId, InferenceRequest, AgentSpec
+from src.gamma_runtime.scheduler import InferenceScheduler
+from src.gamma_runtime.blackboard import Blackboard
+from src.gamma_runtime.registry import RuntimeRegistry
 from .metrics import SDEMetrics
 
 logger = logging.getLogger("SDESolver")
