@@ -1,6 +1,9 @@
+import json
+import os
 import asyncio
 import logging
 import time
+from datetime import datetime
 from typing import Dict, Any, Optional, List
 from .types import AgentId, InferenceRequest
 from .scheduler import InferenceScheduler
@@ -16,7 +19,7 @@ class UnifiedOrchestrator:
     """
     The High-Level Controller for the Gamma Scientific Stack.
     Bridges Linguistic (Council) and Biophysical (SDE) reasoning.
-    Now includes an aggressive Zero-Idle Heartbeat Monitor.
+    Now includes an aggressive Zero-Idle Heartbeat Monitor and first-class Persistence.
     """
     def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry):
         self.scheduler = scheduler
@@ -30,6 +33,56 @@ class UnifiedOrchestrator:
             "topic": "Autonomous SDE Refinement",
             "active": False
         }
+        
+        # Persistence Metadata
+        self.checkpoint_path = "local/arena_checkpoint.json"
+        self.last_checkpoint_time: Optional[float] = None
+        self.resume_count: int = 0
+        self.boot_type: str = "FRESH"
+        self.last_resume_time: Optional[float] = None
+        
+        # Try to resume on startup
+        self.load_checkpoint()
+
+    def save_checkpoint(self):
+        """Persists the entire arena state to disk."""
+        try:
+            state = {
+                "timestamp": time.time(),
+                "resume_count": self.resume_count,
+                "sessions": {sid: bb.to_dict() for sid, bb in self._active_sessions.items()},
+                "heartbeat_config": self._heartbeat_config
+            }
+            os.makedirs(os.path.dirname(self.checkpoint_path), exist_ok=True)
+            with open(self.checkpoint_path, 'w') as f:
+                json.dump(state, f, indent=2)
+            self.last_checkpoint_time = time.time()
+            logger.info(f"💾 Checkpoint saved to {self.checkpoint_path}")
+        except Exception as e:
+            logger.error(f"Failed to save checkpoint: {e}")
+
+    def load_checkpoint(self):
+        """Restores arena state from the last known checkpoint."""
+        if not os.path.exists(self.checkpoint_path):
+            logger.info("No checkpoint found. Starting fresh.")
+            return
+
+        try:
+            with open(self.checkpoint_path, 'r') as f:
+                state = json.load(f)
+            
+            self.resume_count = state.get("resume_count", 0) + 1
+            self.boot_type = "RESUMED"
+            self.last_resume_time = time.time()
+            self._heartbeat_config = state.get("heartbeat_config", self._heartbeat_config)
+            
+            for sid, bb_data in state.get("sessions", {}).items():
+                self._active_sessions[sid] = Blackboard.from_dict(bb_data)
+            
+            logger.info(f"🔄 Arena Resumed from {self.checkpoint_path} (Resume Count: {self.resume_count})")
+        except Exception as e:
+            logger.error(f"Failed to load checkpoint: {e}")
+            self.boot_type = "RECOVERY_FAILED"
 
     def start_heartbeat_monitor(self, team_id: str = "v1_gamma_sde_team", topic: str = "Autonomous SDE Refinement"):
         """Activates the aggressive zero-idle-time heartbeat rule."""
