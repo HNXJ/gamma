@@ -5,6 +5,9 @@ import requests
 import logging
 from datetime import datetime
 
+# Config Doctrine: Use local internal service surfaces
+from src.gamma_runtime.config import get_lms_local_url, get_hub_local_url
+
 # Logging setup
 logging.basicConfig(
     level=logging.INFO,
@@ -13,8 +16,8 @@ logging.basicConfig(
 logger = logging.getLogger("GammaHeartbeat")
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-HUB_URL = "http://localhost:8001" # Default hub port
-LMS_URL = "http://localhost:1234" # Local tunnel or remote
+HUB_URL = get_hub_local_url()
+LMS_URL = get_lms_local_url()
 HEALTH_FILE = os.path.join(ROOT, "local/run/health.json")
 PID_FILE = os.path.join(ROOT, "local/run/pids.json")
 EVENTS_FILE = os.path.join(ROOT, "local/events.jsonl")
@@ -28,7 +31,6 @@ def check_lms():
 
 def check_hub():
     try:
-        # Hub doesn't have a dedicated health endpoint yet, just check if it's listening
         resp = requests.get(f"{HUB_URL}/sessions", timeout=2)
         return "ALIVE" if resp.status_code == 200 else "DEGRADED"
     except:
@@ -68,7 +70,6 @@ def run_pulse():
             "workers": check_pids()
         }
         
-        # Overall status classification
         values = list(health.values())
         if "CRASHED" in values:
             health["status"] = "CRASHED"
@@ -82,7 +83,6 @@ def run_pulse():
             
         logger.info(f"Health Pulse: {health['status']} | LMS: {health['lms']} | Hub: {health['hub']} | Workers: {health['workers']}")
         
-        # Emit health event to Hub if Hub is alive
         if health["hub"] == "ALIVE":
             try:
                 requests.post(f"{HUB_URL}/events", json={

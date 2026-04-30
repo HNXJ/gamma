@@ -8,8 +8,8 @@ from typing import Dict, Any, List, Optional, Set
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
-# Config Doctrine: Strictly import from centralized config
-from src.gamma_runtime.config import get_lms_url
+# Config Doctrine: Use LOCAL_URL for co-located workers
+from src.gamma_runtime.config import get_lms_local_url
 
 logger = logging.getLogger("ToolHarness")
 
@@ -35,7 +35,8 @@ class TruncationMiddleware:
                 pass
         
         if summary_blocks:
-            output = "\n\n".join(summary_blocks) + "\n\n--- Standard Output ---\n" + output
+            output = "\n\n".join(summary_blocks) + "\n\n--- Standard Output ---
+" + output
 
         if len(output) <= TruncationMiddleware.MAX_LENGTH:
             return output
@@ -149,7 +150,8 @@ class StatefulPythonExecutor:
         if output:
             combined += output
         if errors:
-            if combined: combined += "\n\n--- ERRORS ---"
+            if combined: combined += "\n\n--- ERRORS ---
+"
             combined += errors
             
         if not combined:
@@ -167,7 +169,7 @@ class ContextHydrator:
         self.recent_skills: List[str] = []
 
     def hydrate(self, agent_role: str, memory: str, task: str, 
-                active_skills: List[str] = None, 
+                active_skills: List[str] = None,
                 scenario_tags: Set[str] = None) -> str:
         
         role_block = f"## Role Profile\n{agent_role}"
@@ -191,7 +193,8 @@ class ContextHydrator:
         if skill_blocks:
             blocks.append("## Active Skills\n" + "\n\n---\n\n".join(skill_blocks))
             
-        joined = "\n\n---\n\n".join(blocks)
+        joined = "\n\n---
+\n".join(blocks)
         return f"<SYSTEM_CONTEXT>\n{joined}\n</SYSTEM_CONTEXT>"
 
     def _resolve_skills(self, manual: List[str], tags: Set[str]) -> List[str]:
@@ -232,7 +235,7 @@ class ToolRouter:
         self.agent_id = agent_id
         self.sandbox_root = os.path.abspath(sandbox_root)
         self.executor = StatefulPythonExecutor(self.sandbox_root)
-        self.lms_url = get_lms_url()
+        self.lms_url = get_lms_local_url()
 
     def get_tool_schema(self) -> List[Dict]:
         return [

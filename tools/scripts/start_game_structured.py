@@ -42,10 +42,10 @@ def run_preflight_checks():
     except ImportError as e:
         emit_failure("missing_dependency", str(e))
 
-    from src.gamma_runtime.config import get_lms_url
+    from src.gamma_runtime.config import get_lms_local_url
     
     # 3. Check LMS Port Reachability
-    lms_url = get_lms_url()
+    lms_url = get_lms_local_url()
     try:
         parsed = urlparse(lms_url)
         host = parsed.hostname
