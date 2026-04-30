@@ -2,14 +2,15 @@ import time
 import httpx
 from .types import ModelSpec, InferenceRequest, InferenceResult
 from .backend_base import InferenceBackend
+from .config import get_lms_url
 
 class LMStudioBackend(InferenceBackend):
-    def __init__(self, base_url: str = "http://127.0.0.1:1234"):
-        self.base_url = base_url
+    def __init__(self, base_url: str = None):
+        self.base_url = base_url or get_lms_url()
         self.client = httpx.AsyncClient(timeout=120.0)
 
     async def load_model(self, spec: ModelSpec):
-        return {"status": "already_running_on_port_4474"}
+        return {"status": "already_running"}
 
     async def unload_model(self, spec: ModelSpec):
         resp = await self.client.post(

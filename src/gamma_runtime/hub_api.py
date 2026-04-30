@@ -3,6 +3,8 @@ import http.server
 import socketserver
 import logging
 import asyncio
+import os
+import time
 from typing import Optional
 from urllib.parse import urlparse, parse_qs
 from .orchestrator import UnifiedOrchestrator
@@ -60,6 +62,19 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
             }
             self._set_headers()
             self.wfile.write(json.dumps(state).encode())
+        elif path == "/api/events":
+            # Safely appended: return structured events for front
+            log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "local/events.jsonl")
+            events = []
+            if os.path.exists(log_path):
+                with open(log_path, "r") as f:
+                    for line in f:
+                        if line.strip():
+                            try:
+                                events.append(json.loads(line))
+                            except: pass
+            self._set_headers()
+            self.wfile.write(json.dumps(events[-100:]).encode()) # Return last 100 events
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
@@ -98,7 +113,10 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         return future.result()
 
 class HubAPIServer:
-    def __init__(self, orchestrator: UnifiedOrchestrator, port: int = 8001):
+    def __init__(self, orchestrator: UnifiedOrchestrator, port: int = None):
+        if port is None:
+            from .config import HUB_PORT
+            port = HUB_PORT
         self.orchestrator = orchestrator
         self.port = port
         HubAPIHandler.orchestrator = orchestrator
@@ -118,4 +136,3 @@ class HubAPIServer:
         thread.start()
         logger.info(f"Hub API listening on http://localhost:{self.port}")
         return server
-

@@ -34,7 +34,8 @@ async def main():
     # 2. Initialize Infrastructure
     registry = RuntimeRegistry(os.path.join(ROOT, "configs"))
     from src.gamma_runtime.backend_mlx import MLXEngineBackend
-    backend = MLXEngineBackend(base_url="http://100.69.184.42:4474")
+    from src.gamma_runtime.config import get_lms_url
+    backend = MLXEngineBackend(base_url=get_lms_url())
 
     # Define Model Spec for the Gemma model
     model_spec = ModelSpec(

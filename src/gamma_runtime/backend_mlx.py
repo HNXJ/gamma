@@ -3,12 +3,13 @@ import httpx
 import logging
 from .types import ModelSpec, InferenceRequest, InferenceResult
 from .backend_base import InferenceBackend
+from .config import get_lms_url
 
 logger = logging.getLogger("MLXBackend")
 
 class MLXEngineBackend(InferenceBackend):
-    def __init__(self, base_url: str = "http://100.69.184.42:4474", api_key: str = "mlx-server"):
-        self.base_url = base_url
+    def __init__(self, base_url: str = None, api_key: str = "mlx-server"):
+        self.base_url = base_url or get_lms_url()
         self.headers = {"Authorization": f"Bearer {api_key}"}
         self.client = httpx.AsyncClient(timeout=300.0, headers=self.headers)
 

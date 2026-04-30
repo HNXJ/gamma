@@ -11,6 +11,7 @@ from apps.v1_gamma_sde_app import V1GammaSDEOrchestrator
 from sde_engine.solver import SDESolver
 from sde_engine.adapter import ExecutionAdapter
 from gamma.got.engine.persistence import ArenaPersistence
+from .events import EventEmitter
 
 logger = logging.getLogger("UnifiedOrchestrator")
 
@@ -20,9 +21,10 @@ class UnifiedOrchestrator:
     Bridges Linguistic (Council) and Biophysical (SDE) reasoning.
     Now includes an aggressive Zero-Idle Heartbeat Monitor.
     """
-    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry):
+    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, emitter: Optional[EventEmitter] = None):
         self.scheduler = scheduler
         self.registry = registry
+        self.emitter = emitter
         self.consolidation = ConsolidationManager()
         self.persistence = ArenaPersistence(game_id="game001", root_dir=str(registry.root.parent))
         self.adapter = ExecutionAdapter(proposals_dir=os.path.join(str(registry.root.parent), "data", "sde_proposals"))
@@ -122,6 +124,16 @@ class UnifiedOrchestrator:
         session_id = f"session-{run_type}-{int(time.time())}"
         blackboard = Blackboard(topic)
         self._active_sessions[session_id] = blackboard
+        
+        if self.emitter:
+            self.emitter.emit(
+                agent_id="SYSTEM",
+                role="orchestrator",
+                event_type="turn_start",
+                summary=f"Orchestrator launched {run_type} run on topic: {topic}",
+                status="OK"
+            )
+            
         asyncio.create_task(self._execute_run(run_type, blackboard, **kwargs))
         return session_id
 

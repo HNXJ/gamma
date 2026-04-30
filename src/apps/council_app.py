@@ -69,14 +69,15 @@ class CouncilOrchestrator:
 async def main():
     from gamma_runtime.orchestrator import UnifiedOrchestrator
     from gamma_runtime.hub_api import HubAPIServer
+    from gamma_runtime.config import get_lms_url, HUB_PORT
     root = os.getcwd()
     config_path = os.path.join(root, "context", "configs")
     registry = RuntimeRegistry(config_path)
     scheduler = InferenceScheduler()
     orchestrator = UnifiedOrchestrator(scheduler, registry)
     council = CouncilOrchestrator(scheduler, registry)
-    await council.initialize_pools(["gemma4-parallel", "gemma-9b-schiz"], lambda spec: LMStudioBackend("http://127.0.0.1:1234"))
-    api = HubAPIServer(orchestrator, port=8001)
+    await council.initialize_pools(["gemma4-parallel", "gemma-9b-schiz"], lambda spec: LMStudioBackend(get_lms_url()))
+    api = HubAPIServer(orchestrator, port=HUB_PORT)
     api.start()
     orchestrator.start_heartbeat_monitor(team_id="v1_gamma_sde_team", topic="SDE Biophysical Property Extraction")
     logger.info("🏟️  GAMMA ARENA BOOTED SUCCESSFULLY.")

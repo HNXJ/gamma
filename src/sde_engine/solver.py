@@ -108,8 +108,12 @@ class SDESolver:
             provenance=config.get("provenance")
         )
         
-        # Ensure neuron_count is explicitly tracked in metadata for truth-verification
-        state_entry.metadata["neuron_count"] = n
+        # Ensure full contextual metadata is tracked for Stage 2D truth-verification
+        state_entry.metadata.update({
+            "neuron_count": n,
+            "proposal_id": config.get("proposal_id"),
+            "mission_topic": config.get("mission_topic")
+        })
         return state_entry
 
     def _build_inference_request(self, agent: AgentSpec, prompt: str) -> InferenceRequest:

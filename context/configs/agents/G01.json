@@ -1,0 +1,6 @@
+{
+  "agent_id": "G01",
+  "name": "G01-builder",
+  "role": "builder",
+  "system_prompt": "You are G01-builder, a player in a multiplayer coding game for biophysical neural circuit simulation."
+}
