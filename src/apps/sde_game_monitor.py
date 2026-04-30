@@ -110,24 +110,24 @@ async def get_status():
         },
         "progression": progression,
         "research": {
-            "neuron_count": progression.get("largest_pass_network_neuron_count", None),
-            "pass_network": f"{progression.get('largest_pass_network_neuron_count', 10)}-Node (Grounded)" if council_dialogue else None,
-            "active_patch": progression.get("active_patches", ["v0.3.1"])[0] if progression.get("active_patches") else "v0.3.1",
-            "omissions": None
+            "neuron_count": progression.get("largest_pass_network_neuron_count"),
+            "pass_network": f"{progression.get('largest_pass_network_neuron_count')}-Node" if progression.get('largest_pass_network_neuron_count') else None,
+            "active_patch": progression.get("active_patches", ["v1.1.0"])[0] if progression.get("active_patches") else "v1.1.0",
+            "omissions": progression.get("omissions", 0)
         },
-        "sessions": [
+        "sessions": progression.get("sessions", [
             {
-                "id": "Coder 1 (Builder)",
-                "role": "Builder",
+                "id": "G01",
+                "role": "Monitor",
                 "status": "ACTIVE" if council_dialogue else "IDLE",
                 "last_active": latest_msg.get("time", ""),
                 "truth_class": "GROUNDED",
-                "source": "/logs/overnight_orchestrator.log"
+                "source": LOG_PATH
             },
-            { "id": "Coder 2 (Optimizer)", "role": "Optimizer", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
-            { "id": "Coder 3 (Analyst)", "role": "Analyst", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
-            { "id": "Tester (Manager)", "role": "Manager", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" }
-        ]
+            { "id": "G02", "role": "Optimizer", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
+            { "id": "G03", "role": "Analyst", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
+            { "id": "G04", "role": "Manager", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" }
+        ])
     }
 
 if __name__ == "__main__":

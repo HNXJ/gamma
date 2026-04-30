@@ -8,5 +8,12 @@
   "official_level_metric": "largest_pass_network_neuron_count",
   "largest_pass_network_neuron_count": 10,
   "next_unlock_threshold": 40,
-  "last_updated": "2026-04-30T01:50:00Z"
+  "omissions": 0,
+  "sessions": [
+    { "id": "G01", "role": "Monitor", "status": "ACTIVE", "truth_class": "GROUNDED" },
+    { "id": "G02", "role": "Optimizer", "status": "IDLE", "truth_class": "DEGRADED" },
+    { "id": "G03", "role": "Analyst", "status": "IDLE", "truth_class": "DEGRADED" },
+    { "id": "G04", "role": "Manager", "status": "IDLE", "truth_class": "DEGRADED" }
+  ],
+  "last_updated": "2026-04-30T02:15:00Z"
 }
