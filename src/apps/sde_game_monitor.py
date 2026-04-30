@@ -32,7 +32,7 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Environment-based paths for logs and DB
 DB_PATH = os.getenv("GAMMA_DB_PATH", "file::memory:?cache=shared")
-LOG_PATH = os.getenv("GAMMA_LOG_PATH", "/dev/null")
+LOG_PATH = os.getenv("GAMMA_LOG_PATH", "/Users/HN/MLLM/gamma/local/game001/logs/orchestrator.log")
 
 # Global state for streaming logs
 council_dialogue = []
