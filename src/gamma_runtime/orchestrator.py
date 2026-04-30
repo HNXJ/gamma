@@ -57,10 +57,11 @@ class UnifiedOrchestrator:
                     blackboard = self._active_sessions[session_id]
                     self._last_activity_time = now 
                     
+                    topic = self._get_active_mission_topic()
                     orchestrator = CouncilOrchestrator(self.scheduler, self.registry, blackboard=blackboard)
                     await orchestrator.run_deliberation(
                         team_id=self._heartbeat_config["team_id"],
-                        topic=blackboard.topic,
+                        topic=topic,
                         rounds=1
                     )
                     self._last_activity_time = time.time()
@@ -129,6 +130,21 @@ class UnifiedOrchestrator:
                     "status": "IDLE"
                 })
         return sessions
+
+    def _get_active_mission_topic(self) -> str:
+        """Fetches the current mission topic from the active patch board."""
+        try:
+            board_path = self.registry.root / "patches" / "arena_patch_board.json"
+            if board_path.exists():
+                with open(board_path, "r") as f:
+                    board = json.load(f)
+                    # Check if board has a direct override (added during 10->11 transition)
+                    if "active_mission_topic" in board:
+                        return board["active_mission_topic"]
+                    
+            return self._heartbeat_config["topic"]
+        except Exception:
+            return self._heartbeat_config["topic"]
 
     def get_session_state(self, session_id: str) -> Optional[Dict[str, Any]]:
         blackboard = self._active_sessions.get(session_id)

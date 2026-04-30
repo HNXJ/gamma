@@ -105,6 +105,8 @@ async def get_status():
         "persistence": persistence,
         "research": {
             "neuron_count": progression.get("largest_pass_network_neuron_count"),
+            "active_target": progression.get("active_mission_target"),
+            "mission_topic": progression.get("active_mission_topic"),
             "pass_network": f"{progression.get('largest_pass_network_neuron_count')}-Node Grounded" if progression.get("largest_pass_network_neuron_count") else None,
             "active_patch": progression.get("active_patches")[0] if progression.get("active_patches") else None,
             "omissions": progression.get("omissions", 0)
