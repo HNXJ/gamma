@@ -1,0 +1,155 @@
+:root {
+    --bg: #080808;
+    --panel-bg: rgba(13, 13, 13, 0.85);
+    --accent: #FFB800; /* Amber Gold */
+    --accent-glow: rgba(255, 184, 0, 0.3);
+    --text: #E0E0E0;
+    --text-dim: #A0A0A0;
+    --success: #00FF41;
+    --error: #FF4D4D;
+    --blue: #4D4DFF;
+    --purple: #9D4DFF;
+    --border: rgba(255, 184, 0, 0.2);
+    --border-bright: rgba(255, 184, 0, 0.5);
+    
+    --font-main: 'Outfit', 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-main);
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Layout Grid */
+.arena-container {
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    gap: 12px;
+    padding: 12px;
+}
+
+header {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.left-sidebar {
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.main-content {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.right-sidebar {
+    grid-column: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+footer {
+    grid-column: 1 / -1;
+    height: 80px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+}
+
+/* Panel Styles */
+.panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 15px;
+    position: relative;
+}
+
+.panel-header {
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 5px;
+}
+
+/* Typography & Components */
+.label { color: var(--text-dim); font-size: 10px; text-transform: uppercase; }
+.value { color: var(--accent); font-family: var(--font-mono); font-size: 16px; }
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+}
+
+.heartbeat {
+    color: var(--success);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Neuron Progression Bar */
+.neuron-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 60px;
+    margin-top: 10px;
+}
+
+.bar-segment {
+    flex: 1;
+    background: rgba(255, 184, 0, 0.1);
+    border: 1px solid var(--border);
+    transition: height 0.3s ease;
+}
+
+.bar-segment.active {
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+}

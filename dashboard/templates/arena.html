@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAMMA ARENA | Agentic MaDeLaMo</title>
+    <link rel="stylesheet" href="/static/css/arena.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@300;400;700&family=Outfit:wght@200;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="arena-container">
+        <!-- HEADER -->
+        <header>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <svg width="40" height="40" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="#FFB800" stroke-width="2" />
+                    <path d="M30 50 Q50 20 70 50 Q50 80 30 50" fill="#FFB800" opacity="0.5" />
+                    <circle cx="50" cy="50" r="5" fill="#FFB800" />
+                </svg>
+                <div>
+                    <h1 style="color: var(--accent); font-size: 24px; letter-spacing: 2px;">GAMMA ARENA</h1>
+                    <p class="label" style="margin-top: -4px;">AGENTIC MaDeLaMo | Neurobiology-Grounded Multi-Agent Arena</p>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 30px;">
+                <div class="status-indicator">
+                    <div><div class="label">Arena Status</div><div class="value" style="color: var(--success); display: flex; align-items: center; gap: 5px;"><div class="dot"></div> ONLINE</div></div>
+                </div>
+                <div><div class="label">Uptime</div><div class="value" id="uptime">15h 47m</div></div>
+                <div><div class="label">Agents Active</div><div class="value" id="agents-active">4 / 8</div></div>
+                <div><div class="label">Tasks Running</div><div class="value" id="tasks-running">3</div></div>
+                <div><div class="label">Heartbeat</div><div class="heartbeat" id="heartbeat">OK</div></div>
+            </div>
+        </header>
+
+        <!-- LEFT SIDEBAR -->
+        <div class="left-sidebar">
+            <div class="panel">
+                <div class="panel-header">Progression (Neurons)</div>
+                <div class="neuron-bar" id="neuron-bar">
+                    <!-- Bars filled via JS -->
+                    <div class="bar-segment active" style="height: 20%;"></div>
+                    <div class="bar-segment active" style="height: 35%;"></div>
+                    <div class="bar-segment active" style="height: 50%;"></div>
+                    <div class="bar-segment active" style="height: 70%;"></div>
+                    <div class="bar-segment" style="height: 85%;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 5px;" class="label">
+                    <span>10 Now</span>
+                    <span>500 NMDA</span>
+                </div>
+            </div>
+
+            <div class="panel" style="border-left: 4px solid var(--success);">
+                <div class="panel-header">Current Level</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="font-size: 24px; color: var(--accent);">L1</h2>
+                        <p class="label" id="neuron-count-label">10 NEURONS</p>
+                    </div>
+                    <div class="value" style="color: var(--success); font-size: 10px; border: 1px solid var(--success); padding: 2px 6px; border-radius: 2px;">STABLE</div>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px;">
+                    <p>7 Excitatory</p>
+                    <p>2 PV Interneuron</p>
+                    <p>1 SST Interneuron</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">Level Check</div>
+                <div style="font-size: 11px; display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; justify-content: space-between;"><span>Connected Network</span> <span style="color: var(--success);">✔</span></div>
+                    <div style="display: flex; justify-content: space-between;"><span>Physiological Activity</span> <span style="color: var(--success);">✔</span></div>
+                    <div style="display: flex; justify-content: space-between;"><span>Voltage Bounds</span> <span style="color: var(--success);">✔</span></div>
+                    <div style="display: flex; justify-content: space-between;"><span>Tester Approval</span> <span style="color: var(--accent);">PENDING</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <div class="panel" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="panel-header">Neurobiology-Grounded Model</div>
+                <div style="flex: 1; display: flex; justify-content: center; align-items: center;">
+                    <!-- Placeholder for Circuit Diagram SVG -->
+                    <svg width="100%" height="200" viewBox="0 0 400 200">
+                        <line x1="50" y1="50" x2="350" y2="50" stroke="var(--border)" />
+                        <line x1="50" y1="150" x2="350" y2="150" stroke="var(--border)" />
+                        <circle cx="100" cy="80" r="10" fill="var(--accent)" />
+                        <circle cx="200" cy="120" r="10" fill="var(--blue)" />
+                        <path d="M110 80 Q150 100 190 115" fill="none" stroke="var(--accent)" marker-end="url(#arrow)" />
+                    </svg>
+                </div>
+                
+                <div class="panel-header" style="margin-top: 10px;">GPM Pipeline (Data → Model → Mechanism)</div>
+                <div style="display: flex; justify-content: space-around; padding: 10px 0;">
+                    <div style="text-align: center;"><div class="label">MEG Data</div><div style="font-size: 18px;">🔱</div></div>
+                    <div style="text-align: center;"><div class="label">Analysis</div><div style="font-size: 18px;">👥</div></div>
+                    <div style="text-align: center;"><div class="label">Candidate</div><div style="font-size: 18px;">🧬</div></div>
+                    <div style="text-align: center;"><div class="label">Simulation</div><div style="font-size: 18px;">⚙️</div></div>
+                    <div style="text-align: center;"><div class="label">Validation</div><div style="font-size: 18px;">🛡️</div></div>
+                </div>
+            </div>
+
+            <div class="panel" style="height: 200px;">
+                <div class="panel-header">Current Simulation</div>
+                <div id="sim-charts" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 120px;">
+                    <div style="border: 1px solid var(--border);"></div>
+                    <div style="border: 1px solid var(--border);"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR -->
+        <div class="right-sidebar">
+            <div class="panel">
+                <div class="panel-header">Objective</div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="width: 50px; height: 50px; border-radius: 50%; border: 4px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px;">36%</div>
+                    <div>
+                        <p style="font-size: 12px;">Build biologically valid connected models.</p>
+                        <p class="label">Season Goal</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex: 1;">
+                <div class="panel-header">Agent Roster</div>
+                <div style="display: flex; flex-direction: column; gap: 8px;" id="agent-roster">
+                    <!-- Filled via JS -->
+                    <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                        <span>Coder 1 (Builder)</span>
+                        <span style="color: var(--success);">● ACTIVE</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">Blackboard Snapshot</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="text-align: center;"><div class="label">Experiments</div><div class="value">5</div></div>
+                    <div style="text-align: center;"><div class="label">Skills</div><div class="value">12 / 48</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer>
+            <div class="panel-header" style="margin-bottom: 5px;">Recent Events</div>
+            <div id="timeline" style="display: flex; justify-content: space-between; padding: 5px 20px;">
+                <!-- Timeline items -->
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                // Update basic metrics
+                document.getElementById('heartbeat').innerText = 'SEC_' + Math.floor(Date.now()/1000 % 60) + '_OK';
+                
+                // Update Neuron Count Logic
+                // Assume 1 neuron per 10 lines of log or similar if not provided
+                const neuronCount = data.research?.neuron_count || 10;
+                document.getElementById('neuron-count-label').innerText = neuronCount + ' NEURONS';
+                
+                // Update Agent Roster
+                if (data.sessions) {
+                    const roster = document.getElementById('agent-roster');
+                    roster.innerHTML = data.sessions.map(s => `
+                        <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                            <span>${s.id} (${s.status})</span>
+                            <span style="color: ${s.status === 'MONITORING' ? 'var(--success)' : 'var(--text-dim)'}">● ${s.status === 'MONITORING' ? 'ACTIVE' : 'IDLE'}</span>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error("Arena update failed", err);
+            }
+        }
+
+        setInterval(updateDashboard, 2000);
+        updateDashboard();
+    </script>
+</body>
+</html>
