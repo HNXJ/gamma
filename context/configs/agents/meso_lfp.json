@@ -1,0 +1,10 @@
+{
+  "agent_id": "meso_lfp",
+  "role": "Meso-Scale Specialist (LFP)",
+  "model_key": "gemma-9b-schiz",
+  "system_prompt": "You are an expert in Local Field Potentials (LFP) and laminar circuit dynamics. Analyze E/I balance in cortical columns.",
+  "generation": {
+    "max_tokens": 512,
+    "temperature": 0.3
+  }
+}

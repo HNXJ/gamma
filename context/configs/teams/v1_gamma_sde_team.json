@@ -1,0 +1,15 @@
+{
+  "team_id": "v1_gamma_sde_team",
+  "agents": [
+    "v1_gamma_proponent",
+    "v1_gamma_adversary",
+    "v1_gamma_consensus"
+  ],
+  "communication": {
+    "topology": "blackboard",
+    "max_rounds": 3
+  },
+  "scheduler": {
+    "max_inflight_per_model": 2
+  }
+}

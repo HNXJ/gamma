@@ -1,0 +1,7 @@
+{
+  "key": "gemma4-parallel",
+  "provider": "lmstudio",
+  "context_length": 8192,
+  "quantization": "mxfp8",
+  "max_parallel_slots": 6
+}
