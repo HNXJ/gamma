@@ -1,27 +1,24 @@
 {
   "workers": [
     {
-      "name": "hub_api",
-      "cmd": "python3 src/gamma_runtime/hub_api_launcher.py",
-      "restart_policy": "always",
-      "priority": 0
-    },
-    {
-      "name": "orchestrator",
-      "cmd": "python3 tools/scripts/start_game_structured.py",
-      "restart_policy": "on-failure",
-      "priority": 1
-    },
-    {
       "name": "heartbeat",
       "cmd": "python3 gamma-heartbeat.py",
       "restart_policy": "always",
-      "priority": 2
+      "safe_mode_required": true,
+      "priority": 1
     },
     {
       "name": "safety",
       "cmd": "python3 backup-safety.py",
       "restart_policy": "always",
+      "safe_mode_required": true,
+      "priority": 2
+    },
+    {
+      "name": "orchestrator",
+      "cmd": "python3 tools/scripts/start_game_structured.py",
+      "restart_policy": "on-failure",
+      "safe_mode_required": false,
       "priority": 3
     }
   ],

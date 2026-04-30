@@ -120,8 +120,16 @@ class Supervisor:
 
 if __name__ == "__main__":
     sv = Supervisor()
-    # Start workers in priority order
-    sorted_workers = sorted(sv.config["workers"], key=lambda x: x["priority"])
+    # Filter workers based on safe_mode_required
+    # In Safe Mode, we only start workers with safe_mode_required=true
+    run_mode = os.environ.get("SAFE_MODE", "true").lower() == "true"
+    
+    workers = sv.config.get("workers", [])
+    if run_mode:
+        workers = [w for w in workers if w.get("safe_mode_required", False)]
+        logger.info("SAFE MODE ENABLED: Only starting mandatory pillars.")
+    
+    sorted_workers = sorted(workers, key=lambda x: x["priority"])
     for w in sorted_workers:
         sv.start_worker(w)
         time.sleep(1) # Stagger start

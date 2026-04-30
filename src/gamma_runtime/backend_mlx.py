@@ -27,8 +27,12 @@ class MLXEngineBackend(InferenceBackend):
 
     async def generate(self, request: InferenceRequest) -> InferenceResult:
         t0 = time.perf_counter()
+        
+        from .model_router import resolve_lms_identifier
+        resolved_model = resolve_lms_identifier(request.agent_id, request.model_key)
+        
         payload = {
-            "model": request.model_key,
+            "model": resolved_model,
             "messages": request.messages,
             "temperature": request.generation.get("temperature", 0.7),
             "max_tokens": request.generation.get("max_tokens", 2048),

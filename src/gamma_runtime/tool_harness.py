@@ -35,8 +35,7 @@ class TruncationMiddleware:
                 pass
         
         if summary_blocks:
-            output = "\n\n".join(summary_blocks) + "\n\n--- Standard Output ---
-" + output
+            output = "\n\n".join(summary_blocks) + "\n\n--- Standard Output ---\n" + output
 
         if len(output) <= TruncationMiddleware.MAX_LENGTH:
             return output
@@ -150,8 +149,7 @@ class StatefulPythonExecutor:
         if output:
             combined += output
         if errors:
-            if combined: combined += "\n\n--- ERRORS ---
-"
+            if combined: combined += "\n\n--- ERRORS ---\n"
             combined += errors
             
         if not combined:
@@ -193,8 +191,7 @@ class ContextHydrator:
         if skill_blocks:
             blocks.append("## Active Skills\n" + "\n\n---\n\n".join(skill_blocks))
             
-        joined = "\n\n---
-\n".join(blocks)
+        joined = "\n\n---\n\n".join(blocks)
         return f"<SYSTEM_CONTEXT>\n{joined}\n</SYSTEM_CONTEXT>"
 
     def _resolve_skills(self, manual: List[str], tags: Set[str]) -> List[str]:
