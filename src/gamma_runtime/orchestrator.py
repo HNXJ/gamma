@@ -50,15 +50,13 @@ class UnifiedOrchestrator:
             if idle_duration > 1.0:
                 logger.warning(f"⚠️ SYSTEM IDLE DETECTED ({idle_duration:.2f}s). Forcing heartbeat turn...")
                 try:
-                    # Create a default session if none exists, or use the last one
                     session_id = "heartbeat-session"
                     if session_id not in self._active_sessions:
                         self._active_sessions[session_id] = Blackboard(self._heartbeat_config["topic"])
                     
                     blackboard = self._active_sessions[session_id]
-                    self._last_activity_time = now # Prevent re-triggering while running
+                    self._last_activity_time = now 
                     
-                    # Execute a single round of deliberation
                     orchestrator = CouncilOrchestrator(self.scheduler, self.registry, blackboard=blackboard)
                     await orchestrator.run_deliberation(
                         team_id=self._heartbeat_config["team_id"],
@@ -68,22 +66,15 @@ class UnifiedOrchestrator:
                     self._last_activity_time = time.time()
                 except Exception as e:
                     logger.error(f"Heartbeat trigger failed: {e}")
-                    await asyncio.sleep(5) # Back off on error
+                    await asyncio.sleep(5)
             
-            await asyncio.sleep(0.5) # High frequency polling
+            await asyncio.sleep(0.5)
 
     async def launch_run(self, run_type: str, topic: str, **kwargs) -> str:
-        """
-        Launches a scientific session.
-        run_type: 'council', 'sde', or 'synthesis'
-        """
         session_id = f"session-{run_type}-{int(time.time())}"
         blackboard = Blackboard(topic)
         self._active_sessions[session_id] = blackboard
-        
-        # Start the run in the background
         asyncio.create_task(self._execute_run(run_type, blackboard, **kwargs))
-        
         return session_id
 
     async def _execute_run(self, run_type: str, blackboard: Blackboard, **kwargs):
@@ -119,7 +110,6 @@ class UnifiedOrchestrator:
     def get_session_state(self, session_id: str) -> Optional[Dict[str, Any]]:
         blackboard = self._active_sessions.get(session_id)
         if not blackboard: return None
-        
         return {
             "session_id": session_id,
             "topic": blackboard.topic,
@@ -133,4 +123,3 @@ class UnifiedOrchestrator:
                 } for e in blackboard.entries
             ]
         }
-
