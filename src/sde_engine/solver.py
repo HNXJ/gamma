@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from gamma_runtime.types import AgentId, InferenceRequest, AgentSpec
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.blackboard import Blackboard
