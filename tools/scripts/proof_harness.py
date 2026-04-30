@@ -18,47 +18,68 @@ async def test_summarization():
         'B': np.random.randn(100)
     })
     
-    summary = TruncationMiddleware.summarize_data(df)
-    print("DataFrame Summary Proof:")
-    print(summary)
+    # We pass the df in a dict to process
+    result = TruncationMiddleware.process("Some output", {"my_df": df})
+    print("DataFrame Summary Proof in Process Output:")
+    print(result)
     
     arr = np.random.randn(10, 10, 10)
-    arr_summary = TruncationMiddleware.summarize_data(arr)
-    print("\nNumpy Array Summary Proof:")
-    print(arr_summary)
+    arr_result = TruncationMiddleware.process("Array output", {"my_arr": arr})
+    print("\nNumpy Array Summary Proof in Process Output:")
+    print(arr_result)
 
 async def test_sandboxing():
-    print("\n--- Testing Sandbox Isolation ---")
+    print("\n--- Testing Sandbox Isolation (Path Guard) ---")
     agent_id = "TEST_G01"
     sandbox_path = os.path.join(ROOT, "local/test_sandbox", agent_id)
+    if not os.path.exists(sandbox_path):
+        os.makedirs(sandbox_path, exist_ok=True)
+        
     router = ToolRouter(agent_id, sandbox_path)
     
-    # Try to write outside sandbox
-    code = """
-import os
+    # 1. Test blocked relative path escape
+    print("\nAttempt 1: Relative Path Escape (../../../forbidden.txt)")
+    code_escape = """
 try:
     with open('../../../forbidden.txt', 'w') as f:
         f.write('hacked')
-    print('Hacked!')
+    print('FAIL: Hacked!')
+except PermissionError as e:
+    print(f'PASS: Caught expected error: {e}')
 except Exception as e:
-    print(f'Caught expected error: {e}')
+    print(f'Caught unexpected error: {type(e).__name__}: {e}')
 """
-    result = router.executor.execute(code)
-    print("Sandbox Write Result:")
+    result = router.executor.execute(code_escape)
     print(result)
     
-    # Verify file was NOT created outside
-    forbidden = os.path.join(ROOT, "forbidden.txt")
-    if os.path.exists(forbidden):
-        print("FAIL: Sandbox breached!")
-    else:
-        print("PASS: Sandbox enforced.")
+    # 2. Test blocked absolute path escape
+    print("\nAttempt 2: Absolute Path Escape (/tmp/forbidden.txt)")
+    code_abs = """
+try:
+    with open('/tmp/forbidden.txt', 'w') as f:
+        f.write('hacked')
+    print('FAIL: Hacked!')
+except PermissionError as e:
+    print(f'PASS: Caught expected error: {e}')
+"""
+    result_abs = router.executor.execute(code_abs)
+    print(result_abs)
+
+    # 3. Test allowed path
+    print("\nAttempt 3: Allowed Path (local.txt)")
+    code_ok = """
+with open('local.txt', 'w') as f:
+    f.write('safe content')
+print('PASS: Wrote to local.txt')
+"""
+    result_ok = router.executor.execute(code_ok)
+    print(result_ok)
 
 async def test_truncation():
-    print("\n--- Testing Truncation Middleware ---")
-    long_text = "A" * 5000
+    print("\n--- Testing Truncation Middleware (Center Truncation) ---")
+    long_text = "START" + ("_" * 2000) + "END"
     result = TruncationMiddleware.process(long_text)
-    print(f"Original length: 5000, Processed length: {len(result)}")
+    print(f"Original length: {len(long_text)}, Processed length: {len(result)}")
     print("Truncation Output Preview:")
     print(result)
 

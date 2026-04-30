@@ -60,7 +60,7 @@ def run_preflight_checks():
     for agent in agents:
         agent_dir = os.path.join(ROOT, f"local/inventory/{agent}")
         if not os.path.exists(agent_dir):
-            os.makedirs(agent_dir, exist_ok=True)
+            emit_failure("missing_inventory", f"Missing inventory directory for {agent} at {agent_dir}")
             
     logger.info("✅ Preflight checks passed.")
 

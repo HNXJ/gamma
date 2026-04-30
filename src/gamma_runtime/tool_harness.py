@@ -35,8 +35,7 @@ class TruncationMiddleware:
                 pass
         
         if summary_blocks:
-            output = "\n\n".join(summary_blocks) + "\n\n--- Standard Output ---
-" + output
+            output = "\n\n".join(summary_blocks) + "\n\n--- Standard Output ---\n" + output
 
         if len(output) <= TruncationMiddleware.MAX_LENGTH:
             return output
@@ -107,7 +106,7 @@ class StatefulPythonExecutor:
                 'scipy': scipy, 
                 'jax': jax, 
                 'chex': chex,
-                'open': self.guard.wrap_open, # Override open for path safety
+                'open': self.guard.wrap_open,
                 '__builtins__': {**__builtins__, 'open': self.guard.wrap_open}
             })
         except ImportError as e:
@@ -150,8 +149,7 @@ class StatefulPythonExecutor:
         if output:
             combined += output
         if errors:
-            if combined: combined += "\n\n--- ERRORS ---
-"
+            if combined: combined += "\n\n--- ERRORS ---"
             combined += errors
             
         if not combined:
@@ -169,7 +167,7 @@ class ContextHydrator:
         self.recent_skills: List[str] = []
 
     def hydrate(self, agent_role: str, memory: str, task: str, 
-                active_skills: List[str] = None,
+                active_skills: List[str] = None, 
                 scenario_tags: Set[str] = None) -> str:
         
         role_block = f"## Role Profile\n{agent_role}"
@@ -265,7 +263,7 @@ class ToolRouter:
             results.append({
                 "role": "tool",
                 "tool_call_id": tool_call["id"],
-                "name": tool_call["function"Май name"],
+                "name": tool_call["function"]["name"],
                 "content": result_content
             })
         return results
