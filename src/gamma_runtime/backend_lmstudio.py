@@ -22,8 +22,12 @@ class LMStudioBackend(InferenceBackend):
 
     async def generate(self, request: InferenceRequest) -> InferenceResult:
         t0 = time.perf_counter()
+        
+        from .model_router import resolve_lms_identifier
+        resolved_model = resolve_lms_identifier(request.agent_id, request.model_key)
+        
         payload = {
-            "model": request.model_key,
+            "model": resolved_model,
             "messages": request.messages,
             "stream": False,
             **request.generation,
