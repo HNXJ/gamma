@@ -47,13 +47,19 @@ AGENT_LOGS = {
 
 # Global state for streaming logs
 council_dialogue = []
+structured_events = [] # Placeholder for future structured provenance events
 tps_stats = {"total_tokens": 0, "last_tps_check": time.time(), "tps": 0.0}
 
 def update_monitor_data():
-    global council_dialogue, tps_stats
+    global council_dialogue, tps_stats, structured_events
     last_pos = 0
     while True:
         try:
+            # 1. Check for structured provenance records (Durable Path)
+            # Placeholder for future structured sink integration
+            pass
+
+            # 2. Legacy Log Parsing (Fallback)
             if os.path.exists(LOG_PATH):
                 with open(LOG_PATH, "r") as f:
                     f.seek(last_pos)

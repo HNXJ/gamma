@@ -9,6 +9,8 @@ from .registry import RuntimeRegistry
 from .consolidation import ConsolidationManager
 from apps.v1_gamma_sde_app import V1GammaSDEOrchestrator
 from sde_engine.solver import SDESolver
+from sde_engine.adapter import ExecutionAdapter
+from gamma.got.engine.persistence import ArenaPersistence
 
 logger = logging.getLogger("UnifiedOrchestrator")
 
@@ -22,6 +24,8 @@ class UnifiedOrchestrator:
         self.scheduler = scheduler
         self.registry = registry
         self.consolidation = ConsolidationManager()
+        self.persistence = ArenaPersistence(game_id="game001", root_dir=str(registry.root.parent))
+        self.adapter = ExecutionAdapter(proposals_dir=os.path.join(str(registry.root.parent), "data", "sde_proposals"))
         self._active_sessions: Dict[str, Blackboard] = {}
         self._last_activity_time = time.time()
         self._monitor_task: Optional[asyncio.Task] = None
@@ -73,6 +77,40 @@ class UnifiedOrchestrator:
                         topic=topic,
                         rounds=1
                     )
+
+                    # --- Stage 2 Execution Bridge ---
+                    # 1. Search blackboard for an accepted proposal
+                    latest_entry = blackboard.get_latest_entry()
+                    if latest_entry and latest_entry.metadata.get("kind") == "proposal_acceptance":
+                        proposal_id = latest_entry.metadata.get("proposal_id")
+                        logger.info(f"🔍 Mission Alignment Confirmed for {proposal_id}. Materializing...")
+                        
+                        try:
+                            # 2. Materialization (Second Trust Boundary)
+                            exec_config = self.adapter.materialize_proposal(proposal_id, self._mission_context)
+                            
+                            # 3. Solver Execution
+                            solver = SDESolver(self.scheduler, blackboard=blackboard, registry=self.registry)
+                            state_entry = await solver.execute_materialized_config(exec_config)
+                            
+                            # 4. Success Verification & Persistence Commitment
+                            if self.adapter.verify_substrate_success(state_entry.metadata, self._mission_context.target_neuron_count):
+                                current_truth = self.persistence.get_state().get("largest_pass_network_neuron_count", 0)
+                                if self._mission_context.target_neuron_count > current_truth:
+                                    logger.info(f"🏆 MISSION SUCCESS: Leveling up substrate to N={self._mission_context.target_neuron_count}")
+                                    self.persistence.save_state({
+                                        "largest_pass_network_neuron_count": self._mission_context.target_neuron_count,
+                                        "last_successful_patch": self._mission_context.patch_id
+                                    })
+                            else:
+                                logger.warning(f"📉 Simulation failed to reach convergence or target count for {proposal_id}.")
+                                
+                        except Exception as exec_err:
+                            logger.error(f"❌ Execution Bridge Failure: {exec_err}")
+                            await blackboard.add_entry(
+                                sender="SYSTEM_BRIDGE",
+                                content=f"CRITICAL: Execution Bridge Failure: {str(exec_err)}"
+                            )
                     self._last_activity_time = time.time()
                 except Exception as e:
                     logger.error(f"Heartbeat trigger failed: {e}")
