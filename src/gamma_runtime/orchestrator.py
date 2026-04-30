@@ -107,6 +107,29 @@ class UnifiedOrchestrator:
         finally:
             self._last_activity_time = time.time()
 
+    def get_all_sessions(self) -> List[Dict[str, Any]]:
+        """Returns a list of all active sessions for the dashboard matrix."""
+        sessions = []
+        for sid, bb in self._active_sessions.items():
+            sessions.append({
+                "id": sid,
+                "topic": bb.topic,
+                "round": bb.round,
+                "last_active": bb.entries[-1].timestamp.isoformat() if bb.entries else None,
+                "status": "DELIBERATING" if sid == "heartbeat-session" else "ACTIVE"
+            })
+        # Mocking canonical G01-G04 if not present to ensure grid rendering
+        if len(sessions) < 4:
+            for i in range(len(sessions) + 1, 5):
+                sessions.append({
+                    "id": f"G0{i}",
+                    "topic": "Standby",
+                    "round": 0,
+                    "last_active": None,
+                    "status": "IDLE"
+                })
+        return sessions
+
     def get_session_state(self, session_id: str) -> Optional[Dict[str, Any]]:
         blackboard = self._active_sessions.get(session_id)
         if not blackboard: return None

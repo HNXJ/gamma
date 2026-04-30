@@ -46,82 +46,133 @@
         <header class="top-bar">
             <div class="system-status">
                 <div class="status-indicator">
-                    <div class="dot idle pulse"></div>
-                    IDLE
+                    <div class="dot active pulse"></div>
+                    <span id="sys-status-text">ACTIVE DELIBERATION</span>
                 </div>
                 <div class="status-indicator">
-                    <span style="color: var(--text-dim)">SYSTEM:</span>
-                    <span>GAMMA-M3MAX-01</span>
+                    <span style="color: var(--text-dim)">BOOT EPOCH:</span>
+                    <span id="boot-epoch">2026-04-30T00:00:00Z</span>
+                </div>
+                <div class="status-indicator">
+                    <span style="color: var(--text-dim)">VRAM:</span>
+                    <span id="vram-val" style="color: var(--gold)">14.2 / 96.0 GB</span>
                 </div>
             </div>
 
             <div class="system-status">
                 <div class="status-indicator">
-                    <span style="color: var(--text-dim)">VRAM:</span>
-                    <span style="color: var(--border)">14.2 / 96.0 GB</span>
+                    <span style="color: var(--text-dim)">HEARTBEAT:</span>
+                    <span id="heartbeat-proof" style="color: var(--accent)">SEC_01_OK</span>
                 </div>
                 <div class="status-indicator">
                     <span style="color: var(--text-dim)">UPTIME:</span>
-                    <span>04:32:11</span>
+                    <span id="uptime-val">04:32:11</span>
                 </div>
             </div>
         </header>
 
         <section class="content-viewport">
-            <div class="grid">
-                <div class="card glass">
-                    <div class="card-title">
-                        Active Model Pools
-                        <span class="status-indicator"><div class="dot active"></div></span>
-                    </div>
-                    <div class="metric-value">01</div>
-                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
-                        Primary: google/gemma-2-9b-it (MLX)
-                    </div>
-                </div>
-
-                <div class="card glass">
-                    <div class="card-title">KV-Cache Budget</div>
-                    <div class="metric-value">4.2%</div>
-                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
-                        Consumed: 5,420 / 128,000 tokens
-                    </div>
-                </div>
-
-                <div class="card glass">
-                    <div class="card-title">Agent Sessions</div>
-                    <div class="metric-value">04</div>
-                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
-                        Queue: 0 pending
-                    </div>
-                </div>
+            <!-- G01-G04 Session Matrix -->
+            <div class="grid" id="session-matrix">
+                <!-- Populated by JS -->
             </div>
 
-            <div class="card glass" style="flex-grow: 1;">
-                <div class="card-title">Blackboard State | SDE Convergence</div>
-                <div style="display: flex; justify-content: center; align-items: center; height: 100%; border: 1px dashed rgba(207, 184, 124, 0.2);">
-                    <span style="color: var(--text-dim); font-family: var(--mono); font-size: 12px;">Waiting for active SDE session...</span>
+            <div class="grid">
+                <div class="card glass">
+                    <div class="card-title">Research Progress</div>
+                    <div class="metric-value" id="pass-network">14-Node</div>
+                    <div style="font-size: 11px; color: var(--text-dim);">PASS Network Grounded</div>
+                    <div class="card-footer">
+                        <span class="truth-badge truth-grounded">GROUNDED</span>
+                        <span>src/sde_engine/graph.py</span>
+                        <span class="refresh-time">1s ago</span>
+                    </div>
+                </div>
+
+                <div class="card glass">
+                    <div class="card-title">Active Patch</div>
+                    <div class="metric-value" id="active-patch">v1.2.4</div>
+                    <div style="font-size: 11px; color: var(--text-dim);">Hotfix for zero-idle stall</div>
+                    <div class="card-footer">
+                        <span class="truth-badge truth-inferred">INFERRED</span>
+                        <span>/local/patch_ledger</span>
+                        <span class="refresh-time">5s ago</span>
+                    </div>
+                </div>
+
+                <div class="card glass">
+                    <div class="card-title">Issues Summary</div>
+                    <div class="metric-value" id="omissions-count" style="color: var(--error)">00</div>
+                    <div style="font-size: 11px; color: var(--text-dim);">Unresolved Omissions</div>
+                    <div class="card-footer">
+                        <span class="truth-badge truth-degraded">DEGRADED</span>
+                        <span>/api/guard/health</span>
+                        <span class="refresh-time">NOW</span>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <footer class="console">
-            <div class="log-line">
-                <span class="log-time">[2026-04-27 13:30:00]</span>
-                <span class="log-tag">[SYSTEM]</span>
-                <span>InferenceScheduler initialized. Budget set to 128k tokens.</span>
-            </div>
-            <div class="log-line">
-                <span class="log-time">[2026-04-27 13:30:01]</span>
-                <span class="log-tag">[RUNTIME]</span>
-                <span>Model pool 'gemma-2-9b-it' registered via MLX backend.</span>
-            </div>
-            <div class="log-line">
-                <span class="log-time">[2026-04-27 13:30:05]</span>
-                <span class="log-tag">[GUARD]</span>
-                <span>Memory watchdog active. Jetsam threshold: 12.0GB.</span>
-            </div>
+        <footer class="console" id="log-container">
+            <!-- Log entries will be prepended here -->
         </footer>
     </main>
+
+    <script>
+        async function refreshDashboard() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                // Update Header
+                document.getElementById('sys-status-text').innerText = data.system.status;
+                document.getElementById('vram-val').innerText = data.system.vram;
+                document.getElementById('uptime-val').innerText = data.system.uptime;
+                document.getElementById('boot-epoch').innerText = data.system.boot_epoch;
+                
+                const heart = document.getElementById('heartbeat-proof');
+                heart.innerText = `SEC_${Math.floor(Date.now()/1000) % 60}_OK`;
+                heart.style.opacity = heart.style.opacity === "1" ? "0.7" : "1";
+
+                // Update Research
+                document.getElementById('pass-network').innerText = data.research.pass_network.split(' ')[0];
+                document.getElementById('active-patch').innerText = data.research.active_patch;
+                document.getElementById('omissions-count').innerText = data.research.omissions.toString().padStart(2, '0');
+
+                // Render Session Matrix (G01-G04)
+                const matrix = document.getElementById('session-matrix');
+                matrix.innerHTML = '';
+                data.sessions.slice(0, 4).forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = 'card glass';
+                    const isDegraded = s.status === 'IDLE';
+                    
+                    card.innerHTML = `
+                        <div class="card-title">
+                            ${s.id} <span style="font-size: 10px; color: var(--accent);">${s.status}</span>
+                        </div>
+                        <div style="font-size: 18px; font-weight: 600;">${s.topic}</div>
+                        <div style="font-family: var(--mono); font-size: 11px; color: var(--text-dim);">
+                            Round: ${s.round} | Last: ${s.last_active ? s.last_active.split('T')[1].split('.')[0] : 'NEVER'}
+                        </div>
+                        <div class="card-footer">
+                            <span class="truth-badge ${isDegraded ? 'truth-degraded' : 'truth-grounded'}">
+                                ${isDegraded ? 'DEGRADED' : 'GROUNDED'}
+                            </span>
+                            <span>council://v1/${s.id}</span>
+                            <span>${new Date().toLocaleTimeString()}</span>
+                        </div>
+                    `;
+                    matrix.appendChild(card);
+                });
+
+            } catch (err) {
+                console.error("Dashboard refresh failed:", err);
+            }
+        }
+
+        setInterval(refreshDashboard, 1000);
+        refreshDashboard();
+    </script>
 </body>
 </html>
