@@ -98,23 +98,39 @@ async def get_status():
         except Exception as e:
             print(f"Progression load error: {e}")
 
-    # Persistence metadata from prospective runtime state (Patch 2)
-    persistence = { "boot_type": "UNKNOWN", "freshness": "DEGRADED" }
+    # Persistence metadata from the canonical namespaced runtime state
+    persistence = { "boot_type": "UNKNOWN", "freshness": "DEGRADED", "resume_count": 0 }
+    runtime_path = os.path.join(ROOT_DIR, "local/game001/arena_runtime_state.json")
+    if os.path.exists(runtime_path):
+        try:
+            with open(runtime_path, "r") as f:
+                ckpt = json.load(f)
+                persistence["boot_type"] = "RESUMED" if ckpt.get("resume_count", 0) > 0 else "FRESH"
+                persistence["resume_count"] = ckpt.get("resume_count", 0)
+                last_ts = ckpt.get("last_checkpoint_time", 0)
+                persistence["last_checkpoint"] = datetime.fromtimestamp(last_ts).isoformat() if last_ts else "NEVER"
+                persistence["freshness"] = "GROUNDED" if (time.time() - last_ts < 300) else "STALE"
+        except Exception as e:
+            print(f"Runtime state load error: {e}")
+    
+    # Authoritative Truth Resolution
+    largest_pass = progression.get("largest_pass_network_neuron_count")
+    active_patches = progression.get("active_patches", [])
     
     return {
         "system": {
             "status": "ONLINE" if council_dialogue else "STANDBY",
-            "uptime": None, # Purged hardcoded truth
-            "agents_active": None, # Purged hardcoded truth
-            "tasks_running": None, # Purged hardcoded truth
+            "uptime": None,
+            "agents_active": None,
+            "tasks_running": None,
             "heartbeat": "OK" if council_dialogue else "STALLED"
         },
         "progression": progression,
         "persistence": persistence,
         "research": {
-            "neuron_count": progression.get("largest_pass_network_neuron_count"),
-            "pass_network": f"{progression.get('largest_pass_network_neuron_count')}-Node" if progression.get('largest_pass_network_neuron_count') else None,
-            "active_patch": progression.get("active_patches", ["v1.1.0"])[0] if progression.get("active_patches") else "v1.1.0",
+            "neuron_count": largest_pass,
+            "pass_network": f"{largest_pass}-Node Grounded" if largest_pass else None,
+            "active_patch": active_patches[0] if active_patches else None,
             "omissions": progression.get("omissions")
         },
         "sessions": progression.get("sessions", [])
