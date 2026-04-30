@@ -1,11 +1,13 @@
 import asyncio
 import logging
-from typing import List, Dict
+import os
+from typing import List, Dict, Optional
 from gamma_runtime.types import AgentSpec, InferenceRequest
 from gamma_runtime.scheduler import InferenceScheduler, ResourceBudget
 from gamma_runtime.blackboard import Blackboard
 from gamma_runtime.registry import RuntimeRegistry
 from gamma_runtime.model_pool import SharedModelPool
+from gamma_runtime.backend_lmstudio import LMStudioBackend
 
 # Configure logging for scientific transparency
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -24,11 +26,14 @@ class CouncilOrchestrator:
     async def initialize_pools(self, model_keys: List[str], backend_factory):
         """Ensures all required model pools are registered in the scheduler."""
         for key in model_keys:
-            spec = self.registry.load_model(key)
-            backend = backend_factory(spec)
-            pool = SharedModelPool(spec, backend)
-            await self.scheduler.register_pool(pool)
-            logger.info(f"Registered model pool: {key}")
+            try:
+                spec = self.registry.load_model(key)
+                backend = backend_factory(spec)
+                pool = SharedModelPool(spec, backend)
+                await self.scheduler.register_pool(pool)
+                logger.info(f"Registered model pool: {key}")
+            except Exception as e:
+                logger.error(f"Failed to initialize pool {key}: {e}")
 
     async def run_deliberation(self, team_id: str, topic: str, rounds: int = 2):
         """
@@ -49,7 +54,6 @@ class CouncilOrchestrator:
             logger.info(f"--- Round {self.blackboard.round} ---")
             
             # Managed Parallel Execution via Scheduler
-            # We construct a list of (model_key, request) tuples for the scheduler
             requests = []
             for agent in agents:
                 req = self._build_request(agent)
@@ -94,9 +98,43 @@ class CouncilOrchestrator:
         )
 
 async def main():
-    """Entry point for manual council execution."""
-    # This would normally be called by a higher-level script or the Hub API
-    pass
+    """Entry point for the integrated Gamma Runtime Arena."""
+    from gamma_runtime.orchestrator import UnifiedOrchestrator
+    from gamma_runtime.hub_api import HubAPIServer
+    
+    # 1. Initialization
+    root = os.getcwd()
+    config_path = os.path.join(root, "context", "configs")
+    registry = RuntimeRegistry(config_path)
+    scheduler = InferenceScheduler()
+    orchestrator = UnifiedOrchestrator(scheduler, registry)
+    
+    # 2. Pre-load primary model pools
+    # For Gamma Phase 2, we default to the parallel-optimized Gemma stack
+    council = CouncilOrchestrator(scheduler, registry)
+    await council.initialize_pools(["gemma4-parallel", "gemma-9b-schiz"], lambda spec: LMStudioBackend(spec))
+    
+    # 3. Start Services
+    # Hub API for dashboard connectivity
+    api = HubAPIServer(orchestrator, port=8001)
+    api.start()
+    
+    # 4. Activate Zero-Idle Heartbeat Monitor
+    # This enforces the "not even a second" rule by constantly reviewing the state
+    orchestrator.start_heartbeat_monitor(
+        team_id="v1_gamma_sde_team", 
+        topic="SDE Biophysical Property Extraction"
+    )
+    
+    logger.info("🏟️  GAMMA ARENA BOOTED SUCCESSFULLY.")
+    
+    # Keep the main loop alive
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Shutting down...")
+

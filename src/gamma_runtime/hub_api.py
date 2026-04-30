@@ -86,9 +86,16 @@ class HubAPIServer:
     def start(self):
         # We run the TCPServer in a separate thread to not block the main loop
         import threading
-        server = socketserver.TCPServer(("127.0.0.1", self.port), HubAPIHandler)
+        # Try to bind to localhost, which is usually permitted even in restricted environments
+        try:
+            server = socketserver.TCPServer(("localhost", self.port), HubAPIHandler)
+        except Exception:
+            # Fallback to 127.0.0.1 if localhost fails
+            server = socketserver.TCPServer(("127.0.0.1", self.port), HubAPIHandler)
+        
         thread = threading.Thread(target=server.serve_forever)
         thread.daemon = True
         thread.start()
         logger.info(f"Hub API listening on http://localhost:{self.port}")
         return server
+
