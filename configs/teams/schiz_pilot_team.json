@@ -1,4 +1,0 @@
-{
-  "team_id": "schiz_pilot_team",
-  "agents": ["macro_meg", "meso_lfp", "micro_spike", "sde_solver_agent"]
-}

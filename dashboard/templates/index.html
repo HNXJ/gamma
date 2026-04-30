@@ -3,444 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GAMMA | Scientific Control Panel</title>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #0a0a0b;
-            --surface: #141416;
-            --border: #CFB87C;
-            --accent: #9400D3;
-            --text: #f0f0f0;
-            --text-dim: #888;
-            --error: #ff4444;
-            --success: #00ff00;
-            --warning: #ffaa00;
-            --info: #00aaff;
-            --mono: 'JetBrains Mono', monospace;
-        }
-        body { background: var(--bg); color: var(--text); font-family: var(--mono); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        .top-bar { height: 60px; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 20px; background: rgba(0,0,0,0.5); }
-        .status-pill { display: flex; align-items: center; gap: 8px; font-size: 11px; border: 1px solid rgba(207,184,124,0.3); padding: 4px 10px; border-radius: 4px; }
-        .dot { width: 8px; height: 8px; border-radius: 50%; }
-        .dot.active { background: var(--success); box-shadow: 0 0 10px var(--success); }
-        .dot.error { background: var(--error); }
-        .dot.idle { background: var(--text-dim); }
-        .dot.idle-review { background: var(--info); box-shadow: 0 0 10px var(--info); }
-        .dot.pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-
-        .tab-bar { display: flex; gap: 5px; padding: 10px 20px; border-bottom: 1px solid #333; background: #0e0e10; }
-        .tab { padding: 8px 15px; border: 1px solid transparent; cursor: pointer; font-size: 12px; color: var(--text-dim); }
-        .tab.active { border: 1px solid var(--border); border-bottom: none; color: var(--border); background: var(--surface); margin-bottom: -11px; z-index: 10; }
-        .tab:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.05); }
-
-        .viewport { flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--surface); }
-        .panel { display: none; flex-grow: 1; flex-direction: column; padding: 20px; overflow: auto; }
-        .panel.active { display: flex; }
-
-        .warning-box { border: 2px solid var(--error); padding: 20px; margin-bottom: 20px; background: rgba(255,68,68,0.1); color: var(--error); font-weight: bold; text-align: center; }
-        .success-box { border: 2px solid var(--success); padding: 20px; margin-bottom: 20px; background: rgba(0,255,0,0.1); color: var(--success); font-weight: bold; text-align: center; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-        .card { background: rgba(255,255,255,0.05); border: 1px solid #333; padding: 15px; }
-        .card-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; }
-        .card-value { font-size: 20px; color: var(--border); margin-top: 5px; }
-
-        .log-viewer { flex-grow: 1; background: #000; border: 1px solid #222; padding: 10px; font-size: 11px; overflow-y: scroll; white-space: pre-wrap; font-family: var(--mono); }
-        
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); color: var(--border); }
-        td { padding: 10px; border-bottom: 1px solid #222; }
-        .status-tag { padding: 2px 6px; font-size: 10px; border-radius: 3px; }
-        .status-tag.pending { background: var(--warning); color: #000; }
-        .status-tag.running { background: var(--accent); color: #fff; }
-        .status-tag.completed { background: var(--success); color: #000; }
-        .status-tag.accepted { background: var(--success); color: #000; }
-        .status-tag.rejected { background: var(--error); color: #fff; }
-
-        .memo-card { border-left: 3px solid var(--info); background: rgba(0,170,255,0.05); padding: 15px; margin-bottom: 15px; }
-        .memo-header { font-size: 11px; color: var(--info); margin-bottom: 10px; border-bottom: 1px solid rgba(0,170,255,0.2); padding-bottom: 5px; }
-        .memo-content { font-size: 12px; line-height: 1.4; color: #ddd; }
-
-        /* Arena Specific */
-        .progression-ladder { border-left: 2px solid #333; padding-left: 20px; margin-left: 10px; }
-        .level-node { position: relative; margin-bottom: 30px; }
-        .level-node::before { content: ''; position: absolute; left: -26px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: #333; border: 2px solid var(--bg); }
-        .level-node.active::before { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-        .level-node.completed::before { background: var(--success); }
-        .level-info { font-size: 12px; }
-        .level-title { font-weight: bold; color: var(--border); }
-        .level-status { font-size: 10px; color: var(--text-dim); }
-    </style>
+    <title>Gamma Hub | Decentralized Research Runtime</title>
+    <link rel="stylesheet" href="../static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header class="top-bar">
-        <div style="font-weight: bold; border-right: 1px solid #333; padding-right: 20px;">GAMMA CONTROL</div>
-        
-        <div class="status-pill">
-            <div id="dot-orchestrator" class="dot active pulse"></div>
-            COUNCIL: <span id="txt-orchestrator">ACTIVE</span>
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-dot"></div>
+            GAMMA
         </div>
-        <div class="status-pill">
-            <div id="dot-science" class="dot idle"></div>
-            SCIENCE: <span id="txt-science">IDLE</span>
-        </div>
-        
-        <div style="margin-left: auto; font-size: 12px;">
-            GAME: <span id="current-game-display">game001</span> | IDLE: <span id="txt-idle-time">0s</span>
-        </div>
-    </header>
 
-    <nav class="tab-bar">
-        <div class="tab active" onclick="showPanel('overview')">Overview</div>
-        <div class="tab" onclick="showPanel('arena')">Arena</div>
-        <div class="tab" onclick="showPanel('terminal')">Terminal (LMS)</div>
-        <div class="tab" onclick="showPanel('council')">Orchestrator Log</div>
-        <div class="tab" onclick="showPanel('proposals')">Ledger</div>
-        <div class="tab" onclick="showPanel('agents')">Agent Streams</div>
-        <div class="tab" onclick="showPanel('notes')">Heartbeats</div>
-        <div class="tab" onclick="showPanel('forensics')">Forensics</div>
-    </nav>
+        <div class="nav-section">
+            <div class="section-label">Core Runtime</div>
+            <a href="index.html" class="nav-item active">
+                <span>Hub Dashboard</span>
+            </a>
+            <a href="index.html" class="nav-item">
+                <span>Gemma Council</span>
+            </a>
+            <a href="index.html" class="nav-item">
+                <span>SDE Engine</span>
+            </a>
+        </div>
 
-    <main class="viewport">
-        <div id="panel-overview" class="panel active">
-            <div id="legitimacy-guardrail" class="warning-box">Council runtime active; scientific execution pending.</div>
+        <div class="nav-section">
+            <div class="section-label">Monitoring</div>
+            <a href="guard.html" class="nav-item">
+                <span>Guard Security</span>
+            </a>
+            <a href="/metrics" class="nav-item">
+                <span>Pool Metrics</span>
+            </a>
+        </div>
+
+        <div class="nav-section" style="margin-top: auto;">
+            <button class="btn btn-primary" style="width: 100%;">Emergency Halt</button>
+        </div>
+    </aside>
+
+    <main class="main-layout">
+        <header class="top-bar">
+            <div class="system-status">
+                <div class="status-indicator">
+                    <div class="dot idle pulse"></div>
+                    IDLE
+                </div>
+                <div class="status-indicator">
+                    <span style="color: var(--text-dim)">SYSTEM:</span>
+                    <span>GAMMA-M3MAX-01</span>
+                </div>
+            </div>
+
+            <div class="system-status">
+                <div class="status-indicator">
+                    <span style="color: var(--text-dim)">VRAM:</span>
+                    <span style="color: var(--border)">14.2 / 96.0 GB</span>
+                </div>
+                <div class="status-indicator">
+                    <span style="color: var(--text-dim)">UPTIME:</span>
+                    <span>04:32:11</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="content-viewport">
             <div class="grid">
-                <div class="card"><div class="card-label">Accepted</div><div class="card-value" id="stat-results">0</div></div>
-                <div class="card"><div class="card-label">Idle</div><div class="card-value" id="stat-idle">0s</div></div>
-                <div class="card"><div class="card-label">Status</div><div class="card-value" id="stat-status">ACTIVE</div></div>
-            </div>
-            <div style="margin-top: 20px;">
-                <div class="card-label">Recent Ledger Entries</div>
-                <div id="mini-ledger" style="font-size: 11px; margin-top: 10px;"></div>
-            </div>
-        </div>
+                <div class="card glass">
+                    <div class="card-title">
+                        Active Model Pools
+                        <span class="status-indicator"><div class="dot active"></div></span>
+                    </div>
+                    <div class="metric-value">01</div>
+                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
+                        Primary: google/gemma-2-9b-it (MLX)
+                    </div>
+                </div>
 
-        <div id="panel-arena" class="panel">
-            <div class="grid" style="margin-bottom: 20px;">
-                <div class="card"><div class="card-label">Current Level</div><div class="card-value" id="arena-level">Level 1</div></div>
-                <div class="card"><div class="card-label">Accepted Streak</div><div class="card-value" id="arena-streak">0 / 3</div></div>
-                <div class="card"><div class="card-label">Active Patch</div><div class="card-value" id="arena-patch">NONE</div></div>
-                <div class="card"><div class="card-label">Arena Status</div><div class="card-value" id="arena-status">READY</div></div>
-            </div>
-            
-            <div style="display: flex; gap: 40px;">
-                <div style="flex: 1;">
-                    <div class="card-label" style="margin-bottom: 20px;">Progression Ladder</div>
-                    <div class="progression-ladder" id="arena-ladder">
-                        <div class="level-node active">
-                            <div class="level-info">
-                                <div class="level-title">Level 1: 10 Neurons</div>
-                                <div class="level-status">Bootstrap Stability [v_max < 80mV]</div>
-                            </div>
-                        </div>
-                        <div class="level-node">
-                            <div class="level-info">
-                                <div class="level-title">Level 2: 50 Neurons</div>
-                                <div class="level-status">Laminar Separation (L2/3 vs L5) [LOCKED]</div>
-                            </div>
-                        </div>
-                        <div class="level-node">
-                            <div class="level-info">
-                                <div class="level-title">Level 3: 100 Neurons</div>
-                                <div class="level-status">Gamma Synchronization [LOCKED]</div>
-                            </div>
-                        </div>
-                        <div class="level-node">
-                            <div class="level-info">
-                                <div class="level-title">Level 4: 500 Neurons</div>
-                                <div class="level-status">Complex Network Pathology [LOCKED]</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card-label" style="margin-top: 30px;">Current Level Checks</div>
-                    <div id="arena-level-checks" class="memo-card" style="margin-top: 10px;">
-                        No level checks available.
+                <div class="card glass">
+                    <div class="card-title">KV-Cache Budget</div>
+                    <div class="metric-value">4.2%</div>
+                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
+                        Consumed: 5,420 / 128,000 tokens
                     </div>
                 </div>
-                
-                <div style="flex: 1;">
-                    <div class="card-label">Active Council (Roster)</div>
-                    <table style="margin-top: 10px;">
-                        <thead><tr><th>ID</th><th>Alias</th><th>Status</th></tr></thead>
-                        <tbody id="arena-agents-body"></tbody>
-                    </table>
-                    
-                    <div class="card-label" style="margin-top: 30px;">Patch Board</div>
-                    <div id="arena-patch-board" class="memo-card" style="margin-top: 10px;">
-                        Patch manifest unavailable (read-only mode).
-                    </div>
-                    
-                    <div class="card-label" style="margin-top: 30px;">Issues Summary</div>
-                    <div id="arena-issues" class="memo-card" style="margin-top: 10px; border-left-color: var(--warning);">
-                        No issues data available (read-only mode).
-                    </div>
-                </div>
-            
-            <div style="margin-top: 40px; border-top: 1px solid #333; padding-top: 20px;">
-                <div class="card-label" style="margin-bottom: 20px; font-size: 14px; color: var(--border);">Science Snapshot</div>
-                <div class="grid">
-                    <div class="card">
-                        <div class="card-label">Current Simulation Summary</div>
-                        <div id="arena-sim-summary" class="memo-content" style="margin-top: 10px;">
-                            <span style="color: var(--text-dim);">[Graceful Degradation] Waiting for simulation data...</span>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-label">Spectral Target Summary</div>
-                        <div id="arena-spectral-summary" class="memo-content" style="margin-top: 10px;">
-                            <span style="color: var(--text-dim);">[Graceful Degradation] Spectral data not exposed in read-only mode.</span>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-label">Win-Condition Progress</div>
-                        <div id="arena-win-condition" class="memo-content" style="margin-top: 10px;">
-                            <span style="color: var(--text-dim);">[Graceful Degradation] Waiting for state data...</span>
-                        </div>
+
+                <div class="card glass">
+                    <div class="card-title">Agent Sessions</div>
+                    <div class="metric-value">04</div>
+                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
+                        Queue: 0 pending
                     </div>
                 </div>
             </div>
-</div>
-        </div>
 
-        <div id="panel-terminal" class="panel">
-            <div class="card-label">LM Studio Process Status (lms ps)</div>
-            <div class="log-viewer" id="log-terminal" style="margin-top: 10px;"></div>
-        </div>
-
-        <div id="panel-council" class="panel"><div class="log-viewer" id="log-orchestrator"></div></div>
-        
-        <div id="panel-proposals" class="panel">
-            <table>
-                <thead><tr><th>ID</th><th>Agent</th><th>Status</th><th>Payload</th></tr></thead>
-                <tbody id="proposal-table-body"></tbody>
-            </table>
-        </div>
-
-        <div id="panel-agents" class="panel">
-            <div style="margin-bottom: 10px;">
-                <select id="agent-selector" onchange="loadAgentLog(this.value)" style="background:#000; color:#fff; border:1px solid var(--border);">
-                    <option value="">Select Agent...</option>
-                    <option value="v1_gamma_proponent">Proponent</option>
-                    <option value="v1_gamma_adversary">Adversary</option>
-                    <option value="v1_gamma_judge">Judge</option>
-                </select>
+            <div class="card glass" style="flex-grow: 1;">
+                <div class="card-title">Blackboard State | SDE Convergence</div>
+                <div style="display: flex; justify-content: center; align-items: center; height: 100%; border: 1px dashed rgba(207, 184, 124, 0.2);">
+                    <span style="color: var(--text-dim); font-family: var(--mono); font-size: 12px;">Waiting for active SDE session...</span>
+                </div>
             </div>
-            <div class="log-viewer" id="log-agent"></div>
-        </div>
-        
-        <div id="panel-notes" class="panel"><div id="heartbeat-container"></div></div>
+        </section>
 
-        <div id="panel-forensics" class="panel">
-            <div class="grid" style="margin-bottom: 20px;">
-                <div class="card"><div class="card-label">Skills Made</div><div class="card-value" id="stat-skills">0</div></div>
-                <div class="card"><div class="card-label">Last Activity</div><div class="card-value" id="stat-last-activity">N/A</div></div>
+        <footer class="console">
+            <div class="log-line">
+                <span class="log-time">[2026-04-27 13:30:00]</span>
+                <span class="log-tag">[SYSTEM]</span>
+                <span>InferenceScheduler initialized. Budget set to 128k tokens.</span>
             </div>
-            <div class="card-label">Agent Heartbeat Matrix</div>
-            <table style="margin-top: 10px;">
-                <thead><tr><th>Agent</th><th>Last Heartbeat</th><th>Input Size</th><th>Output Size</th><th>Prompt Tokens</th><th>Compl Tokens</th></tr></thead>
-                <tbody id="heartbeat-table-body"></tbody>
-            </table>
-        </div>
+            <div class="log-line">
+                <span class="log-time">[2026-04-27 13:30:01]</span>
+                <span class="log-tag">[RUNTIME]</span>
+                <span>Model pool 'gemma-2-9b-it' registered via MLX backend.</span>
+            </div>
+            <div class="log-line">
+                <span class="log-time">[2026-04-27 13:30:05]</span>
+                <span class="log-tag">[GUARD]</span>
+                <span>Memory watchdog active. Jetsam threshold: 12.0GB.</span>
+            </div>
+        </footer>
     </main>
-
-    <script>
-        const GAME_ID = 'game001';
-        let currentAgent = '';
-
-        function showPanel(name) {
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            const p = document.getElementById('panel-' + name);
-            if (p) p.classList.add('active');
-            event.currentTarget.classList.add('active');
-        }
-
-        async function fetchLog(subsystem, elementId) {
-            try {
-                const res = await fetch(`/api/logs/${GAME_ID}/${subsystem}`);
-                if (res.ok) {
-                    const text = await res.text();
-                    const el = document.getElementById(elementId);
-                    el.innerText = text;
-                    el.scrollTop = el.scrollHeight;
-                }
-            } catch (e) {}
-        }
-
-        async function fetchTerminal() {
-            try {
-                const res = await fetch('/api/terminal/lms');
-                if (res.ok) { document.getElementById('log-terminal').innerText = await res.text(); }
-            } catch (e) {}
-        }
-
-        async function updateArena() {
-            try {
-                const stateRes = await fetch(`/api/arena/state/${GAME_ID}`);
-                if (stateRes.ok) {
-                    const state = await stateRes.json();
-                    document.getElementById('arena-level').innerText = state.phase;
-                    document.getElementById('arena-patch').innerText = state.active_patch;
-                    document.getElementById('arena-status').innerText = state.status;
-                    
-                    document.getElementById('arena-agents-body').innerHTML = Object.entries(state.agents || {}).map(([id, info]) => `
-                        <tr>
-                            <td>${id}</td>
-                            <td>${info.alias}</td>
-                            <td><span class="status-tag ${info.status.toLowerCase()}">${info.status}</span></td>
-                        </tr>
-                    `).join('');
-
-                    // Current level checks
-                    const vmaxHit = state.v_max_target_hit ? '<span style="color: var(--success)">PASS</span>' : '<span style="color: var(--error)">FAIL</span>';
-                    document.getElementById('arena-level-checks').innerHTML = `
-                        <div class="memo-header">Gate Requirements</div>
-                        <div class="memo-content">
-                            v_max_target_hit: ${vmaxHit}<br>
-                            Current Streak: ${state.streak_count || 0} / 3
-                        </div>
-                    `;
-                }
-
-                const ledgerRes = await fetch(`/api/arena/streak/${GAME_ID}`);
-                if (ledgerRes.ok) {
-                    const ledger = await ledgerRes.json();
-                    document.getElementById('arena-streak').innerText = `${ledger.gate_accepted_streak || 0} / 3`;
-                }
-                    // Phase D: Update Simulation Summary from latest ledger entry
-                    const latestEntry = ledger.history && ledger.history.length > 0 ? ledger.history[ledger.history.length - 1] : null;
-                    if (latestEntry) {
-                        const vmaxStr = latestEntry.v_max !== undefined ? `${latestEntry.v_max.toFixed(2)}mV` : 'N/A';
-                        const frStr = latestEntry.firing_rate !== undefined ? `${latestEntry.firing_rate.toFixed(2)}Hz` : 'N/A';
-                        const statusColor = latestEntry.accepted ? 'var(--success)' : 'var(--error)';
-                        document.getElementById('arena-sim-summary').innerHTML = `
-                            Proposal ID: ${latestEntry.proposal_id || 'N/A'}<br>
-                            Status: <span style="color: ${statusColor}">${latestEntry.accepted ? 'ACCEPTED' : 'REJECTED'}</span><br>
-                            V_MAX: ${vmaxStr}<br>
-                            Firing Rate: ${frStr}
-                        `;
-                    } else {
-                        document.getElementById('arena-sim-summary').innerHTML = '<span style="color: var(--text-dim);">No history available.</span>';
-                    }
-
-                    // Phase D: Update Win-Condition Progress
-                    // Note: 'state' variable is already available from the previous fetch in this function.
-                    if (typeof state !== 'undefined') {
-                        const targetHit = state.v_max_target_hit;
-                        const streakCount = state.streak_count || 0;
-                        document.getElementById('arena-win-condition').innerHTML = `
-                            Target V_MAX (< 80mV): ${targetHit ? '<span style="color: var(--success)">MET</span>' : '<span style="color: var(--warning)">PENDING</span>'}<br>
-                            Acceptance Streak: ${streakCount} / 3<br>
-                            <div style="margin-top: 10px; font-size: 10px; color: var(--text-dim);">Requires 3 consecutive accepted results to advance level.</div>
-                        `;
-                    }
-
-
-                // Graceful degradation for Patch Board
-                try {
-                    const patchRes = await fetch(`/api/arena/patch/${GAME_ID}`);
-                    if (!patchRes.ok) throw new Error('Not found');
-                } catch(e) {
-                    document.getElementById('arena-patch-board').innerHTML = `
-                        <div class="memo-content" style="color: var(--text-dim);">[Graceful Degradation] Patch manifest not exposed in read-only mode. Active patch tracked via state: <span style="color: var(--border)">1.0.0.0</span></div>
-                    `;
-                }
-
-                // Graceful degradation for Issues Summary
-                try {
-                    const issueRes = await fetch(`/api/arena/issues/${GAME_ID}`);
-                    if (!issueRes.ok) throw new Error('Not found');
-                } catch(e) {
-                    document.getElementById('arena-issues').innerHTML = `
-                        <div class="memo-content" style="color: var(--text-dim);">[Graceful Degradation] Issues summary not exposed in read-only mode.</div>
-                    `;
-                }
-
-            } catch (e) {
-                console.error("Arena update failed:", e);
-            }
-        }
-
-        async function updateData() {
-            try {
-                const res = await fetch(`/api/status/${GAME_ID}`);
-                const data = await res.json();
-                
-                document.getElementById('txt-orchestrator').innerText = data.system_status;
-                document.getElementById('stat-status').innerText = data.system_status;
-                document.getElementById('stat-idle').innerText = Math.round(data.idle_duration) + 's';
-                document.getElementById('txt-idle-time').innerText = Math.round(data.idle_duration) + 's';
-                document.getElementById('stat-results').innerText = data.results_count;
-
-                const guard = document.getElementById('legitimacy-guardrail');
-                if (data.scientific_execution_evidenced) {
-                    guard.className = 'success-box';
-                    guard.innerText = 'SCIENTIFIC EXECUTION EVIDENCED';
-                }
-
-                const propRes = await fetch(`/api/proposals/${GAME_ID}`);
-                if (propRes.ok) {
-                    const lines = (await propRes.text()).split('\n').filter(l => l);
-                    const props = lines.map(l => JSON.parse(l));
-                    document.getElementById('proposal-table-body').innerHTML = props.map(p => `
-                        <tr>
-                            <td>${p.proposal_id}</td>
-                            <td>${p.agent_id}</td>
-                            <td><span class="status-tag ${p.status.toLowerCase()}">${p.status}</span></td>
-                            <td>${p.payload ? 'VALID' : 'EMPTY'}</td>
-                        </tr>
-                    `).join('');
-                }
-
-                const noteRes = await fetch(`/api/notes/heartbeat/${GAME_ID}`);
-                if (noteRes.ok) {
-                    const notes = await noteRes.json();
-                    document.getElementById('heartbeat-container').innerHTML = notes.map(n => `
-                        <div class="memo-card">
-                            <div class="memo-header">${n.timestamp} | IDLE: ${Math.round(n.idle_duration_seconds)}s</div>
-                            <div class="memo-content">${n.content.replace(/\n/g, '<br>')}</div>
-                        </div>
-                    `).join('');
-                }
-
-                const hbRes = await fetch(`/api/heartbeat/${GAME_ID}`);
-                if (hbRes.ok) {
-                    const hb = await hbRes.json();
-                    document.getElementById('stat-skills').innerText = hb.skills_count;
-                    document.getElementById('stat-last-activity').innerText = new Date(hb.last_real_task_time * 1000).toLocaleTimeString();
-                    
-                    document.getElementById('heartbeat-table-body').innerHTML = Object.entries(hb.agents).map(([id, stats]) => `
-                        <tr>
-                            <td>${id}</td>
-                            <td>${new Date(stats.last_heartbeat).toLocaleTimeString()}</td>
-                            <td>${stats.last_input_size}</td>
-                            <td>${stats.last_output_size}</td>
-                            <td>${stats.total_prompt_tokens}</td>
-                            <td>${stats.total_completion_tokens}</td>
-                        </tr>
-                    `).join('');
-                }
-            } catch (e) {}
-        }
-
-        function loadAgentLog(agent) {
-            currentAgent = agent;
-            if (agent) fetchLog(`agent-${agent}`, 'log-agent');
-        }
-
-        function refresh() {
-            fetchLog('orchestrator', 'log-orchestrator');
-            fetchTerminal();
-            updateData();
-            updateArena();
-            if (currentAgent) loadAgentLog(currentAgent);
-        }
-
-        setInterval(refresh, 5000);
-        refresh();
-    </script>
 </body>
 </html>

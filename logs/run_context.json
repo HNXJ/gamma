@@ -1,1 +1,0 @@
-{"model_id": "qwen3.5-40b-opus-4.5-mlx", "args": ["--repair", "--backend", "mlx", "--engine_url", "http://localhost:4474", "--mllm_input_path", "/Users/HN/MLLM/inputs/HPC", "--mllm_output_path", "/Users/HN/MLLM/outputs/HPC", "--reasoning_model_names", "qwen3.5-40b-opus-4.5-mlx", "--pdfs_to_process", "Sacramento2018"], "timestamp": 1775866741.246929}

@@ -1,13 +1,17 @@
 import json
 from pathlib import Path
-from .structs import ModelSpec, AgentSpec
+from .types import AgentSpec, ModelSpec
 
 class RuntimeRegistry:
-    def __init__(self, root: str):
-        self.root = Path(root).expanduser().resolve()
+    """
+    Central registry for loading declarative configurations.
+    Pivoted to JSON to ensure zero-dependency execution in restricted environments.
+    """
+    def __init__(self, config_root: str):
+        self.root = Path(config_root).expanduser().resolve()
 
-    def load_model(self, model_key: str) -> ModelSpec:
-        path = self.root / "models" / f"{model_key}.json"
+    def load_model(self, key: str) -> ModelSpec:
+        path = self.root / "models" / f"{key}.json"
         with open(path, "r") as f:
             data = json.load(f)
         return ModelSpec(**data)
@@ -22,13 +26,3 @@ class RuntimeRegistry:
         path = self.root / "teams" / f"{team_id}.json"
         with open(path, "r") as f:
             return json.load(f)
-
-    # Backward-compatible aliases
-    def get_model(self, model_key: str):
-        return self.load_model(model_key)
-
-    def get_agent(self, agent_id: str):
-        return self.load_agent(agent_id)
-
-    def get_team(self, team_id: str):
-        return self.load_team(team_id)

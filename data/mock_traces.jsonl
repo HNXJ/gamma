@@ -1,3 +1,0 @@
-{"node_id": "T1", "role": "skeptic", "mode": "Consolidation", "input_context": "Hello", "output": "World", "consensus_level": "high", "judge_score": 0.9, "doi_support": true}
-{"node_id": "T2", "role": "skeptic", "mode": "Consolidation", "input_context": "Bad", "output": "Data", "consensus_level": "low", "judge_score": 0.4, "doi_support": false}
-{"node_id": "T3", "role": "skeptic", "mode": "Consolidation", "input_context": "Red", "output": "Alert", "consensus_level": "low", "judge_score": 0.9, "doi_support": false, "is_red_flag": true}

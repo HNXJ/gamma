@@ -9,6 +9,7 @@ __pycache__/
 *.log
 local_cache/
 outputs/
+archive/staging/
 
 # UV workspace cache
 .uv_cache/
