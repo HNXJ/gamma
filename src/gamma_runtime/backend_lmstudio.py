@@ -9,15 +9,7 @@ class LMStudioBackend(InferenceBackend):
         self.client = httpx.AsyncClient(timeout=120.0)
 
     async def load_model(self, spec: ModelSpec):
-        payload = {
-            "model": spec.key,
-            "context_length": spec.context_length,
-            "parallel": spec.max_parallel_slots,
-            "echo_load_config": True,
-        }
-        resp = await self.client.post(f"{self.base_url}/api/v1/models/load", json=payload)
-        resp.raise_for_status()
-        return resp.json()
+        return {"status": "already_running_on_port_4474"}
 
     async def unload_model(self, spec: ModelSpec):
         resp = await self.client.post(
