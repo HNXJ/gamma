@@ -1,0 +1,33 @@
+patch_id: arena_1_3_0_apical_dendrite
+gate:
+  neuron_threshold: 100
+  prerequisite: arena_1_2_0_vip_unlock
+  requires: L4_unlock
+unlocks:
+  compartments:
+    - apical_dendrite
+    - basal_dendrite
+  mechanisms:
+    - branch_local_metrics
+    - apical_context_integration
+    - laminar_predictive_routing
+  metrics:
+    - layer_specific_mismatch
+    - superficial_sparsity
+abilities:
+  - name: Apical Context Integration
+    description: Top-down inputs target apical compartments rather than only soma.
+  - name: Basal Sensory Drive
+    description: Feedforward sensory signals remain segregated from contextual drive.
+  - name: Branch Nonlinearity
+    description: Exploit dendritic coincidence and branch-local nonlinear computation.
+  - name: Laminar Prediction Loop
+    description: L4-L2/3-L5 predictive routing is now authorized.
+  - name: Mismatch Readout
+    description: Layer-specific mismatch/error signals become first-class metrics.
+  - name: Sparse Superficial Coding
+    description: L2/3 sparsity is a valid target phenotype.
+objectives:
+  - denoising
+  - occlusion_completion
+  - uncertainty_aware_reconstruction

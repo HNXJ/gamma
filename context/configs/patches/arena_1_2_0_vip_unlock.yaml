@@ -1,0 +1,24 @@
+patch_id: arena_1_2_0_vip_unlock
+gate:
+  neuron_threshold: 40
+  metric: pass_network_grounded
+unlocks:
+  cell_types:
+    - VIP
+  mechanisms:
+    - contextual_disinhibition
+    - sst_pv_balance_steering
+  optimizers:
+    - gsdr
+    - agsdr
+abilities:
+  - name: Context Gating
+    description: Permits top-down context to bias local inhibitory balance.
+  - name: Disinhibitory Routing
+    description: Permits transient release of pyramidal pathways from slow inhibition.
+  - name: Spectral Mode Switch
+    description: Permits beta-gamma state steering without rewriting core connectivity.
+  - name: GSDR Optimization License
+    description: Agents may now use GSDR/AGSDR to search inhibitory-control parameter space.
+constraints:
+  - framing: VIP is a game abstraction built on SST/PV/top-down findings, not a direct paper claim.
