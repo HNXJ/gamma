@@ -11,6 +11,8 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 import pandas as pd
 import plotly.graph_objects as go
+import subprocess
+from pydantic import BaseModel
 
 from fastapi.staticfiles import StaticFiles
 
@@ -83,88 +85,142 @@ async def guard(request: Request):
 @app.get("/api/status")
 async def get_status():
     """
-    Grounded Status for the Amber Arena.
-    Sources progression state from arena_patch_board.json.
+    Grounded Snapshot for the Amber Arena.
     """
     latest_msg = council_dialogue[-1] if council_dialogue else {}
+    progression = await get_progression()
+    persistence = await get_persistence()
     
-    # Load progression board
-    progression = {}
+    return {
+        "system": {
+            "status": "ONLINE" if council_dialogue else "STANDBY",
+            "uptime": None,
+            "backend_active_slots": "3 / 4",
+            "heartbeat": "OK" if council_dialogue else "STALLED"
+        },
+        "progression": progression,
+        "persistence": persistence,
+        "research": {
+            "neuron_count": progression.get("largest_pass_network_neuron_count"),
+            "pass_network": f"{progression.get('largest_pass_network_neuron_count')}-Node Grounded",
+            "active_patch": progression.get("active_patches")[0] if progression.get("active_patches") else None,
+            "omissions": progression.get("omissions", 0)
+        }
+    }
+
+@app.get("/api/progression")
+async def get_progression():
+    """
+    Authoritative progression state from arena_patch_board.json.
+    """
     board_path = os.path.join(ROOT_DIR, "context/configs/patches/arena_patch_board.json")
     if os.path.exists(board_path):
         try:
             with open(board_path, "r") as f:
-                progression = json.load(f)
+                return json.load(f)
         except Exception as e:
-            print(f"Progression load error: {e}")
+            return {"error": f"Progression load error: {str(e)}", "truth_class": "DEGRADED"}
+    return {"largest_pass_network_neuron_count": 10, "active_patches": [], "truth_class": "DEGRADED"}
 
-    # Grounded metrics from user and live logs
-    active_slots = 3
-    total_slots = 4
-    
-    # Load NAMESPACED Arena World State (The Truth Source)
-    world_state = { 
-        "boot_type": "UNKNOWN", 
-        "resume_count": 0, 
-        "freshness": "DEGRADED",
-        "official_level_metric": "largest_pass_network_neuron_count",
-        "largest_pass_network_neuron_count": 10,
-        "accepted_streak": 0
-    }
-    world_path = os.path.join(ROOT_DIR, "local/game001/arena_runtime_state.json")
-    if os.path.exists(world_path):
+@app.get("/api/agents")
+async def get_agents():
+    """
+    Grounded agent activity and evidence.
+    """
+    latest_msg = council_dialogue[-1] if council_dialogue else {}
+    return [
+        {
+            "id": "G01",
+            "role": "Monitor",
+            "status": "ACTIVE" if council_dialogue else "IDLE",
+            "last_active": latest_msg.get("time", ""),
+            "truth_class": "GROUNDED",
+            "source": LOG_PATH
+        },
+        { "id": "G02", "role": "Optimizer", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": None },
+        { "id": "G03", "role": "Analyst", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": None },
+        { "id": "G04", "role": "Manager", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": None }
+    ]
+
+@app.get("/api/persistence")
+async def get_persistence():
+    """
+    Metadata from the canonical namespaced runtime state.
+    """
+    persistence = { "boot_type": "UNKNOWN", "freshness": "DEGRADED", "resume_count": 0 }
+    runtime_path = os.path.join(ROOT_DIR, "local/game001/arena_runtime_state.json")
+    if os.path.exists(runtime_path):
         try:
-            with open(world_path, "r") as f:
+            with open(runtime_path, "r") as f:
                 ckpt = json.load(f)
-                world_state.update(ckpt)
-                world_state["boot_type"] = "RESUMED" if len(ckpt.get("boot_history", [])) > 1 else "FRESH"
-                world_state["resume_count"] = len(ckpt.get("boot_history", [])) - 1
-                last_ts_str = ckpt.get("last_checkpoint_time")
-                if last_ts_str:
-                    last_dt = datetime.fromisoformat(last_ts_str)
-                    world_state["last_checkpoint"] = last_dt.strftime("%H:%M:%S")
-                    world_state["freshness"] = "GROUNDED" if (datetime.now() - last_dt).total_seconds() < 600 else "STALE"
-                else:
-                    world_state["last_checkpoint"] = "NEVER"
-        except Exception as e:
-            print(f"World state load error: {e}")
+                persistence["boot_type"] = "RESUMED" if len(ckpt.get("boot_history", [])) > 1 else "FRESH"
+                persistence["resume_count"] = len(ckpt.get("boot_history", [])) - 1
+                last_ts = ckpt.get("last_checkpoint_time", 0)
+                persistence["last_checkpoint"] = datetime.fromtimestamp(last_ts).isoformat() if last_ts else "NEVER"
+                persistence["freshness"] = "GROUNDED" if (time.time() - last_ts < 300) else "STALE"
+        except Exception:
+            pass
+    return persistence
 
+@app.get("/api/health")
+async def get_health():
+    """
+    High-frequency health and heartbeat check.
+    """
     return {
-        "system": {
-            "status": "ONLINE" if council_dialogue else "STANDBY",
-            "uptime": "00:00:00",
-            "backend_active_slots": f"{active_slots} / {total_slots}",
-            "tasks_running": 0,
-            "heartbeat": "OK" if council_dialogue else "STALLED"
-        },
-        "progression": progression,
-        "persistence": {
-            "boot_type": world_state["boot_type"],
-            "resume_count": world_state["resume_count"],
-            "last_checkpoint": world_state.get("last_checkpoint", "NEVER"),
-            "freshness": world_state["freshness"]
-        },
-        "research": {
-            "neuron_count": world_state.get("largest_pass_network_neuron_count"),
-            "pass_network": f"{world_state.get('largest_pass_network_neuron_count')}-Node Grounded",
-            "active_patch": world_state.get("active_patches", ["v1.1.0"])[0],
-            "omissions": world_state.get("omissions", 0),
-            "accepted_streak": world_state.get("accepted_streak", 0)
-        },
-        "sessions": [
-            {
-                "id": "G01",
-                "role": "Monitor",
-                "status": "ACTIVE" if council_dialogue else "IDLE",
-                "last_active": latest_msg.get("time", ""),
-                "truth_class": "GROUNDED",
-                "source": LOG_PATH
-            },
-            { "id": "G02", "role": "Optimizer", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
-            { "id": "G03", "role": "Analyst", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" },
-            { "id": "G04", "role": "Manager", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": "null" }
-        ]
+        "status": "OK",
+        "zero_idle_mandate": "ENFORCED",
+        "heartbeat": "OK" if council_dialogue else "STALLED",
+        "last_signal": council_dialogue[-1].get("time") if council_dialogue else None
     }
+
+@app.get("/api/logs/raw")
+async def get_raw_logs(lines: int = 100):
+    """
+    Raw tail of the orchestrator log for debugging proof.
+    """
+    if not os.path.exists(LOG_PATH):
+        return {"error": "Log file not found", "path": LOG_PATH}
+    
+    try:
+        result = subprocess.run(
+            ["tail", "-n", str(lines), LOG_PATH],
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+        return {"content": result.stdout, "path": LOG_PATH}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+class TerminalCommand(BaseModel):
+    command: str
+
+@app.post("/api/terminal/exec")
+async def terminal_exec(cmd: TerminalCommand):
+    """
+    Executes a command in the Gamma root directory.
+    Limited to authorized operator context.
+    """
+    try:
+        # Run command with 5s timeout to prevent hanging the monitor
+        result = subprocess.run(
+            cmd.command,
+            shell=True,
+            cwd=ROOT_DIR,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        return {
+            "output": result.stdout,
+            "error": result.stderr if result.returncode != 0 else None
+        }
+    except subprocess.TimeoutExpired:
+        return {"error": "Command timed out after 5 seconds."}
+    except Exception as e:
+        return {"error": f"Internal Execution Error: {str(e)}"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=3012)
