@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 from gamma_runtime.types import AgentId, InferenceRequest, AgentSpec
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.blackboard import Blackboard
+from gamma_runtime.registry import RuntimeRegistry
 from .metrics import SDEMetrics
 
 logger = logging.getLogger("SDESolver")
