@@ -75,7 +75,7 @@ async def main():
     scheduler = InferenceScheduler()
     orchestrator = UnifiedOrchestrator(scheduler, registry)
     council = CouncilOrchestrator(scheduler, registry)
-    await council.initialize_pools(["gemma4-parallel", "gemma-9b-schiz"], lambda spec: LMStudioBackend("http://127.0.0.1:4474"))
+    await council.initialize_pools(["gemma4-parallel", "gemma-9b-schiz"], lambda spec: LMStudioBackend("http://127.0.0.1:1234"))
     api = HubAPIServer(orchestrator, port=8001)
     api.start()
     orchestrator.start_heartbeat_monitor(team_id="v1_gamma_sde_team", topic="SDE Biophysical Property Extraction")
