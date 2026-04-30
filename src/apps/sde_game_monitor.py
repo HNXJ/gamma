@@ -98,8 +98,8 @@ async def get_status():
     return {
         "system": {
             "status": "ONLINE" if council_dialogue else "STANDBY",
-            "uptime_seconds": health["uptime_seconds"],
-            "backend_active_slots": "3 / 4",
+            "monitor_uptime_seconds": health["monitor_uptime_seconds"],
+            "backend_model_slots_occupied": "3 / 4",
             "heartbeat": health["heartbeat"]
         },
         "progression": progression,
@@ -197,7 +197,7 @@ async def get_health():
     return {
         "status": "OK",
         "zero_idle_mandate": "ENFORCED",
-        "uptime_seconds": int(time.time() - START_TIME),
+        "monitor_uptime_seconds": int(time.time() - START_TIME),
         "heartbeat": "OK" if council_dialogue else "STALLED",
         "last_signal": council_dialogue[-1].get("time") if council_dialogue else None
     }
