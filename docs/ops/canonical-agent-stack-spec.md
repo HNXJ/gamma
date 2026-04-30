@@ -497,3 +497,29 @@ A flash-ready stack is one where a weaker model can:
 * refuse to claim success too early
 * find a compact audit surface instead of rediscovering the repo
 * detect model-not-loaded blockers before wasting turns on higher-level debugging
+
+---
+
+### 18. Branch Doctrine — Office-Dev is Canonical
+You will treat `office-dev` as the canonical latest working branch.
+
+#### Rules:
+1. Default all sync, audit, repair, and runtime-targeting work to `office-dev`.
+2. Do not assume `main` is the newest or operationally correct branch.
+3. When comparing branches, treat `office-dev` as source-of-truth and `main` as merge target unless explicitly told otherwise.
+4. If branch truth is uncertain, use `backup` or the latest stable tagged state as the fallback recovery surface.
+5. Before claiming parity or readiness, report:
+   * current branch
+   * target branch
+   * divergence from `office-dev`
+   * whether fallback to `backup` or stable tag is needed
+
+#### Required practice:
+* Any branch audit must include `office-dev`, `main`, and `backup`/latest stable tag.
+* Any runtime or startup verification should identify whether the running code corresponds to `office-dev`.
+* Any merge recommendation should be phrased as: `office-dev -> main` not the reverse, unless explicitly instructed otherwise.
+
+#### Non-negotiable:
+* Do not patch `main` first by habit.
+* Do not describe `main` as current unless verified.
+* Do not ignore fallback to `backup` or stable tag when branch state is ambiguous.
