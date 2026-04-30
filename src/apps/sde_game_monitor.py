@@ -281,7 +281,8 @@ async def event_stream():
         while True:
             if len(council_dialogue) > last_idx:
                 for i in range(last_idx, len(council_dialogue)):
-                    yield f"data: {json.dumps({'type': 'COUNCIL_CHAT', 'data': council_dialogue[i]})}\n\n"
+                    data = json.dumps({"type": "COUNCIL_CHAT", "data": council_dialogue[i]})
+                    yield "data: " + data + "\n\n"
                 last_idx = len(council_dialogue)
             await asyncio.sleep(0.5)
             
@@ -296,13 +297,14 @@ async def network_event_stream():
         event_id = 0
         while True:
             event_id += 1
-            yield f"data: {json.dumps({
-                'event_id': event_id,
-                'event_type': 'node_state_update',
-                'snapshot_version': SNAPSHOT_VERSION,
-                'time': datetime.now().isoformat(),
-                'payload': {'node_id': f'n{random.randint(0,9)}', 'voltage': -60.0 + random.random()*10}
-            })}\n\n"
+            data = json.dumps({
+                "event_id": event_id,
+                "event_type": "node_state_update",
+                "snapshot_version": SNAPSHOT_VERSION,
+                "time": datetime.now().isoformat(),
+                "payload": {"node_id": "n" + str(random.randint(0,9)), "voltage": -60.0 + random.random()*10}
+            })
+            yield "data: " + data + "\n\n"
             await asyncio.sleep(1)
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
