@@ -1,77 +1,111 @@
 #!/bin/bash
-# Omission Arena: GitHub -> Office Mac Auto-Sync
-# Path-based safety classification and deployment ledgering.
+# GAMMA PROTOCOL: Production Main Auto-Sync Script
+# Office Mac Deployment Logic (M3 Max)
 
 REPO_DIR="/Users/HN/MLLM/gamma"
 LEDGER="$REPO_DIR/local/game001/deployments.jsonl"
+PYTHON_BIN="/Users/HN/miniconda3/envs/mllm/bin/python3"
+PYTHONPATH="$REPO_DIR/src"
 BRANCH="main"
+HOTFIX_FLAG="$REPO_DIR/emergency_hotfix.flag"
 
-cd "$REPO_DIR" || { echo "Could not cd to $REPO_DIR"; exit 1; }
+cd "$REPO_DIR" || { echo "ERROR: Could not cd to $REPO_DIR"; exit 1; }
 
-# 1. Fetch latest from GitHub
-git fetch origin "$BRANCH" || { echo "Fetch failed"; exit 1; }
+# 1. Fetch from origin
+git fetch origin "$BRANCH" || { echo "ERROR: Git fetch failed"; exit 1; }
 
-# 2. Check for changes
 LOCAL_HASH=$(git rev-parse HEAD)
 REMOTE_HASH=$(git rev-parse "origin/$BRANCH")
 
 if [ "$LOCAL_HASH" == "$REMOTE_HASH" ]; then
-    echo "No changes detected."
+    # echo "No changes detected."
     exit 0
 fi
 
-# 3. Identify and Classify changed files
+# 2. Classification
 CHANGED_FILES=$(git diff --name-only "$LOCAL_HASH" "$REMOTE_HASH")
-
-FROZEN_BLOCK=0
-GUARDED_COUNT=0
-SAFE_COUNT=0
+CLASS_C_TRIGGERED=0
+CLASS_B_TRIGGERED=0
+CLASS_A_TRIGGERED=0
 FILE_DETAILS=""
 
 for file in $CHANGED_FILES; do
-    # Frozen Core: src/runtime, src/engine, src/peft
-    if [[ $file == src/gamma_runtime/* ]] || [[ $file == src/sde_engine/* ]] || [[ $file == src/gamma_peft/* ]]; then
-        FROZEN_BLOCK=1
-        FILE_DETAILS="$FILE_DETAILS [FROZEN]$file"
-    # Guarded: configs
-    elif [[ $file == context/configs/* ]]; then
-        GUARDED_COUNT=$((GUARDED_COUNT + 1))
-        FILE_DETAILS="$FILE_DETAILS [GUARDED]$file"
-    # Safe: UI, Mailbox, Docs, specific tools
+    if [[ $file == src/gamma_runtime/* ]] || [[ $file == src/sde_engine/* ]] || [[ $file == src/gamma_peft/* ]] || [[ $file == src/apps/* ]]; then
+        CLASS_C_TRIGGERED=1
+        FILE_DETAILS="$FILE_DETAILS [CLASS_C]$file"
+    elif [[ $file == context/configs/* ]] || [[ $file == tools/deploy/* ]]; then
+        CLASS_B_TRIGGERED=1
+        FILE_DETAILS="$FILE_DETAILS [CLASS_B]$file"
     else
-        SAFE_COUNT=$((SAFE_COUNT + 1))
-        FILE_DETAILS="$FILE_DETAILS [SAFE]$file"
+        CLASS_A_TRIGGERED=1
+        FILE_DETAILS="$FILE_DETAILS [CLASS_A]$file"
     fi
 done
 
-# 4. Decision Logic
+# 3. Decision Logic
+SHOULD_APPLY=0
 STATUS="PENDING"
 REASON=""
 
-if [ $FROZEN_BLOCK -eq 1 ]; then
-    STATUS="BLOCKED"
-    REASON="Touches frozen core paths (src/)"
-elif [ $GUARDED_COUNT -gt 0 ]; then
-    # Currently blocking guarded changes for manual review, though policy could be relaxed later.
-    STATUS="BLOCKED"
-    REASON="Touches guarded config paths (context/configs/)"
+if [ $CLASS_C_TRIGGERED -eq 1 ]; then
+    if [ -f "$HOTFIX_FLAG" ]; then
+        SHOULD_APPLY=1
+        STATUS="HOTFIX_APPLIED"
+        REASON="Class C changes allowed via emergency hotfix flag"
+    else
+        SHOULD_APPLY=0
+        STATUS="BLOCKED"
+        REASON="Touches Class C paths (src/); requires manual approval or hotfix flag"
+    fi
 else
+    # Class A and B are auto-applied in this configuration
+    SHOULD_APPLY=1
     STATUS="APPLIED"
-    REASON="All changes are in safe paths"
-    # Apply changes (assuming fast-forward is possible)
-    git merge --ff-only "origin/$BRANCH" || { STATUS="FAILED"; REASON="Merge failed (diverged history)"; }
+    REASON="Safe or Guarded changes only"
 fi
 
-# 5. Record to Deployment Ledger
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-# Create JSON entry (simplified escaping for shell)
-LOG_ENTRY="{\"timestamp\": \"$TIMESTAMP\", \"commit\": \"$REMOTE_HASH\", \"status\": \"$STATUS\", \"reason\": \"$REASON\", \"files\": \"$FILE_DETAILS\"}"
+if [ $SHOULD_APPLY -eq 1 ]; then
+    # 4. Sync
+    git merge --ff-only "origin/$BRANCH" || { 
+        STATUS="FAILED"
+        REASON="Merge failed (FF-only check failed)"
+        SHOULD_APPLY=0
+    }
+fi
 
+if [ $SHOULD_APPLY -eq 1 ]; then
+    # 5. Smoke Test
+    echo "Running Smoke Tests..."
+    export PYTHONPATH="$PYTHONPATH"
+    $PYTHON_BIN -c "import gamma_runtime.orchestrator; import apps.council_app; print('Imports OK')" > /tmp/gamma_smoke.log 2>&1
+    SMOKE_RC=$?
+    
+    if [ $SMOKE_RC -ne 0 ]; then
+        echo "SMOKE TEST FAILED! Rolling back..."
+        git reset --hard "$LOCAL_HASH"
+        STATUS="FAILED_SMOKE"
+        REASON="Post-deploy smoke test failed (imports or startup crash). Rolled back."
+    else
+        STATUS="SUCCESS"
+        # 6. Service Restart (if Class C or significant Class B)
+        if [ $CLASS_C_TRIGGERED -eq 1 ]; then
+            echo "Restarting services for Class C change..."
+            # Terminate old processes (using specific entry point names to be safe)
+            pkill -f "src/apps/council_app.py"
+            pkill -f "launch_hub.py"
+            pkill -f "science_worker.py"
+            
+            # Launch new entry point in background
+            nohup $PYTHON_BIN src/apps/council_app.py > local/logs/council_app.log 2>&1 &
+            REASON="$REASON | Services restarted (council_app.py)"
+        fi
+    fi
+fi
+
+# 7. Record to Ledger
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+LOG_ENTRY="{\"timestamp\": \"$TIMESTAMP\", \"commit\": \"$REMOTE_HASH\", \"status\": \"$STATUS\", \"reason\": \"$REASON\", \"files\": \"$FILE_DETAILS\"}"
 mkdir -p "$(dirname "$LEDGER")"
 echo "$LOG_ENTRY" >> "$LEDGER"
 
-# 6. Final Report
-echo "Deployment $STATUS: $REASON"
-if [ "$STATUS" == "BLOCKED" ]; then
-    echo "Files causing block: $FILE_DETAILS"
-fi
+echo "Result: $STATUS - $REASON"
