@@ -1,79 +1,70 @@
+async function refreshDashboard() {
+    try {
+        const response = await fetch('/api/status');
+        if (!response.ok) return;
+        const data = await response.json();
+        
+        // Update Header with null safety
+        document.getElementById('sys-status-text').innerText = data.system?.status || "DEGRADED";
+        document.getElementById('vram-val').innerText = data.system?.vram || "N/A";
+        document.getElementById('uptime-val').innerText = data.system?.uptime || "00:00:00";
+        document.getElementById('boot-epoch').innerText = data.system?.boot_epoch || "UNAVAILABLE";
+        
+        const heart = document.getElementById('heartbeat-proof');
+        if (heart) {
+            heart.innerText = `SEC_${Math.floor(Date.now()/1000) % 60}_OK`;
+            heart.style.opacity = heart.style.opacity === "1" ? "0.7" : "1";
+        }
+
+        // Update Research with null safety
+        const passNet = document.getElementById('pass-network');
+        if (passNet) {
+            const passVal = data.research?.pass_network;
+            passNet.innerText = passVal ? passVal.split(' ')[0] : "NULL";
+        }
+        
+        const activePatch = document.getElementById('active-patch');
+        if (activePatch) activePatch.innerText = data.research?.active_patch || "v0.0.0";
+        
+        const omissions = document.getElementById('omissions-count');
+        if (omissions) omissions.innerText = (data.research?.omissions ?? 0).toString().padStart(2, '0');
+
+        // Render Session Matrix (G01-G04)
+        const matrix = document.getElementById('session-matrix');
+        if (matrix && data.sessions) {
+            matrix.innerHTML = '';
+            data.sessions.slice(0, 4).forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'card glass';
+                const isDegraded = s.status === 'IDLE';
+                
+                card.innerHTML = `
+                    <div class="card-title">
+                        ${s.id} <span style="font-size: 10px; color: var(--accent);">${s.status || 'IDLE'}</span>
+                    </div>
+                    <div style="font-size: 18px; font-weight: 600;">${s.topic || 'Standby'}</div>
+                    <div style="font-family: var(--mono); font-size: 11px; color: var(--text-dim);">
+                        Round: ${s.round ?? 0} | Last: ${s.last_active ? (s.last_active.includes('T') ? s.last_active.split('T')[1].split('.')[0] : s.last_active) : 'NEVER'}
+                    </div>
+                    <div class="card-footer">
+                        <span class="truth-badge ${isDegraded ? 'truth-degraded' : 'truth-grounded'}">
+                            ${isDegraded ? 'DEGRADED' : 'GROUNDED'}
+                        </span>
+                        <span>council://v1/${s.id}</span>
+                        <span>${new Date().toLocaleTimeString()}</span>
+                    </div>
+                `;
+                matrix.appendChild(card);
+            });
+        }
+
+    } catch (err) {
+        console.error("Dashboard refresh failed:", err);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    const logContainer = document.getElementById('log-container');
-    const fields = {
-        'epoch-count': 'epoch',
-        'system-status': 'status',
-        'z-val': 'z',
-        'w-val': 'w',
-        'x-val': 'x',
-        'y-val': 'y',
-        'loss-val': 'loss'
-    };
-
-    const previousValues = {};
-
-    function updateValue(id, newValue, decimals = 3) {
-        const element = document.getElementById(id);
-        const formattedValue = typeof newValue === 'number' ? newValue.toFixed(decimals) : newValue;
-        
-        if (previousValues[id] !== formattedValue) {
-            element.innerText = formattedValue;
-            element.classList.remove('value-change');
-            void element.offsetWidth; // Trigger reflow
-            element.classList.add('value-change');
-            previousValues[id] = formattedValue;
-        }
-    }
-
-    function addLogLine(msg) {
-        const line = document.createElement('div');
-        line.className = 'log-line';
-        
-        const now = new Date();
-        const timestamp = now.toTimeString().split(' ')[0];
-        
-        line.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${msg}`;
-        logContainer.appendChild(line);
-        
-        // Keep only last 100 lines
-        while (logContainer.children.length > 100) {
-            logContainer.removeChild(logContainer.firstChild);
-        }
-        
-        logContainer.scrollTop = logContainer.scrollHeight;
-    }
-
-    // Initialize EventSource
-    const evtSource = new EventSource("/stream");
-
-    evtSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        
-        // Update all metrics
-        updateValue('epoch-count', data.epoch, 0);
-        updateValue('system-status', data.status);
-        updateValue('z-val', data.z);
-        updateValue('w-val', data.w);
-        updateValue('x-val', data.x);
-        updateValue('y-val', data.y);
-        updateValue('loss-val', data.loss);
-
-        // Update logs if they changed
-        if (data.logs && data.logs.length > 0) {
-            // In the provided script, 'logs' is a list of all current logs.
-            // We only want to add the NEW ones.
-            const lastLog = data.logs[data.logs.length - 1];
-            if (previousValues['lastLog'] !== lastLog) {
-                addLogLine(lastLog);
-                previousValues['lastLog'] = lastLog;
-            }
-        }
-    };
-
-    evtSource.onerror = function() {
-        updateValue('system-status', 'RECONNECTING...');
-    };
-
-    // Initial dummy data for visual testing if needed
-    console.log("Gamma Dashboard Initialized");
+    setInterval(refreshDashboard, 1000);
+    refreshDashboard();
+    console.log("Gamma Operator Console Initialized");
 });
