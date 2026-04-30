@@ -60,3 +60,9 @@ class AgentMessage:
     recipient: AgentId | None
     kind: str
     content: dict[str, Any]
+
+@dataclass(frozen=True)
+class MissionContext:
+    target_neuron_count: int
+    mission_topic: str
+    patch_id: str | None = None

@@ -2,12 +2,12 @@ import asyncio
 import logging
 import time
 from typing import Dict, Any, Optional, List
-from .types import AgentId, InferenceRequest
+from .types import AgentId, InferenceRequest, MissionContext
 from .scheduler import InferenceScheduler
 from .blackboard import Blackboard
 from .registry import RuntimeRegistry
 from .consolidation import ConsolidationManager
-from apps.council_app import CouncilOrchestrator
+from apps.v1_gamma_sde_app import V1GammaSDEOrchestrator
 from sde_engine.solver import SDESolver
 
 logger = logging.getLogger("UnifiedOrchestrator")
@@ -30,6 +30,7 @@ class UnifiedOrchestrator:
             "topic": "Autonomous SDE Refinement",
             "active": False
         }
+        self._mission_context: Optional[MissionContext] = None
 
     def start_heartbeat_monitor(self, team_id: str = "v1_gamma_sde_team", topic: str = "Autonomous SDE Refinement"):
         """Activates the aggressive zero-idle-time heartbeat rule."""
@@ -57,8 +58,16 @@ class UnifiedOrchestrator:
                     blackboard = self._active_sessions[session_id]
                     self._last_activity_time = now 
                     
-                    topic = self._get_active_mission_topic()
-                    orchestrator = CouncilOrchestrator(self.scheduler, self.registry, blackboard=blackboard)
+                    # Ensure we have a fresh mission context for each loop iteration
+                    self._mission_context = self._load_mission_context()
+                    topic = self._mission_context.mission_topic
+                    
+                    orchestrator = V1GammaSDEOrchestrator(
+                        self.scheduler, 
+                        self.registry, 
+                        mission_context=self._mission_context,
+                        blackboard=blackboard
+                    )
                     await orchestrator.run_deliberation(
                         team_id=self._heartbeat_config["team_id"],
                         topic=topic,
@@ -131,20 +140,43 @@ class UnifiedOrchestrator:
                 })
         return sessions
 
-    def _get_active_mission_topic(self) -> str:
-        """Fetches the current mission topic from the active patch board."""
+    def _load_mission_context(self) -> MissionContext:
+        """Fetches the current mission state from the active patch board. Fails closed if malformed."""
         try:
             board_path = self.registry.root / "patches" / "arena_patch_board.json"
-            if board_path.exists():
-                with open(board_path, "r") as f:
-                    board = json.load(f)
-                    # Check if board has a direct override (added during 10->11 transition)
-                    if "active_mission_topic" in board:
-                        return board["active_mission_topic"]
-                    
-            return self._heartbeat_config["topic"]
-        except Exception:
-            return self._heartbeat_config["topic"]
+            if not board_path.exists():
+                raise FileNotFoundError(f"Mission target source missing: {board_path}")
+                
+            import json
+            with open(board_path, "r") as f:
+                board = json.load(f)
+                
+            topic = board.get("active_mission_topic")
+            target = board.get("active_mission_target")
+            
+            if topic is None:
+                raise ValueError("Mission topic missing from patch board.")
+            if target is None or not isinstance(target, int):
+                raise ValueError(f"Malformed or missing numeric mission target: {target}")
+            
+            # Determine active patch ID
+            active_patches = board.get("active_patches", [])
+            patch_id = active_patches[0] if active_patches else None
+            
+            return MissionContext(
+                target_neuron_count=target,
+                mission_topic=topic,
+                patch_id=patch_id
+            )
+        except Exception as e:
+            logger.critical(f"🛑 MISSION CONTEXT LOAD FAILURE: {e}")
+            # In a fail-closed architecture, we could stop the system here.
+            # For Stage 1, we raise so the heartbeat loop handles the failure.
+            raise
+
+    def _get_active_mission_topic(self) -> str:
+        """Deprecated: Use _load_mission_context().mission_topic instead."""
+        return self._load_mission_context().mission_topic
 
     def get_session_state(self, session_id: str) -> Optional[Dict[str, Any]]:
         blackboard = self._active_sessions.get(session_id)
