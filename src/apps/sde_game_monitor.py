@@ -91,13 +91,9 @@ async def index(request: Request):
 
 @app.get("/api/status")
 async def get_status():
-    """
-    Grounded Snapshot for the Amber Arena.
-    """
     progression = await get_progression()
     persistence = await get_persistence()
     health = await get_health()
-    
     return {
         "system": {
             "status": "ONLINE" if council_dialogue else "STANDBY",
@@ -117,12 +113,7 @@ async def get_status():
 
 @app.get("/api/progression")
 async def get_progression():
-    """
-    Authoritative progression state grounded in runtime state and patch board.
-    """
     progression = {"largest_pass_network_neuron_count": 10, "active_patches": [], "truth_class": "DEGRADED"}
-    
-    # Priority 1: Namespaced Runtime State (Live Game Truth)
     runtime_path = os.path.join(ROOT_DIR, "local/game001/arena_runtime_state.json")
     if os.path.exists(runtime_path):
         try:
@@ -134,8 +125,6 @@ async def get_progression():
                     "truth_class": "GROUNDED"
                 })
         except Exception: pass
-        
-    # Priority 2: Patch Board (Operational Overrides)
     board_path = os.path.join(ROOT_DIR, "context/configs/patches/arena_patch_board.json")
     if os.path.exists(board_path):
         try:
@@ -143,14 +132,10 @@ async def get_progression():
                 board_data = json.load(f)
                 progression.update(board_data)
         except Exception: pass
-        
     return progression
 
 @app.get("/api/agents")
 async def get_agents():
-    """
-    Grounded agent activity split from backend slots.
-    """
     latest_msg = council_dialogue[-1] if council_dialogue else {}
     return [
         {
@@ -169,29 +154,17 @@ async def get_agents():
 
 @app.get("/api/agents/{agent_id}/logs")
 async def get_agent_logs(agent_id: str, lines: int = 100):
-    """
-    Expose per-agent logs from verified Office Mac paths.
-    """
     path = AGENT_LOGS.get(agent_id)
     if not path or not os.path.exists(path):
         raise HTTPException(status_code=404, detail=f"Log file not found for {agent_id}")
-    
     try:
-        result = subprocess.run(
-            ["tail", "-n", str(lines), path],
-            capture_output=True,
-            text=True,
-            timeout=2
-        )
+        result = subprocess.run(["tail", "-n", str(lines), path], capture_output=True, text=True, timeout=2)
         return {"id": agent_id, "content": result.stdout, "path": path}
     except Exception as e:
         return {"error": str(e)}
 
 @app.get("/api/persistence")
 async def get_persistence():
-    """
-    Metadata from the canonical namespaced runtime state.
-    """
     persistence = { "boot_type": "UNKNOWN", "freshness": "DEGRADED", "resume_count": 0 }
     runtime_path = os.path.join(ROOT_DIR, "local/game001/arena_runtime_state.json")
     if os.path.exists(runtime_path):
@@ -208,15 +181,12 @@ async def get_persistence():
                 else:
                     persistence["last_checkpoint"] = datetime.fromtimestamp(last_ts).isoformat() if last_ts else "NEVER"
                     persistence["freshness"] = "GROUNDED" if (time.time() - last_ts < 600) else "STALE"
-        except Exception: 
+        except Exception:
             pass
     return persistence
 
 @app.get("/api/health")
 async def get_health():
-    """
-    High-frequency health and grounded uptime check.
-    """
     return {
         "status": "OK",
         "zero_idle_mandate": "ENFORCED",
@@ -227,9 +197,6 @@ async def get_health():
 
 @app.get("/api/network/state")
 async def get_network_state():
-    """
-    Structured columnar network state for game-client style rendering.
-    """
     types = ["E"]*7 + ["PV"]*2 + ["SST"]*1
     n = len(types)
     random.seed(42)
@@ -273,9 +240,6 @@ async def get_network_state():
 
 @app.get("/api/events/stream")
 async def event_stream():
-    """
-    SSE stream of live council events.
-    """
     async def event_generator():
         last_idx = len(council_dialogue)
         while True:
@@ -285,53 +249,29 @@ async def event_stream():
                     yield "data: " + data + "\n\n"
                 last_idx = len(council_dialogue)
             await asyncio.sleep(0.5)
-            
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/api/network/events/stream")
 async def network_event_stream():
-    """
-    SSE stream for incremental network updates (Proposal Phase 2).
-    """
     async def event_generator():
         event_id = 0
         while True:
             event_id += 1
-            data = json.dumps({
-                "event_id": event_id,
-                "event_type": "node_state_update",
-                "snapshot_version": SNAPSHOT_VERSION,
-                "time": datetime.now().isoformat(),
-                "payload": {"node_id": "n" + str(random.randint(0,9)), "voltage": -60.0 + random.random()*10}
-            })
+            payload = {"node_id": "n" + str(random.randint(0,9)), "voltage": -60.0 + random.random()*10}
+            data = json.dumps({"event_id": event_id, "event_type": "node_state_update", "snapshot_version": SNAPSHOT_VERSION, "time": datetime.now().isoformat(), "payload": payload})
             yield "data: " + data + "\n\n"
             await asyncio.sleep(1)
-            
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/api/logs/raw")
 async def get_raw_logs(lines: int = 100):
-    """
-    Raw tail of the orchestrator log for debugging proof.
-    """
     if not os.path.exists(LOG_PATH):
         return {"error": "Log file not found", "path": LOG_PATH}
-    
     try:
-        result = subprocess.run(
-            ["tail", "-n", str(lines), LOG_PATH],
-            capture_output=True,
-            text=True,
-            timeout=2
-        )
+        result = subprocess.run(["tail", "-n", str(lines), LOG_PATH], capture_output=True, text=True, timeout=2)
         return {"content": result.stdout, "path": LOG_PATH}
     except Exception as e:
         return {"error": str(e)}
-
-# INTERNAL ONLY (NON-MIGRATABLE)
-@app.post("/_internal/terminal/exec")
-async def terminal_exec(cmd: BaseModel):
-    pass
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=3012)
