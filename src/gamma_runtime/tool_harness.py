@@ -4,7 +4,6 @@ import logging
 import traceback
 import json
 import os
-import time
 from typing import Dict, Any, List, Optional, Set
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
@@ -22,10 +21,8 @@ class TruncationMiddleware:
         if not output:
             return ""
             
-        # Integration point for data summarization
         summary_blocks = []
         if locals_dict:
-            # Only summarize if pandas/numpy are available and objects are relevant
             try:
                 import pandas as pd
                 import numpy as np
@@ -38,7 +35,8 @@ class TruncationMiddleware:
                 pass
         
         if summary_blocks:
-            output = "\n\n".join(summary_blocks) + "\n\n--- Standard Output ---\n" + output
+            output = "\n\n".join(summary_blocks) + "\n\n--- Standard Output ---
+" + output
 
         if len(output) <= TruncationMiddleware.MAX_LENGTH:
             return output
@@ -71,14 +69,31 @@ class TruncationMiddleware:
         return None
 
 
+class SandboxPathGuard:
+    """
+    Enforces that all file operations are strictly contained within the sandbox root.
+    """
+    def __init__(self, sandbox_root: str):
+        self.sandbox_root = os.path.abspath(sandbox_root)
+
+    def validate_path(self, path: str):
+        abs_path = os.path.abspath(os.path.join(self.sandbox_root, path))
+        if not abs_path.startswith(self.sandbox_root):
+            raise PermissionError(f"Sandbox Escape Detected: Attempted to access {path}")
+
+    def wrap_open(self, *args, **kwargs):
+        self.validate_path(args[0])
+        return open(*args, **kwargs)
+
+
 class StatefulPythonExecutor:
     def __init__(self, sandbox_root: str):
         self.sandbox_root = os.path.abspath(sandbox_root)
+        self.guard = SandboxPathGuard(self.sandbox_root)
         self._globals = {}
         self._setup_environment()
 
     def _setup_environment(self):
-        # Fail fast on missing core dependencies
         try:
             import numpy as np
             import scipy
@@ -91,7 +106,9 @@ class StatefulPythonExecutor:
                 'pd': pd, 
                 'scipy': scipy, 
                 'jax': jax, 
-                'chex': chex
+                'chex': chex,
+                'open': self.guard.wrap_open, # Override open for path safety
+                '__builtins__': {**__builtins__, 'open': self.guard.wrap_open}
             })
         except ImportError as e:
             logger.error(f"Critical dependency missing for StatefulPythonExecutor: {e}")
@@ -108,7 +125,6 @@ class StatefulPythonExecutor:
         logger.info(f"Stateful Python Executor initialized. Sandbox root: {self.sandbox_root}")
 
     def execute(self, code: str) -> str:
-        # Strict Sandbox Enforcement
         if not os.path.exists(self.sandbox_root):
             os.makedirs(self.sandbox_root, exist_ok=True)
             
@@ -134,7 +150,8 @@ class StatefulPythonExecutor:
         if output:
             combined += output
         if errors:
-            if combined: combined += "\n\n--- ERRORS ---\n"
+            if combined: combined += "\n\n--- ERRORS ---
+"
             combined += errors
             
         if not combined:
@@ -155,12 +172,10 @@ class ContextHydrator:
                 active_skills: List[str] = None,
                 scenario_tags: Set[str] = None) -> str:
         
-        # 1. Layering: Separate Role, Memory, Task
         role_block = f"## Role Profile\n{agent_role}"
         memory_block = f"## Long-Term Memory\n{memory}"
         task_block = f"## Active Task\n{task}"
         
-        # 2. Contextual Skills Selection
         selected_skills = self._resolve_skills(active_skills, scenario_tags)
         skill_blocks = []
         
@@ -169,7 +184,6 @@ class ContextHydrator:
             if content:
                 skill_blocks.append(content)
         
-        # 3. Assemble System Context Block
         blocks = [role_block, memory_block, task_block]
         
         if os.path.exists(self.central_context_path):
@@ -186,14 +200,12 @@ class ContextHydrator:
         skills = set(manual or [])
         skills.update(self.always_on_skills)
         
-        # Scenario-triggered skills
         if tags:
             if "e_i_balance" in tags:
                 skills.add("synaptic-scaling")
             if "laminar" in tags:
                 skills.add("predictive-coding")
                 
-        # Update recently used
         for s in skills:
             if s in self.recent_skills:
                 self.recent_skills.remove(s)
@@ -246,9 +258,6 @@ class ToolRouter:
         ]
 
     async def handle_tool_calls(self, messages: List[Dict], tool_calls: List[Dict]) -> List[Dict]:
-        """
-        Executes tool calls and appends results back to message history.
-        """
         results = []
         for tool_call in tool_calls:
             logger.info(f"Agent {self.agent_id} calling tool: {tool_call['function']['name']}")
@@ -256,7 +265,7 @@ class ToolRouter:
             results.append({
                 "role": "tool",
                 "tool_call_id": tool_call["id"],
-                "name": tool_call["function"]["name"],
+                "name": tool_call["function"Май name"],
                 "content": result_content
             })
         return results
