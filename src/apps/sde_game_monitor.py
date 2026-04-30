@@ -4,7 +4,7 @@ import json
 import time
 import re
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -17,7 +17,9 @@ from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
-APP_START_TIME = datetime.now(timezone.utc)
+
+# System Start Time for Uptime Grounding
+START_TIME = time.time()
 
 # Dynamic Path Resolution
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -76,11 +78,18 @@ if LOG_PATH != "/dev/null":
 async def index(request: Request):
     return templates.TemplateResponse(request=request, name="arena.html")
 
+@app.get("/council", response_class=HTMLResponse)
+async def council(request: Request):
+    return templates.TemplateResponse(request=request, name="arena.html")
+
+@app.get("/guard", response_class=HTMLResponse)
+async def guard(request: Request):
+    return templates.TemplateResponse(request=request, name="guard.html")
+
 @app.get("/api/status")
 async def get_status():
     """
-    Grounded Snapshot for the Amber Arena (Phase 1.6 Frozen).
-    Explicitly splits Backend Slots from Grounded Agents.
+    Grounded Snapshot for the Amber Arena.
     """
     progression = await get_progression()
     persistence = await get_persistence()
@@ -89,7 +98,7 @@ async def get_status():
     return {
         "system": {
             "status": "ONLINE" if council_dialogue else "STANDBY",
-            "uptime": health["uptime"],
+            "uptime_seconds": health["uptime_seconds"],
             "backend_active_slots": "3 / 4",
             "heartbeat": health["heartbeat"]
         },
@@ -97,43 +106,47 @@ async def get_status():
         "persistence": persistence,
         "research": {
             "neuron_count": progression.get("largest_pass_network_neuron_count"),
-            "pass_network": f"{progression.get('largest_pass_network_neuron_count')}-Node Grounded",
-            "active_patch": progression.get("active_patches", ["v1.1.0"])[0] if progression.get("active_patches") else "v1.1.0",
-            "omissions": progression.get("omissions", 0),
-            "grounded_agents_active": sum(1 for s in (await get_agents()) if s["status"] == "ACTIVE")
+            "pass_network": f"{progression.get('largest_pass_network_neuron_count')}-Node Grounded" if progression.get("largest_pass_network_neuron_count") else None,
+            "active_patch": progression.get("active_patches")[0] if progression.get("active_patches") else None,
+            "omissions": progression.get("omissions", 0)
         }
     }
 
 @app.get("/api/progression")
 async def get_progression():
     """
-    Authoritative scientific progression grounded in both manifest and runtime state.
+    Authoritative progression state grounded in runtime state and patch board.
     """
-    # 1. Base from Patch Board
-    state = {"largest_pass_network_neuron_count": 10, "active_patches": [], "truth_class": "INFERRED"}
+    progression = {"largest_pass_network_neuron_count": 10, "active_patches": [], "truth_class": "DEGRADED"}
+    
+    # Priority 1: Namespaced Runtime State (Live Game Truth)
+    runtime_path = os.path.join(ROOT_DIR, "local/game001/arena_runtime_state.json")
+    if os.path.exists(runtime_path):
+        try:
+            with open(runtime_path, "r") as f:
+                runtime_data = json.load(f)
+                progression.update({
+                    "largest_pass_network_neuron_count": runtime_data.get("largest_pass_network_neuron_count"),
+                    "active_patches": runtime_data.get("active_patches"),
+                    "truth_class": "GROUNDED"
+                })
+        except Exception: pass
+        
+    # Priority 2: Patch Board (Operational Overrides)
     board_path = os.path.join(ROOT_DIR, "context/configs/patches/arena_patch_board.json")
     if os.path.exists(board_path):
         try:
             with open(board_path, "r") as f:
-                state.update(json.load(f))
-        except Exception: pass
-    
-    # 2. Ground with Namespaced World State (The Live Truth)
-    world_path = os.path.join(ROOT_DIR, "local/game001/arena_runtime_state.json")
-    if os.path.exists(world_path):
-        try:
-            with open(world_path, "r") as f:
-                world = json.load(f)
-                state["largest_pass_network_neuron_count"] = world.get("largest_pass_network_neuron_count", state["largest_pass_network_neuron_count"])
-                state["truth_class"] = "GROUNDED"
+                board_data = json.load(f)
+                progression.update(board_data)
         except Exception: pass
         
-    return state
+    return progression
 
 @app.get("/api/agents")
 async def get_agents():
     """
-    Grounded agent activity and evidence.
+    Grounded agent activity split from backend slots.
     """
     latest_msg = council_dialogue[-1] if council_dialogue else {}
     return [
@@ -142,12 +155,13 @@ async def get_agents():
             "role": "Monitor",
             "status": "ACTIVE" if council_dialogue else "IDLE",
             "last_active": latest_msg.get("time", ""),
+            "grounded_evidence": bool(council_dialogue),
             "truth_class": "GROUNDED",
             "source": LOG_PATH
         },
-        { "id": "G02", "role": "Optimizer", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": None },
-        { "id": "G03", "role": "Analyst", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": None },
-        { "id": "G04", "role": "Manager", "status": "IDLE", "last_active": "", "truth_class": "DEGRADED", "source": None }
+        { "id": "G02", "role": "Optimizer", "status": "IDLE", "last_active": "", "grounded_evidence": False, "truth_class": "DEGRADED", "source": None },
+        { "id": "G03", "role": "Analyst", "status": "IDLE", "last_active": "", "grounded_evidence": False, "truth_class": "DEGRADED", "source": None },
+        { "id": "G04", "role": "Manager", "status": "IDLE", "last_active": "", "grounded_evidence": False, "truth_class": "DEGRADED", "source": None }
     ]
 
 @app.get("/api/persistence")
@@ -163,11 +177,14 @@ async def get_persistence():
                 ckpt = json.load(f)
                 persistence["boot_type"] = "RESUMED" if len(ckpt.get("boot_history", [])) > 1 else "FRESH"
                 persistence["resume_count"] = len(ckpt.get("boot_history", [])) - 1
-                last_ts_str = ckpt.get("last_checkpoint_time")
-                if last_ts_str:
-                    last_dt = datetime.fromisoformat(last_ts_str)
+                last_ts = ckpt.get("last_checkpoint_time", 0)
+                if isinstance(last_ts, str):
+                    last_dt = datetime.fromisoformat(last_ts)
                     persistence["last_checkpoint"] = last_dt.strftime("%H:%M:%S")
                     persistence["freshness"] = "GROUNDED" if (datetime.now() - last_dt).total_seconds() < 600 else "STALE"
+                else:
+                    persistence["last_checkpoint"] = datetime.fromtimestamp(last_ts).isoformat() if last_ts else "NEVER"
+                    persistence["freshness"] = "GROUNDED" if (time.time() - last_ts < 600) else "STALE"
         except Exception:
             pass
     return persistence
@@ -175,37 +192,30 @@ async def get_persistence():
 @app.get("/api/health")
 async def get_health():
     """
-    Grounded health and uptime metrics.
+    High-frequency health and grounded uptime check.
     """
-    now = datetime.now(timezone.utc)
-    delta = now - APP_START_TIME
-    uptime_str = str(delta).split(".")[0] # HH:MM:SS
-    
     return {
         "status": "OK",
-        "uptime": uptime_str,
+        "zero_idle_mandate": "ENFORCED",
+        "uptime_seconds": int(time.time() - START_TIME),
         "heartbeat": "OK" if council_dialogue else "STALLED",
         "last_signal": council_dialogue[-1].get("time") if council_dialogue else None
     }
 
 @app.get("/api/events/stream")
-async def event_stream(request: Request):
+async def event_stream():
     """
-    Real-time event stream (SSE) for the Arena timeline.
+    SSE stream of live council events.
     """
     async def event_generator():
-        last_sent_idx = len(council_dialogue)
+        last_idx = len(council_dialogue)
         while True:
-            if await request.is_disconnected():
-                break
+            if len(council_dialogue) > last_idx:
+                for i in range(last_idx, len(council_dialogue)):
+                    yield f"data: {json.dumps({'type': 'COUNCIL_CHAT', 'data': council_dialogue[i]})}\n\n"
+                last_idx = len(council_dialogue)
+            await asyncio.sleep(0.5)
             
-            if len(council_dialogue) > last_sent_idx:
-                for i in range(last_sent_idx, len(council_dialogue)):
-                    yield f"data: {json.dumps(council_dialogue[i])}\n\n"
-                last_sent_idx = len(council_dialogue)
-            
-            await asyncio.sleep(1)
-
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/api/logs/raw")
@@ -227,7 +237,10 @@ async def get_raw_logs(lines: int = 100):
     except Exception as e:
         return {"error": str(e)}
 
-# POST /api/terminal/exec is removed from migration scope (Phase 1.6)
+# INTERNAL ONLY (NON-MIGRATABLE)
+@app.post("/_internal/terminal/exec")
+async def terminal_exec(cmd: BaseModel):
+    pass
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=3012)
