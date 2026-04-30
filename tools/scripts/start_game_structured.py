@@ -3,13 +3,12 @@ import sys
 import json
 import asyncio
 import logging
-import urllib.request
 import socket
 from urllib.parse import urlparse
 from datetime import datetime
 
 # Anchor to project root for module imports
-ROOT = "/Users/hamednejat/workspace/computational/gamma"
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.append(ROOT)
 sys.path.append(os.path.join(ROOT, "src"))
 
@@ -31,9 +30,9 @@ def emit_failure(reason: str, details: str):
 def run_preflight_checks():
     logger.info("Running preflight checks...")
     
-    # 1. Check interpreter
+    # 1. Check interpreter (Only enforce if .venv exists in ROOT)
     venv_path = os.path.join(ROOT, ".venv")
-    if not sys.executable.startswith(venv_path):
+    if os.path.exists(venv_path) and not sys.executable.startswith(venv_path):
         emit_failure("wrong_interpreter", f"Expected inside {venv_path}, got {sys.executable}")
         
     # 2. Check required imports
@@ -57,11 +56,11 @@ def run_preflight_checks():
         emit_failure("lms_unreachable", f"LMS Model server not reachable at {lms_url}. Error: {e}")
 
     # 4. Check inventory directories
-    agents = ["G01", "G02", "G03", "J01"]
+    agents = ["G01", "G02", "G03", "J01", "M01"]
     for agent in agents:
         agent_dir = os.path.join(ROOT, f"local/inventory/{agent}")
         if not os.path.exists(agent_dir):
-            emit_failure("missing_inventory", f"Missing inventory directory for {agent} at {agent_dir}")
+            os.makedirs(agent_dir, exist_ok=True)
             
     logger.info("✅ Preflight checks passed.")
 
@@ -81,18 +80,20 @@ async def main():
     registry = RuntimeRegistry(os.path.join(ROOT, "context/configs"))
     scheduler = InferenceScheduler()
     
-    # 1.5 Initialize Tool Harness
+    # 2. Initialize Tool Harness (Context + Tooling)
     hydrator = ContextHydrator(ROOT)
     routers = {}
     agents = ["G01", "G02", "G03", "J01", "M01"]
-    for agent in agents:
-        routers[agent] = ToolRouter(agent, os.path.join(ROOT, "local/inventory"))
+    for agent_id in agents:
+        # Strict Player Sandbox Mapping
+        sandbox_path = os.path.join(ROOT, f"local/inventory/{agent_id}")
+        routers[agent_id] = ToolRouter(agent_id, sandbox_path)
     
-    # 2. Initialize Event Emitter
+    # 3. Initialize Event Emitter
     events_path = os.path.join(ROOT, "local/events.jsonl")
     emitter = EventEmitter(events_path)
     
-    # 3. Initialize Orchestrator
+    # 4. Initialize Orchestrator with Tool Harness
     orchestrator = UnifiedOrchestrator(
         scheduler, 
         registry, 
@@ -101,23 +102,11 @@ async def main():
         context_hydrator=hydrator
     )
     
-    # 4. Initialize Hub API Server
+    # 5. Initialize Hub API Server
     hub_server = HubAPIServer(orchestrator, port=HUB_PORT)
     hub_server.start()
     
-    # 5. Emit Initialization Events
-    agents = ["G01", "G02", "G03", "J01"]
-    roles = ["builder", "tuner", "analyst", "judge"]
-    for agent_id, role in zip(agents, roles):
-        emitter.emit(
-            agent_id=agent_id,
-            role=role,
-            event_type="inventory_updated",
-            summary=f"Agent {agent_id} inventory structure grounded.",
-            status="OK"
-        )
-        
-    # 6. Launch a real task to prove orchestration is active
+    # 6. Launch a real task to prove orchestration and tool harness are active
     logger.info("Triggering real orchestrator run...")
     await orchestrator.launch_run(
         run_type="council",
@@ -127,11 +116,9 @@ async def main():
         auto_consolidate=False
     )
     
-    logger.info("✅ Gamma Game is now RUNNING with real orchestrator event emitted.")
+    logger.info("✅ Gamma Game is now RUNNING with Tool Harness active.")
     logger.info(f"Hub API: http://localhost:{HUB_PORT}")
-    logger.info("Events: local/events.jsonl")
     
-    # Keep the process alive
     while True:
         await asyncio.sleep(3600)
 

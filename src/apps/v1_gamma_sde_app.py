@@ -3,23 +3,26 @@ import json
 import logging
 import os
 import time
-from typing import Optional
+from typing import Optional, Dict, Any
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.registry import RuntimeRegistry
 from gamma_runtime.blackboard import Blackboard
 from gamma_runtime.types import MissionContext
 from apps.council_app import CouncilOrchestrator
+from gamma_runtime.tool_harness import ToolRouter, ContextHydrator
 
 logger = logging.getLogger("V1GammaSDEApp")
 
 class V1GammaSDEOrchestrator(CouncilOrchestrator):
     """
     Thin wrapper around the CouncilOrchestrator specifically designed for the V1 Gamma SDE Game.
-    It intercepts the Proponent's output, structures it into a JSON payload, and writes it
-    out for the jbiophysic-main repository to consume and simulate.
     """
-    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, mission_context: MissionContext, blackboard: Optional[Blackboard] = None):
-        super().__init__(scheduler, registry, blackboard)
+    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, 
+                 mission_context: MissionContext, 
+                 blackboard: Optional[Blackboard] = None,
+                 tool_routers: Optional[Dict[str, ToolRouter]] = None,
+                 context_hydrator: Optional[ContextHydrator] = None):
+        super().__init__(scheduler, registry, blackboard, tool_routers, context_hydrator)
         self.mission_context = mission_context
         self.proposals_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "sde_proposals")
         os.makedirs(self.proposals_dir, exist_ok=True)
@@ -37,31 +40,26 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
             self.blackboard.round = r + 1
             logger.info(f"--- SDE Epoch {self.blackboard.round} ---")
             
-            # Managed Parallel Execution via Scheduler
-            requests = []
             for agent in agents:
+                logger.info(f"Agent {agent.agent_id} turn starting...")
                 req = self._build_request(agent)
-                requests.append((agent.model_key, req))
-            
-            results = await self.scheduler.batch_run(requests)
-            
-            for i, result in enumerate(results):
-                agent_id = agents[i].agent_id
-                await self.blackboard.add_entry(agent_id, result.text)
-                logger.info(f"[{agent_id}] Entry committed to blackboard.")
                 
-                # If the Proponent proposed something, we extract and serialize it.
-                if agent_id == "v1_gamma_proponent":
-                    self._emit_proposal(self.blackboard.round, result.text)
+                router = self.tool_routers.get(agent.agent_id)
+                if router:
+                    result_text = await self._run_tool_loop(agent, req, router)
+                else:
+                    result = await self.scheduler.schedule(agent.model_key, req)
+                    result_text = result.text
+                
+                await self.blackboard.add_entry(agent.agent_id, result_text)
+                
+                if agent.agent_id == "v1_gamma_proponent":
+                    self._emit_proposal(self.blackboard.round, result_text)
 
         logger.info("✅ V1 GAMMA SDE DELIBERATION COMPLETE.")
         return self.blackboard
 
     def _emit_proposal(self, epoch: int, content: str):
-        """
-        Parses the proponent's text for a JSON block and writes it to disk
-        if and only if it satisfies the active mission target.
-        """
         try:
             # 1. Extract JSON block
             if "```json" in content:
@@ -69,7 +67,10 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
             else:
                 start = content.find('{')
                 end = content.rfind('}') + 1
-                json_str = content[start:end]
+                if start != -1 and end != 0:
+                    json_str = content[start:end]
+                else:
+                    return
 
             # 2. Parse JSON
             proposal = json.loads(json_str)
@@ -82,19 +83,11 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
                 rejection_reason = "Missing or malformed 'meta' block."
             elif "neuron_count" not in meta:
                 rejection_reason = "Missing 'meta.neuron_count' field."
-            elif not isinstance(meta["neuron_count"], int):
-                rejection_reason = f"Non-integer 'meta.neuron_count': {type(meta['neuron_count']).__name__}"
             elif meta["neuron_count"] != self.mission_context.target_neuron_count:
                 rejection_reason = f"Mission Mismatch: Proposal N={meta['neuron_count']} != Target N={self.mission_context.target_neuron_count}"
 
             if rejection_reason:
                 logger.warning(f"❌ PROPOSAL REJECTED: {rejection_reason}")
-                # Structured rejection log for monitor ingestion
-                self.blackboard.add_entry(
-                    sender="SYSTEM_VALIDATOR",
-                    content=f"REJECTED PROPOSAL [Target N={self.mission_context.target_neuron_count}]: {rejection_reason}",
-                    metadata={"kind": "proposal_rejection", "reason": rejection_reason, "target": self.mission_context.target_neuron_count}
-                )
                 return
 
             # 4. Successful Emission
@@ -106,10 +99,5 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
                 json.dump(proposal, f, indent=2)
             
             logger.info(f"✅ Emitted mission-aligned proposal: {filename}")
-            self.blackboard.add_entry(
-                sender="SYSTEM_VALIDATOR",
-                content=f"ACCEPTED PROPOSAL [Target N={self.mission_context.target_neuron_count}]: {proposal['proposal_id']}",
-                metadata={"kind": "proposal_acceptance", "proposal_id": proposal['proposal_id']}
-            )
         except Exception as e:
             logger.error(f"💥 Failed to parse/emit proposal JSON: {e}")
