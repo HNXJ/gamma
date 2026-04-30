@@ -100,6 +100,21 @@ async def get_status():
     active_agents = 3
     total_agents = 4
     
+    # Load persistence state
+    persistence = { "boot_type": "UNKNOWN", "resume_count": 0, "freshness": "DEGRADED" }
+    checkpoint_path = os.path.join(ROOT_DIR, "local/arena_checkpoint.json")
+    if os.path.exists(checkpoint_path):
+        try:
+            with open(checkpoint_path, "r") as f:
+                ckpt = json.load(f)
+                persistence["boot_type"] = "RESUMED" if ckpt.get("resume_count", 0) > 0 else "FRESH"
+                persistence["resume_count"] = ckpt.get("resume_count", 0)
+                last_ts = ckpt.get("timestamp", 0)
+                persistence["last_checkpoint"] = datetime.fromtimestamp(last_ts).isoformat()
+                persistence["freshness"] = "GROUNDED" if (time.time() - last_ts < 300) else "STALE"
+        except Exception:
+            pass
+
     return {
         "system": {
             "status": "ONLINE" if council_dialogue else "STANDBY",
@@ -109,6 +124,7 @@ async def get_status():
             "heartbeat": "OK" if council_dialogue else "STALLED"
         },
         "progression": progression,
+        "persistence": persistence,
         "research": {
             "neuron_count": progression.get("largest_pass_network_neuron_count"),
             "pass_network": f"{progression.get('largest_pass_network_neuron_count')}-Node" if progression.get('largest_pass_network_neuron_count') else None,

@@ -120,6 +120,8 @@ class UnifiedOrchestrator:
                 except Exception as e:
                     logger.error(f"Heartbeat trigger failed: {e}")
                     await asyncio.sleep(5)
+                finally:
+                    self.save_checkpoint() # Save after heartbeat
             
             await asyncio.sleep(0.5)
 
@@ -153,6 +155,8 @@ class UnifiedOrchestrator:
                 payload_path = self.consolidation.extract_validated_traces(blackboard, blackboard.topic[:10])
                 if payload_path:
                     await self.consolidation.trigger_training(payload_path, "gemma-9b-schiz")
+            
+            self.save_checkpoint() # Auto-checkpoint after successful run
                     
         except Exception as e:
             logger.error(f"Session failed: {e}")
@@ -171,17 +175,18 @@ class UnifiedOrchestrator:
                 "last_active": bb.entries[-1].timestamp.isoformat() if bb.entries else None,
                 "status": "DELIBERATING" if sid == "heartbeat-session" else "ACTIVE"
             })
-        # Mocking canonical G01-G04 if not present to ensure grid rendering
-        if len(sessions) < 4:
-            for i in range(len(sessions) + 1, 5):
-                sessions.append({
-                    "id": f"G0{i}",
-                    "topic": "Standby",
-                    "round": 0,
-                    "last_active": None,
-                    "status": "IDLE"
-                })
         return sessions
+
+    def get_persistence_status(self) -> Dict[str, Any]:
+        """Exposes persistence metadata for the operator dashboard."""
+        return {
+            "boot_type": self.boot_type,
+            "resume_count": self.resume_count,
+            "last_checkpoint": datetime.fromtimestamp(self.last_checkpoint_time).isoformat() if self.last_checkpoint_time else "NEVER",
+            "last_resume": datetime.fromtimestamp(self.last_resume_time).isoformat() if self.last_resume_time else "NEVER",
+            "checkpoint_path": self.checkpoint_path,
+            "freshness": "GROUNDED" if self.last_checkpoint_time and (time.time() - self.last_checkpoint_time < 60) else "DEGRADED"
+        }
 
     def get_session_state(self, session_id: str) -> Optional[Dict[str, Any]]:
         blackboard = self._active_sessions.get(session_id)

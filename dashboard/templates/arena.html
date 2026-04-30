@@ -122,14 +122,25 @@
                 </div>
             </div>
 
-            <div class="panel" style="flex: 1;">
-                <div class="panel-header">Agent Roster</div>
-                <div style="display: flex; flex-direction: column; gap: 8px;" id="agent-roster">
-                    <!-- Filled via JS -->
-                    <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                        <span>Coder 1 (Builder)</span>
-                        <span style="color: var(--success);">● ACTIVE</span>
+            <div class="panel">
+                <div class="panel-header">Persistence / Recovery Status</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <div class="label">Boot Type</div>
+                        <div class="value" id="boot-type" style="font-size: 14px; color: var(--accent);">FRESH</div>
                     </div>
+                    <div>
+                        <div class="label">Resume Count</div>
+                        <div class="value" id="resume-count" style="font-size: 14px;">0</div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <div class="label">Last Checkpoint</div>
+                    <div id="last-checkpoint" style="font-size: 11px; opacity: 0.8;">NEVER</div>
+                </div>
+                <div style="margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
+                    <span class="label">Freshness</span>
+                    <span id="persistence-freshness" class="truth-badge truth-degraded" style="font-size: 8px; padding: 1px 4px;">DEGRADED</span>
                 </div>
             </div>
 
@@ -163,18 +174,60 @@
                 document.getElementById('agents-active').innerText = data.system?.agents_active || "0 / 0";
                 document.getElementById('tasks-running').innerText = data.system?.tasks_running || "0";
                 
+                // Update Persistence
+                if (data.persistence) {
+                    document.getElementById('boot-type').innerText = data.persistence.boot_type || "FRESH";
+                    document.getElementById('resume-count').innerText = data.persistence.resume_count || "0";
+                    document.getElementById('last-checkpoint').innerText = data.persistence.last_checkpoint || "NEVER";
+                    const fresh = document.getElementById('persistence-freshness');
+                    fresh.innerText = data.persistence.freshness || "DEGRADED";
+                    fresh.className = 'truth-badge ' + (data.persistence.freshness === 'GROUNDED' ? 'truth-grounded' : 'truth-degraded');
+                }
+
                 // Update Neuron Count Logic (Canonical Ladder: 10 to 1000)
                 const neuronCount = data.research?.neuron_count || 10;
                 document.getElementById('neuron-count-label').innerText = neuronCount + ' NEURONS';
                 
-                // Update Neuron Bar Visuals (100 segments for 1000 neurons)
+                // Update Neuron Bar Visuals with Semantic Classes
                 const bar = document.getElementById('neuron-bar');
-                const activeSegments = Math.ceil(neuronCount / 10);
+                const currentIdx = Math.ceil(neuronCount / 10);
+                
+                // Define special thresholds
+                const nextThreshold = (neuronCount < 40) ? 4 : (neuronCount < 100 ? 10 : (neuronCount < 200 ? 20 : 50));
+                const stagedMilestones = [4, 10, 20, 30, 40, 50, 100];
+
                 bar.innerHTML = '';
                 for(let i=1; i<=100; i++) {
                     const segment = document.createElement('div');
-                    segment.className = 'bar-segment' + (i <= activeSegments ? ' active' : '');
-                    segment.style.cssText = `flex: 1; height: ${15 + (i%10)*5}%; background: ${i <= activeSegments ? 'var(--accent)' : 'rgba(255, 184, 0, 0.1)'}; border: 0.5px solid var(--border);`;
+                    segment.className = 'bar-segment';
+                    
+                    let stateClass = '';
+                    if (i < currentIdx) stateClass = 'passed';
+                    else if (i === currentIdx) stateClass = 'current';
+                    else if (i === nextThreshold) stateClass = 'next';
+                    else if (stagedMilestones.includes(i)) stateClass = 'staged';
+                    
+                    if (stateClass) segment.classList.add(stateClass);
+                    
+                    segment.style.cssText = `flex: 1; height: ${15 + (i%10)*5}%; border: 0.5px solid var(--border); transition: all 0.3s ease;`;
+                    
+                    // Style logic for semantic classes
+                    if (stateClass === 'passed') {
+                        segment.style.background = 'var(--success)';
+                        segment.style.opacity = '0.6';
+                    } else if (stateClass === 'current') {
+                        segment.style.background = 'var(--accent)';
+                        segment.style.boxShadow = '0 0 10px var(--accent-glow)';
+                        segment.style.height = '100%';
+                    } else if (stateClass === 'next') {
+                        segment.style.border = '1px solid var(--accent)';
+                        segment.style.background = 'rgba(255, 184, 0, 0.2)';
+                    } else if (stateClass === 'staged') {
+                        segment.style.borderBottom = '2px solid var(--blue)';
+                    } else {
+                        segment.style.background = 'rgba(255, 184, 0, 0.05)';
+                    }
+
                     if (i % 10 === 0) segment.style.borderRight = '1px solid var(--border-bright)';
                     bar.appendChild(segment);
                 }
