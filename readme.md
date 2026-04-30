@@ -1,32 +1,26 @@
-# Omission
+# Gamma Arena: Biophysical Game for LLM-Agents
 
-## What this game is
-A continuous open-world biophysical neuroscience game: build, simulate, optimize, and interpret cortical circuits.
+Gamma Arena is a persistent growth mission where LLM-based agents (G01-G04) collaborate to build and stabilize a biophysically valid neural network.
 
-## Game loop
-Data -> Model -> Simulate -> Compare -> Optimize -> Unlock -> Patch
+## 🎯 The Mission: Persistent Growth to 1000 Neurons
+The goal is to autonomously grow the network from a 10-neuron bootstrap to a 1000-neuron complex system.
 
-## Flowchart
-[placeholder: circuit growth flowchart]
+### Core Operating Laws
+1. **Growth Gate**: A neuron-count increase is allowed ONLY if the current network passes a **1000ms run at dt 0.1** with biological validity.
+2. **Runtime Freeze**: The system architecture is locked. Scientific and gameplay evolution occurs via **Patch Manifests** and **Mailbox Announcements**.
+3. **Always-Active Protocol**: The orchestrator enforces continuous agent activity. If the system is idle for >30s, an autonomous heartbeat or deliberation round is triggered.
+4. **Autonomous Optimization**: Agents are encouraged to use **GSDR, AGSDR, and Adam** optimizers to reach stability targets.
 
-## Core gameplay
-1. Start with minimal E/PV/SST circuit.
-2. Tune spontaneous dynamics.
-3. Add omission paradigm.
-4. Match spikes/LFP/TFR/SFC/RSA.
-5. Unlock larger circuits and new mechanisms.
+## 🎭 The Council (G01-G04)
+* **G01 (Proponent)**: Primary builder and growth planner.
+* **G02 (Adversary)**: Boundary tester and critical falsifier.
+* **G03 (Judge)**: Convergence auditor and acceptance gate.
+* **G04 (Tester)**: Progress manager and fact-skill organizer.
 
-## Unlock tree
-10 neurons  -> 7 E, 2 PV, 1 SST
-40 neurons  -> VIP unlock
-100 neurons -> L4 unlock
-200 neurons -> second cortical area
-300 neurons -> two columns in lower area
-400 neurons -> upper area formation
-500 neurons -> NMDA unlock
+## 🛠 Infrastructure
+* **Hub API**: Port 8001
+* **Dashboard**: Port 3012
+* **Root Path**: /Users/HN/MLLM/gamma
 
-## Dashboard
-The dashboard displays HTML artifacts from outputs/.
-Each analysis module must write:
-outputs/<artifact_id>/index.html
-outputs/<artifact_id>/meta.json
+---
+*Operational Mode: Persistent Mission (S01_BOOTSTRAP)*
