@@ -1,0 +1,492 @@
+patch_id: arena_1_1_0_growth_ladder_to_1000
+base_version: arena_1_0_0_0
+status: draft
+type: content_patch
+title: "Persistent growth ladder from 10 to 1000 neurons"
+description: >
+  Defines the live arena progression from 10 to 1000 neurons.
+  Official level is the largest PASS network neuron count achieved in the arena.
+  Milestone checkpoints are evaluated every 10 neurons.
+
+meta:
+  official_level_metric: largest_pass_network_neuron_count
+  checkpoint_stride_neurons: 10
+  campaign_target_neurons: 1000
+  runtime_policy: frozen
+  steering_policy:
+    - patch_release
+    - mailbox_announcement
+  supervision_policy: low_interference
+
+pass_definition:
+  required_run:
+    duration_ms: 1000
+    dt_ms: 0.1
+  network_requirements:
+    connected_network: true
+    no_nan_or_inf: true
+    nondegenerate_activity: true
+    no_flat_neurons: true
+    no_always_on_neurons: true
+    physiological_voltage_bounds_mv:
+      min: -200
+      max: 200
+    tester_or_judge_acceptance: true
+    reproducible_artifacts_saved: true
+  spectral_objective:
+    superficial_bias: gamma_dominant
+    deep_bias: alpha_beta_dominant
+  notes:
+    - "A milestone only counts if the network satisfies PASS under the current active patch."
+    - "The UI should display largest grounded PASS network separately from latest attempted network."
+
+growth_gate:
+  rule: >
+    The arena may not progress beyond neuron count N unless the N-neuron network
+    has passed the required 1000 ms run at dt 0.1 and satisfied PASS.
+  growth_step_policy:
+    milestone_unit: 10
+    internal_substeps_allowed: true
+    milestone_unlocks_apply_at: exact_checkpoint
+  fail_policy:
+    on_failed_growth_attempt:
+      - keep_current_level
+      - log_issue
+      - record_failed_artifact
+      - continue_optimization
+
+optimizer_policy:
+  enabled_from_start:
+    - GSDR
+    - Adam
+  unlocked_at_100:
+    - AGSDR
+  rules:
+    - "Optimizers are encouraged, not optional, when they accelerate stable search."
+    - "Every optimizer run must record objective, bounds, seed, and changed parameters."
+    - "Optimizers may not bypass PASS rules."
+    - "A higher neuron count does not count unless the resulting network passes."
+
+composition_policy:
+  checkpoint_10:
+    fixed_start:
+      E: 7
+      PV: 2
+      SST: 1
+  ranges:
+    - range: [10, 30]
+      allowed_cell_types: [E, PV, SST]
+      target_mix_guideline: "approximately preserve 70/20/10 with integer rounding"
+    - range: [40, 90]
+      allowed_cell_types: [E, PV, SST, VIP]
+      target_mix_guideline: "add VIP gradually after unlock; do not force early overuse"
+    - range: [100, 190]
+      allowed_structures: [L2_L3, L4]
+      allowed_cell_types: [E, PV, SST, VIP]
+    - range: [200, 290]
+      allowed_structures: [area_1, area_2]
+    - range: [300, 390]
+      allowed_structures: [area_1_column_1, area_1_column_2, area_2]
+    - range: [400, 490]
+      allowed_structures: [lower_order_area, upper_area]
+    - range: [500, 1000]
+      allowed_mechanisms: [NMDA]
+  notes:
+    - "Exact composition may adapt to stability and literature constraints."
+    - "No milestone may be claimed by isolated neurons or degenerate subnetworks."
+
+milestone_defaults:
+  for_every_checkpoint:
+    checkpoint_rule:
+      - "largest PASS network may update official level"
+      - "checkpoint counts only if PASS definition is satisfied"
+      - "next expansion is blocked until current level has passed"
+    required_artifacts:
+      - run_manifest
+      - parameter_set
+      - seed
+      - neuron_count
+      - duration_ms
+      - dt_ms
+      - optimizer_used
+      - firing_rate_summary
+      - voltage_summary
+      - pass_fail_status
+      - rejection_reason_if_failed
+    scoreboard_fields:
+      - official_level
+      - largest_pass_network
+      - current_attempt_network
+      - accepted_checkpoint
+      - active_patch
+      - unlocked_features
+
+special_milestones:
+  "10":
+    label: "Bootstrap"
+    unlocks:
+      cell_types: [E, PV, SST]
+      optimizers: [GSDR, Adam]
+    constraints:
+      - "start from 7E/2PV/1SST"
+  "40":
+    label: "VIP unlock"
+    unlocks:
+      cell_types: [VIP]
+  "100":
+    label: "L4 + AGSDR unlock"
+    unlocks:
+      structures: [L4]
+      optimizers: [AGSDR]
+  "200":
+    label: "Second area unlock"
+    unlocks:
+      structures: [second_area]
+  "300":
+    label: "Lower-order area can form two columns"
+    unlocks:
+      structures: [lower_order_area_second_column]
+  "400":
+    label: "Upper area unlock"
+    unlocks:
+      structures: [upper_area]
+  "500":
+    label: "NMDA unlock"
+    unlocks:
+      mechanisms: [NMDA]
+  "1000":
+    label: "Campaign completion threshold"
+    unlocks:
+      states: [endless_mode_eligible]
+
+campaign_phases:
+  - range: [10, 90]
+    phase: bootstrap_and_first_circuit_growth
+    focus:
+      - stable activity
+      - connectedness
+      - valid inhibitory control
+  - range: [100, 190]
+    phase: laminar_grounding
+    focus:
+      - L4 integration
+      - optimizer-assisted stabilization
+  - range: [200, 390]
+    phase: multi_area_growth
+    focus:
+      - inter-area stability
+      - column structure
+      - long-range coordination
+  - range: [400, 490]
+    phase: hierarchical_assembly
+    focus:
+      - upper/lower area coordination
+      - spectral separation
+  - range: [500, 1000]
+    phase: mechanism_rich_scaling
+    focus:
+      - NMDA-enabled stability
+      - large-network robustness
+      - persistent mission scaling
+
+checkpoint_table:
+  - neurons: 10
+    milestone: bootstrap
+    unlock_delta: [E, PV, SST, GSDR, Adam]
+  - neurons: 20
+    milestone: standard
+    unlock_delta: []
+  - neurons: 30
+    milestone: standard
+    unlock_delta: []
+  - neurons: 40
+    milestone: special
+    unlock_delta: [VIP]
+  - neurons: 50
+    milestone: standard
+    unlock_delta: []
+  - neurons: 60
+    milestone: standard
+    unlock_delta: []
+  - neurons: 70
+    milestone: standard
+    unlock_delta: []
+  - neurons: 80
+    milestone: standard
+    unlock_delta: []
+  - neurons: 90
+    milestone: standard
+    unlock_delta: []
+  - neurons: 100
+    milestone: special
+    unlock_delta: [L4, AGSDR]
+  - neurons: 110
+    milestone: standard
+    unlock_delta: []
+  - neurons: 120
+    milestone: standard
+    unlock_delta: []
+  - neurons: 130
+    milestone: standard
+    unlock_delta: []
+  - neurons: 140
+    milestone: standard
+    unlock_delta: []
+  - neurons: 150
+    milestone: standard
+    unlock_delta: []
+  - neurons: 160
+    milestone: standard
+    unlock_delta: []
+  - neurons: 170
+    milestone: standard
+    unlock_delta: []
+  - neurons: 180
+    milestone: standard
+    unlock_delta: []
+  - neurons: 190
+    milestone: standard
+    unlock_delta: []
+  - neurons: 200
+    milestone: special
+    unlock_delta: [second_area]
+  - neurons: 210
+    milestone: standard
+    unlock_delta: []
+  - neurons: 220
+    milestone: standard
+    unlock_delta: []
+  - neurons: 230
+    milestone: standard
+    unlock_delta: []
+  - neurons: 240
+    milestone: standard
+    unlock_delta: []
+  - neurons: 250
+    milestone: standard
+    unlock_delta: []
+  - neurons: 260
+    milestone: standard
+    unlock_delta: []
+  - neurons: 270
+    milestone: standard
+    unlock_delta: []
+  - neurons: 280
+    milestone: standard
+    unlock_delta: []
+  - neurons: 290
+    milestone: standard
+    unlock_delta: []
+  - neurons: 300
+    milestone: special
+    unlock_delta: [lower_order_area_second_column]
+  - neurons: 310
+    milestone: standard
+    unlock_delta: []
+  - neurons: 320
+    milestone: standard
+    unlock_delta: []
+  - neurons: 330
+    milestone: standard
+    unlock_delta: []
+  - neurons: 340
+    milestone: standard
+    unlock_delta: []
+  - neurons: 350
+    milestone: standard
+    unlock_delta: []
+  - neurons: 360
+    milestone: standard
+    unlock_delta: []
+  - neurons: 370
+    milestone: standard
+    unlock_delta: []
+  - neurons: 380
+    milestone: standard
+    unlock_delta: []
+  - neurons: 390
+    milestone: standard
+    unlock_delta: []
+  - neurons: 400
+    milestone: special
+    unlock_delta: [upper_area]
+  - neurons: 410
+    milestone: standard
+    unlock_delta: []
+  - neurons: 420
+    milestone: standard
+    unlock_delta: []
+  - neurons: 430
+    milestone: standard
+    unlock_delta: []
+  - neurons: 440
+    milestone: standard
+    unlock_delta: []
+  - neurons: 450
+    milestone: standard
+    unlock_delta: []
+  - neurons: 460
+    milestone: standard
+    unlock_delta: []
+  - neurons: 470
+    milestone: standard
+    unlock_delta: []
+  - neurons: 480
+    milestone: standard
+    unlock_delta: []
+  - neurons: 490
+    milestone: standard
+    unlock_delta: []
+  - neurons: 500
+    milestone: special
+    unlock_delta: [NMDA]
+  - neurons: 510
+    milestone: standard
+    unlock_delta: []
+  - neurons: 520
+    milestone: standard
+    unlock_delta: []
+  - neurons: 530
+    milestone: standard
+    unlock_delta: []
+  - neurons: 540
+    milestone: standard
+    unlock_delta: []
+  - neurons: 550
+    milestone: standard
+    unlock_delta: []
+  - neurons: 560
+    milestone: standard
+    unlock_delta: []
+  - neurons: 570
+    milestone: standard
+    unlock_delta: []
+  - neurons: 580
+    milestone: standard
+    unlock_delta: []
+  - neurons: 590
+    milestone: standard
+    unlock_delta: []
+  - neurons: 600
+    milestone: standard
+    unlock_delta: []
+  - neurons: 610
+    milestone: standard
+    unlock_delta: []
+  - neurons: 620
+    milestone: standard
+    unlock_delta: []
+  - neurons: 630
+    milestone: standard
+    unlock_delta: []
+  - neurons: 640
+    milestone: standard
+    unlock_delta: []
+  - neurons: 650
+    milestone: standard
+    unlock_delta: []
+  - neurons: 660
+    milestone: standard
+    unlock_delta: []
+  - neurons: 670
+    milestone: standard
+    unlock_delta: []
+  - neurons: 680
+    milestone: standard
+    unlock_delta: []
+  - neurons: 690
+    milestone: standard
+    unlock_delta: []
+  - neurons: 700
+    milestone: standard
+    unlock_delta: []
+  - neurons: 710
+    milestone: standard
+    unlock_delta: []
+  - neurons: 720
+    milestone: standard
+    unlock_delta: []
+  - neurons: 730
+    milestone: standard
+    unlock_delta: []
+  - neurons: 740
+    milestone: standard
+    unlock_delta: []
+  - neurons: 750
+    milestone: standard
+    unlock_delta: []
+  - neurons: 760
+    milestone: standard
+    unlock_delta: []
+  - neurons: 770
+    milestone: standard
+    unlock_delta: []
+  - neurons: 780
+    milestone: standard
+    unlock_delta: []
+  - neurons: 790
+    milestone: standard
+    unlock_delta: []
+  - neurons: 800
+    milestone: standard
+    unlock_delta: []
+  - neurons: 810
+    milestone: standard
+    unlock_delta: []
+  - neurons: 820
+    milestone: standard
+    unlock_delta: []
+  - neurons: 830
+    milestone: standard
+    unlock_delta: []
+  - neurons: 840
+    milestone: standard
+    unlock_delta: []
+  - neurons: 850
+    milestone: standard
+    unlock_delta: []
+  - neurons: 860
+    milestone: standard
+    unlock_delta: []
+  - neurons: 870
+    milestone: standard
+    unlock_delta: []
+  - neurons: 880
+    milestone: standard
+    unlock_delta: []
+  - neurons: 890
+    milestone: standard
+    unlock_delta: []
+  - neurons: 900
+    milestone: standard
+    unlock_delta: []
+  - neurons: 910
+    milestone: standard
+    unlock_delta: []
+  - neurons: 920
+    milestone: standard
+    unlock_delta: []
+  - neurons: 930
+    milestone: standard
+    unlock_delta: []
+  - neurons: 940
+    milestone: standard
+    unlock_delta: []
+  - neurons: 950
+    milestone: standard
+    unlock_delta: []
+  - neurons: 960
+    milestone: standard
+    unlock_delta: []
+  - neurons: 970
+    milestone: standard
+    unlock_delta: []
+  - neurons: 980
+    milestone: standard
+    unlock_delta: []
+  - neurons: 990
+    milestone: standard
+    unlock_delta: []
+  - neurons: 1000
+    milestone: special
+    unlock_delta: [endless_mode_eligible]

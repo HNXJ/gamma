@@ -1,7 +1,7 @@
 patch_id: arena_1_2_0_vip_unlock
 gate:
   neuron_threshold: 40
-  metric: pass_network_grounded
+  metric: largest_pass_network_neuron_count
 unlocks:
   cell_types:
     - VIP

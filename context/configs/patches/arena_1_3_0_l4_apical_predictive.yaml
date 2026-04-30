@@ -1,9 +1,11 @@
-patch_id: arena_1_3_0_apical_dendrite
+patch_id: arena_1_3_0_l4_apical_predictive
 gate:
   neuron_threshold: 100
+  metric: largest_pass_network_neuron_count
   prerequisite: arena_1_2_0_vip_unlock
-  requires: L4_unlock
 unlocks:
+  structures:
+    - L4
   compartments:
     - apical_dendrite
     - basal_dendrite
@@ -22,7 +24,7 @@ abilities:
   - name: Branch Nonlinearity
     description: Exploit dendritic coincidence and branch-local nonlinear computation.
   - name: Laminar Prediction Loop
-    description: L4-L2/3-L5 predictive routing is now authorized.
+    description: L4-L2/3-L5 predictive routing is now authorized (L4 delayed sensory, L2/3 context, L5 target/mismatch).
   - name: Mismatch Readout
     description: Layer-specific mismatch/error signals become first-class metrics.
   - name: Sparse Superficial Coding
