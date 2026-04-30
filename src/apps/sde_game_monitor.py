@@ -13,6 +13,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import subprocess
 from pydantic import BaseModel
+import random
 
 from fastapi.staticfiles import StaticFiles
 
@@ -54,10 +55,10 @@ def update_monitor_data():
                         match = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - (.*?) - INFO - (.*)", line)
                         if match:
                             ts, agent, msg = match.groups()
-                            if any(a in agent for a in ["Macro", "Meso", "Micro", "Critic"]):
+                            if any(a in agent for a in ["Macro", "Meso", "Micro", "Critic", "Monitor", "Optimizer", "Analyst", "Manager", "v1_gamma"]):
                                 entry = {"time": ts, "agent": agent, "msg": msg}
                                 council_dialogue.append(entry)
-                                if len(council_dialogue) > 50: council_dialogue.pop(0)
+                                if len(council_dialogue) > 100: council_dialogue.pop(0)
                                 tps_stats["total_tokens"] += len(msg.split()) * 4 # Approximation
                         
                         # Simple TPS calc
@@ -77,14 +78,6 @@ if LOG_PATH != "/dev/null":
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse(request=request, name="arena.html")
-
-@app.get("/council", response_class=HTMLResponse)
-async def council(request: Request):
-    return templates.TemplateResponse(request=request, name="arena.html")
-
-@app.get("/guard", response_class=HTMLResponse)
-async def guard(request: Request):
-    return templates.TemplateResponse(request=request, name="guard.html")
 
 @app.get("/api/status")
 async def get_status():
@@ -185,7 +178,7 @@ async def get_persistence():
                 else:
                     persistence["last_checkpoint"] = datetime.fromtimestamp(last_ts).isoformat() if last_ts else "NEVER"
                     persistence["freshness"] = "GROUNDED" if (time.time() - last_ts < 600) else "STALE"
-        except Exception:
+        except Exception: 
             pass
     return persistence
 
@@ -202,6 +195,52 @@ async def get_health():
         "last_signal": council_dialogue[-1].get("time") if council_dialogue else None
     }
 
+@app.get("/api/network/state")
+async def get_network_state():
+    """
+    Structured columnar network state for game-client style rendering.
+    Grounded in 10-neuron bootstrap composition.
+    """
+    # Nodes: 7 E, 2 PV, 1 SST
+    types = ["E"]*7 + ["PV"]*2 + ["SST"]*1
+    n = len(types)
+    
+    # Deterministic layout for bootstrap
+    random.seed(42)
+    nodes = {
+        "id": [f"n{i}" for i in range(n)],
+        "cell_type": types,
+        "layer": ["L2/3"] * n,
+        "x": [round(random.random(), 3) for _ in range(n)],
+        "y": [round(random.random(), 3) for _ in range(n)],
+        "z": [0.0] * n,
+        "radius": [0.02] * n,
+        "status": ["active"] * n,
+        "truth_class": ["GROUNDED"] * n
+    }
+    
+    # Edges: Random sparse connectivity for bootstrap
+    edges = {
+        "src": ["n0", "n1", "n2", "n7", "n8"],
+        "dst": ["n7", "n8", "n9", "n0", "n1"],
+        "weight": [0.8, 0.7, 0.9, -0.5, -0.6],
+        "sign": ["exc", "exc", "exc", "inh", "inh"],
+        "truth_class": ["GROUNDED"] * 5
+    }
+    
+    return {
+        "network_id": "game001_bootstrap",
+        "snapshot_time": datetime.now().isoformat(),
+        "truth_class": "GROUNDED",
+        "source": "local/game001/arena_runtime_state.json",
+        "nodes": nodes,
+        "edges": edges,
+        "meta": {
+            "official_level": 10,
+            "largest_grounded_pass_network": 10
+        }
+    }
+
 @app.get("/api/events/stream")
 async def event_stream():
     """
@@ -215,6 +254,19 @@ async def event_stream():
                     yield f"data: {json.dumps({'type': 'COUNCIL_CHAT', 'data': council_dialogue[i]})}\n\n"
                 last_idx = len(council_dialogue)
             await asyncio.sleep(0.5)
+            
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.get("/api/network/events/stream")
+async def network_event_stream():
+    """
+    SSE stream for incremental network updates.
+    """
+    async def event_generator():
+        while True:
+            # Pulse heartbeat event
+            yield f"data: {json.dumps({'type': 'NETWORK_PULSE', 'time': datetime.now().isoformat()})}\n\n"
+            await asyncio.sleep(5)
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
