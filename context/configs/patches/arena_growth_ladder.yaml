@@ -1,7 +1,7 @@
-patch_id: arena_1_1_0_growth_ladder_to_1000
+patch_id: arena_growth_ladder
 base_version: arena_1_0_0_0
-status: draft
-type: content_patch
+status: active
+type: canonical_ladder
 title: "Persistent growth ladder from 10 to 1000 neurons"
 description: >
   Defines the live arena progression from 10 to 1000 neurons.
@@ -134,9 +134,10 @@ special_milestones:
     unlocks:
       cell_types: [VIP]
   "100":
-    label: "L4 + AGSDR unlock"
+    label: "L4 + Apical Dendrite + Laminar Predictive Routing"
     unlocks:
       structures: [L4]
+      compartments: [apical_dendrite, basal_dendrite]
       optimizers: [AGSDR]
   "200":
     label: "Second area unlock"
@@ -219,7 +220,7 @@ checkpoint_table:
     unlock_delta: []
   - neurons: 100
     milestone: special
-    unlock_delta: [L4, AGSDR]
+    unlock_delta: [L4, ApicalDendrite, AGSDR]
   - neurons: 110
     milestone: standard
     unlock_delta: []
