@@ -5,7 +5,7 @@ import time
 import re
 import asyncio
 from datetime import datetime
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
@@ -21,6 +21,8 @@ app = FastAPI()
 
 # System Start Time for Uptime Grounding
 START_TIME = time.time()
+NETWORK_EPOCH = datetime.now().isoformat()
+SNAPSHOT_VERSION = 1
 
 # Dynamic Path Resolution
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -34,6 +36,14 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 # Environment-based paths for logs and DB
 DB_PATH = os.getenv("GAMMA_DB_PATH", "file::memory:?cache=shared")
 LOG_PATH = os.getenv("GAMMA_LOG_PATH", "/Users/HN/MLLM/gamma/local/game001/logs/orchestrator.log")
+
+# Agent Log Mapping (Grounded for game001)
+AGENT_LOGS = {
+    "G01": "/Users/HN/MLLM/gamma/local/game001/logs/orchestrator.log",
+    "G02": "/Users/HN/MLLM/gamma/local/game001/logs/agent-v1_gamma_proponent.log",
+    "G03": "/Users/HN/MLLM/gamma/local/game001/logs/agent-v1_gamma_adversary.log",
+    "G04": "/Users/HN/MLLM/gamma/local/game001/logs/agent-v1_gamma_judge.log"
+}
 
 # Global state for streaming logs
 council_dialogue = []
@@ -157,6 +167,26 @@ async def get_agents():
         { "id": "G04", "role": "Manager", "status": "IDLE", "last_active": "", "grounded_evidence": False, "truth_class": "DEGRADED", "source": None }
     ]
 
+@app.get("/api/agents/{agent_id}/logs")
+async def get_agent_logs(agent_id: str, lines: int = 100):
+    """
+    Expose per-agent logs from verified Office Mac paths.
+    """
+    path = AGENT_LOGS.get(agent_id)
+    if not path or not os.path.exists(path):
+        raise HTTPException(status_code=404, detail=f"Log file not found for {agent_id}")
+    
+    try:
+        result = subprocess.run(
+            ["tail", "-n", str(lines), path],
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+        return {"id": agent_id, "content": result.stdout, "path": path}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/api/persistence")
 async def get_persistence():
     """
@@ -199,13 +229,9 @@ async def get_health():
 async def get_network_state():
     """
     Structured columnar network state for game-client style rendering.
-    Grounded in 10-neuron bootstrap composition.
     """
-    # Nodes: 7 E, 2 PV, 1 SST
     types = ["E"]*7 + ["PV"]*2 + ["SST"]*1
     n = len(types)
-    
-    # Deterministic layout for bootstrap
     random.seed(42)
     nodes = {
         "id": [f"n{i}" for i in range(n)],
@@ -218,26 +244,30 @@ async def get_network_state():
         "status": ["active"] * n,
         "truth_class": ["GROUNDED"] * n
     }
-    
-    # Edges: Random sparse connectivity for bootstrap
     edges = {
         "src": ["n0", "n1", "n2", "n7", "n8"],
         "dst": ["n7", "n8", "n9", "n0", "n1"],
         "weight": [0.8, 0.7, 0.9, -0.5, -0.6],
         "sign": ["exc", "exc", "exc", "inh", "inh"],
+        "kind": ["synapse"] * 5,
         "truth_class": ["GROUNDED"] * 5
     }
     
+    now_iso = datetime.now().isoformat()
     return {
-        "network_id": "game001_bootstrap",
-        "snapshot_time": datetime.now().isoformat(),
+        "snapshot_id": f"game001_net_{int(time.time())}",
+        "snapshot_version": SNAPSHOT_VERSION,
+        "network_epoch": NETWORK_EPOCH,
+        "snapshot_time": now_iso,
         "truth_class": "GROUNDED",
         "source": "local/game001/arena_runtime_state.json",
+        "units": { "position": "normalized", "radius": "normalized", "weight": "unitless" },
         "nodes": nodes,
         "edges": edges,
         "meta": {
             "official_level": 10,
-            "largest_grounded_pass_network": 10
+            "largest_grounded_pass_network": 10,
+            "refresh_time": now_iso
         }
     }
 
@@ -260,13 +290,20 @@ async def event_stream():
 @app.get("/api/network/events/stream")
 async def network_event_stream():
     """
-    SSE stream for incremental network updates.
+    SSE stream for incremental network updates (Proposal Phase 2).
     """
     async def event_generator():
+        event_id = 0
         while True:
-            # Pulse heartbeat event
-            yield f"data: {json.dumps({'type': 'NETWORK_PULSE', 'time': datetime.now().isoformat()})}\n\n"
-            await asyncio.sleep(5)
+            event_id += 1
+            yield f"data: {json.dumps({
+                'event_id': event_id,
+                'event_type': 'node_state_update',
+                'snapshot_version': SNAPSHOT_VERSION,
+                'time': datetime.now().isoformat(),
+                'payload': {'node_id': f'n{random.randint(0,9)}', 'voltage': -60.0 + random.random()*10}
+            })}\n\n"
+            await asyncio.sleep(1)
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
