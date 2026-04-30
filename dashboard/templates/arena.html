@@ -182,16 +182,41 @@
                     bar.appendChild(segment);
                 }
 
-                // Update Agent Roster
+                // Update Agent Roster with Provenance
                 if (data.sessions) {
                     const roster = document.getElementById('agent-roster');
-                    roster.innerHTML = data.sessions.map(s => `
-                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-                            <span>${s.id}</span>
-                            <span style="color: ${s.status === 'ACTIVE' ? 'var(--success)' : 'var(--text-dim)'}">● ${s.status}</span>
-                        </div>
-                    `).join('');
+                    roster.innerHTML = data.sessions.map(s => {
+                        const isDegraded = s.truth_class === 'DEGRADED';
+                        return `
+                            <div class="panel" style="margin-bottom: 8px; border-style: ${isDegraded ? 'dashed' : 'solid'}">
+                                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+                                    <span>${s.id}</span>
+                                    <span style="color: ${s.status === 'ACTIVE' ? 'var(--success)' : 'var(--text-dim)'}">● ${s.status}</span>
+                                </div>
+                                <div class="label" style="font-size: 9px; display: flex; justify-content: space-between; opacity: 0.7;">
+                                    <span>Source: ${s.source || 'N/A'}</span>
+                                    <span class="truth-badge ${isDegraded ? 'truth-degraded' : 'truth-grounded'}" style="font-size: 8px; padding: 1px 4px;">
+                                        ${s.truth_class || 'DEGRADED'}
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
                 }
+                
+                // Finalize Provenance Footers on all panels
+                document.querySelectorAll('.panel').forEach(p => {
+                    if (!p.querySelector('.card-footer')) {
+                        const footer = document.createElement('div');
+                        footer.className = 'label';
+                        footer.style.cssText = 'font-size: 8px; margin-top: 10px; display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 4px; opacity: 0.5;';
+                        footer.innerHTML = `
+                            <span>REFRESH: ${new Date().toLocaleTimeString()}</span>
+                            <span>AUTH: ARENA_OPERATOR</span>
+                        `;
+                        p.appendChild(footer);
+                    }
+                });
             } catch (err) {
                 console.error("Arena update failed", err);
             }

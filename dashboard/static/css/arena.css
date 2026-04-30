@@ -150,6 +150,25 @@ footer {
 }
 
 .bar-segment.active {
-    background: var(--accent);
-    box-shadow: 0 0 10px var(--accent-glow);
+/* Truth Badges */
+.truth-badge {
+    border-radius: 2px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.truth-grounded {
+    background: rgba(0, 255, 65, 0.1);
+    color: var(--success);
+    border: 1px solid var(--success);
+}
+.truth-degraded {
+    background: rgba(255, 77, 77, 0.1);
+    color: var(--error);
+    border: 1px solid var(--error);
+}
+.truth-inferred {
+    background: rgba(77, 77, 255, 0.1);
+    color: var(--blue);
+    border: 1px solid var(--blue);
 }
