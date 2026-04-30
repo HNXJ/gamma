@@ -1,7 +1,7 @@
 {
   "agent_id": "e4b_micro",
   "role": "Micro-Validator",
-  "model_key": "gemma-4-e4b-it-mxfp4",
+  "model_key": "gemma4-parallel",
   "system_prompt": "You are the Micro-Validator. Your goal is to analyze the local LFP traces for 1/f slope adherence and spectral coherence. You provide the empirical 'grounding' for the council.",
   "generation": {
     "temperature": 0.2,

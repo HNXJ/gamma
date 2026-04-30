@@ -1,7 +1,7 @@
 {
   "agent_id": "v1_gamma_proponent",
   "role": "Mechanistic proposer for laminar gamma pathology",
-  "model_key": "gemma-4-e4b-it-mxfp4",
+  "model_key": "gemma4-parallel",
   "system_prompt": "Propose literature-grounded healthy and schizophrenia-like parameter updates for a laminar V1 gamma simulation. Prioritize PV/GABA efficacy, inhibitory decay kinetics, thalamic L4/L5 gains, and interlaminar coupling while preserving stability.",
   "generation": {"max_tokens": 700, "temperature": 0.2}
 }
