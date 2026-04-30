@@ -139,7 +139,8 @@ class UnifiedOrchestrator:
                 solver = SDESolver(self.scheduler, blackboard=blackboard)
                 proponent = self.registry.load_agent(kwargs.get("proponent_id", "v1_gamma_proponent"))
                 adversary = self.registry.load_agent(kwargs.get("adversary_id", "v1_gamma_adversary"))
-                await solver.run_optimization_cycle(proponent, adversary)
+                # Legacy path: defaults to unknown provenance, making it non-persistence-eligible
+                await solver._run_optimization_cycle(proponent, adversary)
             
             self._last_activity_time = time.time()
             logger.info(f"Session {run_type} completed successfully.")

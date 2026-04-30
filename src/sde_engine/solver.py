@@ -21,14 +21,15 @@ class SDESolver:
         self.registry = registry or RuntimeRegistry("configs")
         self.metrics = SDEMetrics()
 
-    async def run_optimization_cycle(
+    async def _run_optimization_cycle(
         self, 
         proponent: Any, 
         adversary: Any, 
-        batch_data: Optional[List[Dict[str, Any]]] = None
+        batch_data: Optional[List[Dict[str, Any]]] = None,
+        provenance: Optional[Dict[str, Any]] = None
     ):
         """
-        Executes a single adversarial SDE optimization cycle.
+        [PROTECTED] Executes a single adversarial SDE optimization cycle.
         Supports passing AgentSpec objects or AgentIds (strings).
         If batch_data is provided, it is injected into the proponent's context.
         """
@@ -81,7 +82,8 @@ class SDESolver:
                 "kind": "sde_metrics",
                 "x": x, "y": y, "z": z, "w": w,
                 "loss": council_loss,
-                "converged": council_loss < 0.1
+                "converged": council_loss < 0.1,
+                "provenance": provenance or {"materialized_by": "unknown"}
             }
         )
         
@@ -99,10 +101,11 @@ class SDESolver:
         # Construct mock batch based on materialized neuron count
         mock_batch = [{"id": f"neuron_{i}"} for i in range(n)]
         
-        state_entry = await self.run_optimization_cycle(
+        state_entry = await self._run_optimization_cycle(
             proponent="v1_gamma_proponent",
             adversary="v1_gamma_adversary",
-            batch_data=mock_batch
+            batch_data=mock_batch,
+            provenance=config.get("provenance")
         )
         
         # Ensure neuron_count is explicitly tracked in metadata for truth-verification

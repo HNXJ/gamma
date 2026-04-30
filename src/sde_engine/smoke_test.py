@@ -52,7 +52,7 @@ async def test_sde_engine():
     )
     
     print("🚀 Starting SDE Smoke Test...")
-    result_entry = await solver.run_optimization_cycle(proponent, adversary)
+    result_entry = await solver._run_optimization_cycle(proponent, adversary)
     
     print("\n--- SDE State committed to Blackboard ---")
     print(f"Metrics: {result_entry.metadata['x']:.2f}, {result_entry.metadata['z']:.2f}")

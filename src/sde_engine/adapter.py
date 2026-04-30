@@ -41,23 +41,36 @@ class ExecutionAdapter:
             )
 
         # 2. Materialization Logic: Minimal Executable Representation
-        # For Stage 2, we materialize the proposal into a 'solver_ready' batch config.
-        # This structure is what the SDESolver will actually consume.
+        # For Stage 2B, we add explicit provenance tagging.
+        run_id = f"run_{int(os.times()[4])}_{proposal_id[-8:]}"
         executable_config = {
             "proposal_id": proposal_id,
             "neuron_count": proposal_n,
             "params": proposal.get("params", {}),
             "mission_topic": mission_context.mission_topic,
-            "materialized_at": os.times()[4] # System time for traceability
+            "provenance": {
+                "materialized_by": "ExecutionAdapter",
+                "run_id": run_id,
+                "timestamp": os.times()[4]
+            }
         }
 
-        logger.info(f"🚀 Proposal {proposal_id} materialized for N={proposal_n} execution.")
+        logger.info(f"🚀 Proposal {proposal_id} materialized for N={proposal_n} (Run ID: {run_id}).")
         return executable_config
 
     def verify_substrate_success(self, metadata: Dict[str, Any], target_count: int) -> bool:
         """
         Verifies if a simulation run satisfies the pass-criteria for the target count.
+        Stage 2B: Enforces strict provenance validation.
         """
         converged = metadata.get("converged", False)
-        # For Stage 2, we strictly require convergence and correct neuron count reporting.
-        return converged and metadata.get("neuron_count") == target_count
+        count_match = metadata.get("neuron_count") == target_count
+        
+        # Provenance Sealing: Only adapter-mediated runs are persistence-eligible
+        provenance = metadata.get("provenance", {})
+        is_canonical = provenance.get("materialized_by") == "ExecutionAdapter"
+        
+        if not is_canonical:
+            logger.warning("🚫 PERSISTENCE REJECTED: Result lacks canonical 'ExecutionAdapter' provenance.")
+
+        return converged and count_match and is_canonical

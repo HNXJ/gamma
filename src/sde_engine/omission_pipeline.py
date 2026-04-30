@@ -67,7 +67,7 @@ class OmissionPipeline:
             
             # Feed laminar batches to SDE-Solver
             # We use the 'Micro-Spiking' and 'AGSDR' agents conceptually
-            await solver.run_optimization_cycle(
+            await solver._run_optimization_cycle(
                 proponent="micro_spiking",
                 adversary="agsdr_optimizer",
                 batch_data=batch
