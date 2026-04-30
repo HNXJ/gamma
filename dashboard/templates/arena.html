@@ -38,17 +38,13 @@
         <div class="left-sidebar">
             <div class="panel">
                 <div class="panel-header">Progression (Neurons)</div>
-                <div class="neuron-bar" id="neuron-bar">
-                    <!-- Bars filled via JS -->
-                    <div class="bar-segment active" style="height: 20%;"></div>
-                    <div class="bar-segment active" style="height: 35%;"></div>
-                    <div class="bar-segment active" style="height: 50%;"></div>
-                    <div class="bar-segment active" style="height: 70%;"></div>
-                    <div class="bar-segment" style="height: 85%;"></div>
+                <div class="neuron-bar" id="neuron-bar" style="display: flex; align-items: flex-end; gap: 2px; height: 60px;">
+                    <!-- Filled via JS: 100 segments for 10-1000 ladder -->
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-top: 5px;" class="label">
-                    <span>10 Now</span>
-                    <span>500 NMDA</span>
+                    <span id="prog-start">10 NOW</span>
+                    <span id="prog-next" style="color: var(--accent);">40 VIP</span>
+                    <span id="prog-end">1000 ENDLESS</span>
                 </div>
             </div>
 
@@ -56,12 +52,12 @@
                 <div class="panel-header">Current Level</div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h2 style="font-size: 24px; color: var(--accent);">L1</h2>
+                        <h2 style="font-size: 24px; color: var(--accent);" id="current-level-tag">L1</h2>
                         <p class="label" id="neuron-count-label">10 NEURONS</p>
                     </div>
                     <div class="value" style="color: var(--success); font-size: 10px; border: 1px solid var(--success); padding: 2px 6px; border-radius: 2px;">STABLE</div>
                 </div>
-                <div style="margin-top: 10px; font-size: 12px;">
+                <div style="margin-top: 10px; font-size: 12px;" id="level-composition">
                     <p>7 Excitatory</p>
                     <p>2 PV Interneuron</p>
                     <p>1 SST Interneuron</p>
@@ -167,19 +163,42 @@
                 document.getElementById('agents-active').innerText = data.system?.agents_active || "0 / 0";
                 document.getElementById('tasks-running').innerText = data.system?.tasks_running || "0";
                 
-                // Update Neuron Count Logic
+                // Update Neuron Count Logic (Canonical Ladder: 10 to 1000)
                 const neuronCount = data.research?.neuron_count || 10;
                 document.getElementById('neuron-count-label').innerText = neuronCount + ' NEURONS';
                 
-                // Update Neuron Bar Visuals
+                // Update Neuron Bar Visuals (100 segments for 1000 neurons)
                 const bar = document.getElementById('neuron-bar');
-                const activeSegments = Math.min(Math.floor(neuronCount / 100) + 1, 5);
+                const activeSegments = Math.ceil(neuronCount / 10);
                 bar.innerHTML = '';
-                for(let i=0; i<5; i++) {
+                for(let i=1; i<=100; i++) {
                     const segment = document.createElement('div');
-                    segment.className = 'bar-segment' + (i < activeSegments ? ' active' : '');
-                    segment.style.height = (20 + i * 15) + '%';
+                    segment.className = 'bar-segment' + (i <= activeSegments ? ' active' : '');
+                    segment.style.cssText = `flex: 1; height: ${15 + (i%10)*5}%; background: ${i <= activeSegments ? 'var(--accent)' : 'rgba(255, 184, 0, 0.1)'}; border: 0.5px solid var(--border);`;
+                    if (i % 10 === 0) segment.style.borderRight = '1px solid var(--border-bright)';
                     bar.appendChild(segment);
+                }
+
+                // Update Next Milestone Label
+                const progNext = document.getElementById('prog-next');
+                if (neuronCount < 40) { progNext.innerText = '40 VIP'; }
+                else if (neuronCount < 100) { progNext.innerText = '100 L4+APICAL'; }
+                else if (neuronCount < 200) { progNext.innerText = '200 AREA_2'; }
+                else if (neuronCount < 500) { progNext.innerText = '500 NMDA'; }
+                else { progNext.innerText = '1000 ENDLESS'; }
+
+                // Update Level Composition (Grounded in Ladder)
+                const levelTag = document.getElementById('current-level-tag');
+                const level = Math.floor(neuronCount / 10);
+                levelTag.innerText = 'L' + level;
+                
+                const comp = document.getElementById('level-composition');
+                if (neuronCount < 40) {
+                    comp.innerHTML = '<p>7 Excitatory</p><p>2 PV Interneuron</p><p>1 SST Interneuron</p>';
+                } else if (neuronCount < 100) {
+                    comp.innerHTML = '<p>7+ Excitatory</p><p>2 PV</p><p>1 SST</p><p style="color: var(--accent);">VIP UNLOCKED</p>';
+                } else {
+                    comp.innerHTML = '<p style="color: var(--accent);">L4 INTEGRATED</p><p>APICAL DENDRITE +</p><p>LAMINAR ROUTING</p>';
                 }
 
                 // Update Agent Roster with Provenance
@@ -206,9 +225,9 @@
                 
                 // Finalize Provenance Footers on all panels
                 document.querySelectorAll('.panel').forEach(p => {
-                    if (!p.querySelector('.card-footer')) {
+                    if (!p.querySelector('.card-footer-meta')) {
                         const footer = document.createElement('div');
-                        footer.className = 'label';
+                        footer.className = 'label card-footer-meta';
                         footer.style.cssText = 'font-size: 8px; margin-top: 10px; display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 4px; opacity: 0.5;';
                         footer.innerHTML = `
                             <span>REFRESH: ${new Date().toLocaleTimeString()}</span>
