@@ -4,9 +4,9 @@ import json
 import time
 import re
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
 import pandas as pd
@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
+APP_START_TIME = datetime.now(timezone.utc)
 
 # Dynamic Path Resolution
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -52,7 +53,8 @@ def update_monitor_data():
                         if match:
                             ts, agent, msg = match.groups()
                             if any(a in agent for a in ["Macro", "Meso", "Micro", "Critic"]):
-                                council_dialogue.append({"time": ts, "agent": agent, "msg": msg})
+                                entry = {"time": ts, "agent": agent, "msg": msg}
+                                council_dialogue.append(entry)
                                 if len(council_dialogue) > 50: council_dialogue.pop(0)
                                 tps_stats["total_tokens"] += len(msg.split()) * 4 # Approximation
                         
@@ -61,8 +63,8 @@ def update_monitor_data():
                         if now - tps_stats["last_tps_check"] > 5:
                             tps_stats["tps"] = (len(lines) * 5) / 5 # Simplified
                             tps_stats["last_tps_check"] = now
-        except Exception as e:
-            pass # Keep monitor quiet during path discovery
+        except Exception:
+            pass 
         time.sleep(1)
 
 # Start background thread
@@ -74,53 +76,59 @@ if LOG_PATH != "/dev/null":
 async def index(request: Request):
     return templates.TemplateResponse(request=request, name="arena.html")
 
-@app.get("/council", response_class=HTMLResponse)
-async def council(request: Request):
-    return templates.TemplateResponse(request=request, name="arena.html")
-
-@app.get("/guard", response_class=HTMLResponse)
-async def guard(request: Request):
-    return templates.TemplateResponse(request=request, name="guard.html")
-
 @app.get("/api/status")
 async def get_status():
     """
-    Grounded Snapshot for the Amber Arena.
+    Grounded Snapshot for the Amber Arena (Phase 1.6 Frozen).
+    Explicitly splits Backend Slots from Grounded Agents.
     """
-    latest_msg = council_dialogue[-1] if council_dialogue else {}
     progression = await get_progression()
     persistence = await get_persistence()
+    health = await get_health()
     
     return {
         "system": {
             "status": "ONLINE" if council_dialogue else "STANDBY",
-            "uptime": None,
+            "uptime": health["uptime"],
             "backend_active_slots": "3 / 4",
-            "heartbeat": "OK" if council_dialogue else "STALLED"
+            "heartbeat": health["heartbeat"]
         },
         "progression": progression,
         "persistence": persistence,
         "research": {
             "neuron_count": progression.get("largest_pass_network_neuron_count"),
             "pass_network": f"{progression.get('largest_pass_network_neuron_count')}-Node Grounded",
-            "active_patch": progression.get("active_patches")[0] if progression.get("active_patches") else None,
-            "omissions": progression.get("omissions", 0)
+            "active_patch": progression.get("active_patches", ["v1.1.0"])[0] if progression.get("active_patches") else "v1.1.0",
+            "omissions": progression.get("omissions", 0),
+            "grounded_agents_active": sum(1 for s in (await get_agents()) if s["status"] == "ACTIVE")
         }
     }
 
 @app.get("/api/progression")
 async def get_progression():
     """
-    Authoritative progression state from arena_patch_board.json.
+    Authoritative scientific progression grounded in both manifest and runtime state.
     """
+    # 1. Base from Patch Board
+    state = {"largest_pass_network_neuron_count": 10, "active_patches": [], "truth_class": "INFERRED"}
     board_path = os.path.join(ROOT_DIR, "context/configs/patches/arena_patch_board.json")
     if os.path.exists(board_path):
         try:
             with open(board_path, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            return {"error": f"Progression load error: {str(e)}", "truth_class": "DEGRADED"}
-    return {"largest_pass_network_neuron_count": 10, "active_patches": [], "truth_class": "DEGRADED"}
+                state.update(json.load(f))
+        except Exception: pass
+    
+    # 2. Ground with Namespaced World State (The Live Truth)
+    world_path = os.path.join(ROOT_DIR, "local/game001/arena_runtime_state.json")
+    if os.path.exists(world_path):
+        try:
+            with open(world_path, "r") as f:
+                world = json.load(f)
+                state["largest_pass_network_neuron_count"] = world.get("largest_pass_network_neuron_count", state["largest_pass_network_neuron_count"])
+                state["truth_class"] = "GROUNDED"
+        except Exception: pass
+        
+    return state
 
 @app.get("/api/agents")
 async def get_agents():
@@ -155,9 +163,11 @@ async def get_persistence():
                 ckpt = json.load(f)
                 persistence["boot_type"] = "RESUMED" if len(ckpt.get("boot_history", [])) > 1 else "FRESH"
                 persistence["resume_count"] = len(ckpt.get("boot_history", [])) - 1
-                last_ts = ckpt.get("last_checkpoint_time", 0)
-                persistence["last_checkpoint"] = datetime.fromtimestamp(last_ts).isoformat() if last_ts else "NEVER"
-                persistence["freshness"] = "GROUNDED" if (time.time() - last_ts < 300) else "STALE"
+                last_ts_str = ckpt.get("last_checkpoint_time")
+                if last_ts_str:
+                    last_dt = datetime.fromisoformat(last_ts_str)
+                    persistence["last_checkpoint"] = last_dt.strftime("%H:%M:%S")
+                    persistence["freshness"] = "GROUNDED" if (datetime.now() - last_dt).total_seconds() < 600 else "STALE"
         except Exception:
             pass
     return persistence
@@ -165,14 +175,38 @@ async def get_persistence():
 @app.get("/api/health")
 async def get_health():
     """
-    High-frequency health and heartbeat check.
+    Grounded health and uptime metrics.
     """
+    now = datetime.now(timezone.utc)
+    delta = now - APP_START_TIME
+    uptime_str = str(delta).split(".")[0] # HH:MM:SS
+    
     return {
         "status": "OK",
-        "zero_idle_mandate": "ENFORCED",
+        "uptime": uptime_str,
         "heartbeat": "OK" if council_dialogue else "STALLED",
         "last_signal": council_dialogue[-1].get("time") if council_dialogue else None
     }
+
+@app.get("/api/events/stream")
+async def event_stream(request: Request):
+    """
+    Real-time event stream (SSE) for the Arena timeline.
+    """
+    async def event_generator():
+        last_sent_idx = len(council_dialogue)
+        while True:
+            if await request.is_disconnected():
+                break
+            
+            if len(council_dialogue) > last_sent_idx:
+                for i in range(last_sent_idx, len(council_dialogue)):
+                    yield f"data: {json.dumps(council_dialogue[i])}\n\n"
+                last_sent_idx = len(council_dialogue)
+            
+            await asyncio.sleep(1)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/api/logs/raw")
 async def get_raw_logs(lines: int = 100):
@@ -193,34 +227,7 @@ async def get_raw_logs(lines: int = 100):
     except Exception as e:
         return {"error": str(e)}
 
-
-class TerminalCommand(BaseModel):
-    command: str
-
-@app.post("/api/terminal/exec")
-async def terminal_exec(cmd: TerminalCommand):
-    """
-    Executes a command in the Gamma root directory.
-    Limited to authorized operator context.
-    """
-    try:
-        # Run command with 5s timeout to prevent hanging the monitor
-        result = subprocess.run(
-            cmd.command,
-            shell=True,
-            cwd=ROOT_DIR,
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        return {
-            "output": result.stdout,
-            "error": result.stderr if result.returncode != 0 else None
-        }
-    except subprocess.TimeoutExpired:
-        return {"error": "Command timed out after 5 seconds."}
-    except Exception as e:
-        return {"error": f"Internal Execution Error: {str(e)}"}
+# POST /api/terminal/exec is removed from migration scope (Phase 1.6)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=3012)
