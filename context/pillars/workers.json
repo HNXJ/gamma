@@ -1,10 +1,24 @@
 {
+  "__WARNING__": "PILLAR : WARNING - CRITICAL: DEFINES MANDATORY PILLARS",
   "workers": [
+    {
+      "name": "tunnel",
+      "cmd": "/bin/bash tools/scripts/lms-tunnel.sh",
+      "restart_policy": "always",
+      "safe_mode_required": true,
+      "mandatory_pillar": true,
+      "optional_in_safe_mode": false,
+      "degraded_allowed": true,
+      "priority": 0
+    },
     {
       "name": "heartbeat",
       "cmd": "python3 gamma-heartbeat.py",
       "restart_policy": "always",
       "safe_mode_required": true,
+      "mandatory_pillar": true,
+      "optional_in_safe_mode": false,
+      "degraded_allowed": true,
       "priority": 1
     },
     {
@@ -12,6 +26,9 @@
       "cmd": "python3 backup-safety.py",
       "restart_policy": "always",
       "safe_mode_required": true,
+      "mandatory_pillar": true,
+      "optional_in_safe_mode": false,
+      "degraded_allowed": true,
       "priority": 2
     },
     {
@@ -19,6 +36,9 @@
       "cmd": "python3 tools/scripts/start_game_structured.py",
       "restart_policy": "on-failure",
       "safe_mode_required": false,
+      "mandatory_pillar": false,
+      "optional_in_safe_mode": false,
+      "degraded_allowed": false,
       "priority": 3
     }
   ],

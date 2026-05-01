@@ -1,0 +1,25 @@
+{
+  "__WARNING__": "KERNEL : STRICT - CRITICAL: RUNTIME SEED TRUTH",
+  "pinned_message": "Gamma Arena Spectator Relay - Monitoring Neural Growth (10 to 11 Neurons)",
+  "queue_order": [
+    "G01-builder",
+    "G02-tuner",
+    "G03-analyst",
+    "J01-judge",
+    "M01-monitor"
+  ],
+  "lobby_topics": [
+    "Neural composition: 7 E, 2 PV, 1 SST",
+    "Continuous growth mandate: 10 -> 11 neurons",
+    "Physiological voltage bounds enforcement",
+    "Bridge stability and LMS throughput"
+  ],
+  "initial_stack": [
+    "World initialized in SAFE MODE. Spectator relay active.",
+    "LMS bridge established via SSH tunnel to Office Mac.",
+    "Neural network grounded at 10 neurons. Baseline composition verified."
+  ],
+  "world_baseline_summary": "The Gamma Arena is currently operating in a bootstrap state with 10 neurons. The primary mission is to expand the network to 11 neurons while maintaining biological validity and connectivity.",
+  "debate_rules": "Agents must remain concise (2-3 sentences), respect biophysical constraints, and contribute to the rolling world state.",
+  "relay_rules": "Turn-based execution. Skip agents if model is unavailable. Advance stack on successful completion."
+}

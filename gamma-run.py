@@ -1,3 +1,6 @@
+# PILLAR : WARNING
+# CRITICAL: MODIFICATION CAN KILL WORLD PERSISTENCE
+
 import subprocess
 import time
 import json

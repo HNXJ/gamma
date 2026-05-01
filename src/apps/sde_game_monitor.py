@@ -34,15 +34,22 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Environment-based paths for logs and DB
+DEFAULT_LOG_PATH = os.path.join(ROOT_DIR, "local", "run", "orchestrator.log")
+HEARTBEAT_LOG_PATH = os.path.join(ROOT_DIR, "local", "run", "heartbeat.log")
 DB_PATH = os.getenv("GAMMA_DB_PATH", "file::memory:?cache=shared")
-LOG_PATH = os.getenv("GAMMA_LOG_PATH", "/Users/HN/MLLM/gamma/local/game001/logs/orchestrator.log")
 
-# Agent Log Mapping (Grounded for game001)
+# Auto-detect Log Path based on activity
+if not os.path.exists(DEFAULT_LOG_PATH) or os.path.getsize(DEFAULT_LOG_PATH) == 0:
+    LOG_PATH = os.getenv("GAMMA_LOG_PATH", HEARTBEAT_LOG_PATH)
+else:
+    LOG_PATH = os.getenv("GAMMA_LOG_PATH", DEFAULT_LOG_PATH)
+
+# Agent Log Mapping (Grounded for workspace)
 AGENT_LOGS = {
-    "G01": "/Users/HN/MLLM/gamma/local/game001/logs/orchestrator.log",
-    "G02": "/Users/HN/MLLM/gamma/local/game001/logs/agent-v1_gamma_proponent.log",
-    "G03": "/Users/HN/MLLM/gamma/local/game001/logs/agent-v1_gamma_adversary.log",
-    "G04": "/Users/HN/MLLM/gamma/local/game001/logs/agent-v1_gamma_judge.log"
+    "G01": os.path.join(ROOT_DIR, "local", "run", "orchestrator.log"),
+    "G02": os.path.join(ROOT_DIR, "local", "run", "heartbeat.log"),
+    "G03": os.path.join(ROOT_DIR, "local", "run", "safety.log"),
+    "G04": os.path.join(ROOT_DIR, "local", "run", "hub_api.log")
 }
 
 # Global state for streaming logs

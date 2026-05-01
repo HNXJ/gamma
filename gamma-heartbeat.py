@@ -1,3 +1,6 @@
+# PILLAR : WARNING
+# CRITICAL: DRIVES RELAY AND HEALTH TRUTH
+
 import time
 import json
 import os
@@ -172,6 +175,10 @@ def run_pulse():
             elif lms_mode == LMSConnectivityMode.UNAVAILABLE:
                 room.set_status("LMS_UNAVAILABLE")
 
+            # Safe vs Full mode readiness
+            full_mode_ready = (lms_mode != LMSConnectivityMode.UNAVAILABLE and lms_status == "ALIVE" and check_hub() == "ALIVE")
+            safe_mode_ready = (lms_mode != LMSConnectivityMode.UNAVAILABLE and lms_status == "ALIVE")
+
             health = {
                 "timestamp": datetime.now().isoformat(),
                 "lms": lms_status,
@@ -180,7 +187,9 @@ def run_pulse():
                 "events": check_events(),
                 "workers": check_pids(),
                 "safe_mode_running": safe_mode,
-                "full_mode_ready": lms_mode != LMSConnectivityMode.UNAVAILABLE,
+                "safe_mode_verdict": "PROVEN" if safe_mode_ready and room.get_board()["status"] == "ALIVE" else "PARTIAL",
+                "full_mode_ready": full_mode_ready,
+                "full_mode_verdict": "PROVEN" if full_mode_ready else "NOT_PROVEN",
                 "spectator_room": room.get_board()["status"]
             }
             

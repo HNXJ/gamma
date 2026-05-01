@@ -1,0 +1,176 @@
+{
+  "sensitivity_levels": {
+    "PILLAR": {
+      "description": "Immutable safe house. World must stay alive.",
+      "requires_syntax_gate": true,
+      "requires_smoke_test": true,
+      "requires_explicit_override": true,
+      "can_run_in_safe_mode": true
+    },
+    "KERNEL": {
+      "description": "Truth or relay substrate.",
+      "requires_syntax_gate": true,
+      "requires_smoke_test": true,
+      "requires_explicit_override": true,
+      "can_run_in_safe_mode": true
+    },
+    "CONTROL": {
+      "description": "Orchestration and routing logic.",
+      "requires_syntax_gate": true,
+      "requires_smoke_test": true,
+      "requires_explicit_override": false,
+      "can_run_in_safe_mode": false
+    },
+    "RUNTIME": {
+      "description": "Execution adapters and harnesses.",
+      "requires_syntax_gate": true,
+      "requires_smoke_test": true,
+      "requires_explicit_override": false,
+      "can_run_in_safe_mode": false
+    },
+    "FEATURE": {
+      "description": "Observability, diagnostics, and UI support.",
+      "requires_syntax_gate": true,
+      "requires_smoke_test": false,
+      "requires_explicit_override": false,
+      "can_run_in_safe_mode": false
+    },
+    "MOD": {
+      "description": "Experimental, prompt drafts, disposable scripts.",
+      "requires_syntax_gate": false,
+      "requires_smoke_test": false,
+      "requires_explicit_override": false,
+      "can_run_in_safe_mode": false
+    }
+  },
+  "registry": [
+    {
+      "label": "Supervisor",
+      "path": "gamma-run.py",
+      "level": "PILLAR",
+      "warning": "CRITICAL: MODIFICATION CAN KILL WORLD PERSISTENCE",
+      "owner_plane": "Plane-A",
+      "notes": "Main supervisor pillar."
+    },
+    {
+      "label": "Heartbeat",
+      "path": "gamma-heartbeat.py",
+      "level": "PILLAR",
+      "warning": "CRITICAL: DRIVES RELAY AND HEALTH TRUTH",
+      "owner_plane": "Plane-A",
+      "notes": "Drives spectator relay and health state."
+    },
+    {
+      "label": "Backup Safety",
+      "path": "backup-safety.py",
+      "level": "PILLAR",
+      "warning": "CRITICAL: EMERGENCY SURFACE RECOVERY",
+      "owner_plane": "Plane-A",
+      "notes": "Emergency recovery substrate."
+    },
+    {
+      "label": "Worker Registry",
+      "path": "context/pillars/workers.json",
+      "level": "PILLAR",
+      "warning": "CRITICAL: DEFINES MANDATORY PILLARS",
+      "owner_plane": "Plane-A",
+      "notes": "Defines what runs in Safe Mode."
+    },
+    {
+      "label": "Runtime Config",
+      "path": "src/gamma_runtime/config.py",
+      "level": "PILLAR",
+      "warning": "CRITICAL: DEFINES SERVICE SURFACES",
+      "owner_plane": "Plane-A",
+      "notes": "Canonical port and host configuration."
+    },
+    {
+      "label": "Spectator Room",
+      "path": "src/gamma_runtime/spectator_room.py",
+      "level": "KERNEL",
+      "warning": "STRICT: RELAY TRUTH SUBSTRATE",
+      "owner_plane": "Plane-A",
+      "notes": "Manages spectator state and relay stack."
+    },
+    {
+      "label": "Event Substrate",
+      "path": "src/gamma_runtime/events.py",
+      "level": "KERNEL",
+      "warning": "STRICT: WORLD EVENT TRUTH",
+      "owner_plane": "Plane-A",
+      "notes": "Event definition and streaming logic."
+    },
+    {
+      "label": "Spectator State",
+      "path": "local/run/spectator_room.json",
+      "level": "KERNEL",
+      "warning": "STRICT: LIVE RELAY STATE",
+      "owner_plane": "Plane-A",
+      "notes": "Drives the relay stack."
+    },
+    {
+      "label": "README Seed",
+      "path": "README.md",
+      "level": "KERNEL",
+      "warning": "STRICT-DOC-SEED: USED AS RUNTIME SEED",
+      "owner_plane": "Plane-A",
+      "notes": "Temporary runtime seed surface."
+    },
+    {
+      "label": "Startup Control",
+      "path": "tools/scripts/start_game_structured.py",
+      "level": "CONTROL",
+      "warning": "GUARDED: ORCHESTRATOR ENTRY POINT",
+      "owner_plane": "Plane-B",
+      "notes": "Boots Plane B runtime."
+    },
+    {
+      "label": "Unified Orchestrator",
+      "path": "src/gamma_runtime/orchestrator.py",
+      "level": "CONTROL",
+      "warning": "GUARDED: PLANE B COORDINATOR",
+      "owner_plane": "Plane-B",
+      "notes": "Coordinates agent council."
+    },
+    {
+      "label": "Model Router",
+      "path": "src/gamma_runtime/model_router.py",
+      "level": "CONTROL",
+      "warning": "GUARDED: STRICT ROUTING ENFORCEMENT",
+      "owner_plane": "Plane-B",
+      "notes": "Enforces logical to physical model mapping."
+    },
+    {
+      "label": "Routing Config",
+      "path": "context/configs/lms_routing.json",
+      "level": "CONTROL",
+      "warning": "GUARDED: MODEL MAPPING TRUTH",
+      "owner_plane": "Plane-B",
+      "notes": "Defines agent-to-model routing."
+    },
+    {
+      "label": "LMS Adapter",
+      "path": "src/gamma_runtime/backend_lmstudio.py",
+      "level": "RUNTIME",
+      "warning": "TESTED: PHYSICAL EXECUTION INTERFACE",
+      "owner_plane": "Plane-B",
+      "notes": "Interfaces with LM Studio API."
+    },
+    {
+      "label": "Tool Harness",
+      "path": "src/gamma_runtime/tool_harness.py",
+      "level": "RUNTIME",
+      "warning": "TESTED: AGENT EXECUTION SANDBOX",
+      "owner_plane": "Plane-B",
+      "notes": "Sandboxed execution for agents."
+    },
+    {
+      "label": "Game Monitor API",
+      "path": "src/apps/sde_game_monitor.py",
+      "level": "FEATURE",
+      "warning": "FLEX: DASHBOARD DATA INTERFACE",
+      "owner_plane": "Plane-B",
+      "notes": "Provides API for the frontend dashboard."
+    }
+  ]
+}

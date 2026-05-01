@@ -93,6 +93,11 @@ class StatefulPythonExecutor:
         self._setup_environment()
 
     def _setup_environment(self):
+        # 1. Define Blocked/Restricted Functions
+        def blocked_func(*args, **kwargs):
+            raise PermissionError("HARDENING ENFORCED: Operation not allowed in sandbox.")
+
+        # 2. Core Dependencies
         try:
             import numpy as np
             import scipy
@@ -100,20 +105,43 @@ class StatefulPythonExecutor:
             import jax
             import chex
             
+            # 3. Restricted Builtins
+            # We explicitly remove dangerous builtins like eval, exec, and wrap open.
+            safe_builtins = {k: v for k, v in __builtins__.items() if k not in ['eval', 'exec', 'input', 'open']}
+            safe_builtins['open'] = self.guard.wrap_open
+
             self._globals.update({
                 'np': np, 
                 'pd': pd, 
                 'scipy': scipy, 
                 'jax': jax, 
                 'chex': chex,
-                'open': self.guard.wrap_open,
-                '__builtins__': {**__builtins__, 'open': self.guard.wrap_open}
+                '__builtins__': safe_builtins
             })
+            
+            # 4. Blackhole Dangerous Modules
+            # This prevents agents from importing or using these modules to escape the sandbox.
+            import os as _os
+            import sys as _sys
+            import subprocess as _sub
+            import requests as _req
+            import socket as _sock
+            
+            self._globals['os'] = type('MockOS', (), {
+                'path': _os.path, 
+                'getcwd': lambda: self.sandbox_root,
+                'listdir': _os.listdir
+            })
+            self._globals['sys'] = type('MockSys', (), {'version': _sys.version, 'path': []})
+            self._globals['subprocess'] = type('MockSubprocess', (), {'run': blocked_func, 'Popen': blocked_func})
+            self._globals['requests'] = type('MockRequests', (), {'get': blocked_func, 'post': blocked_func})
+            self._globals['socket'] = type('MockSocket', (), {'socket': blocked_func, 'connect': blocked_func})
+
         except ImportError as e:
             logger.error(f"Critical dependency missing for StatefulPythonExecutor: {e}")
             raise
 
-        # Optional adapters
+        # 5. Scientific Adapters (Optional)
         try: import mne; self._globals['mne'] = mne
         except ImportError: pass
         try: import brian2; self._globals['brian2'] = brian2
@@ -192,6 +220,7 @@ class ContextHydrator:
             blocks.append("## Active Skills\n" + "\n\n---\n\n".join(skill_blocks))
             
         joined = "\n\n---\n\n".join(blocks)
+        # Strict Bounded Context (Part 5)
         return f"<SYSTEM_CONTEXT>\n{joined}\n</SYSTEM_CONTEXT>"
 
     def _resolve_skills(self, manual: List[str], tags: Set[str]) -> List[str]:

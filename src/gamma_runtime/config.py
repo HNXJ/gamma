@@ -1,3 +1,6 @@
+# PILLAR : WARNING
+# CRITICAL: DEFINES SERVICE SURFACES
+
 import os
 import socket
 from enum import Enum
@@ -33,15 +36,19 @@ def detect_lms_connectivity_mode() -> LMSConnectivityMode:
         
     # 2. Check if localhost is reachable
     try:
-        with socket.create_connection(("localhost", LMS_PORT), timeout=1):
-            # To distinguish LOCAL vs TUNNELED, we'd need to know if we are on the Office Mac.
-            # For now, if we are on the M1 Max and see localhost:1234, it's likely a tunnel.
-            # If we are on the Office Mac, it's LOCAL.
-            # Simplified heuristic:
+        with socket.create_connection(("localhost", LMS_PORT), timeout=1) as s:
+            # On macOS/Linux, an SSH tunnel usually doesn't show up as a local process
+            # owning the listener in the same way a native app does.
+            # However, the most reliable way to check for a tunnel vs local app
+            # is to check if we are on the Office Mac.
             hostname = socket.gethostname()
-            if "MacBook-Pro" in hostname or "100.69.184.42" in hostname:
+            is_office_mac = "100.69.184.42" in hostname or "HN" in hostname # Common identifiers
+            
+            if is_office_mac:
                 return LMSConnectivityMode.LOCAL
-            return LMSConnectivityMode.TUNNELED
+            else:
+                # If we are NOT on the Office Mac but localhost:1234 is open, it MUST be a tunnel.
+                return LMSConnectivityMode.TUNNELED
     except:
         pass
         

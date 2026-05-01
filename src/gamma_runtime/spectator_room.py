@@ -7,7 +7,10 @@ class SpectatorRoom:
     def __init__(self, root_dir):
         self.root_dir = root_dir
         self.state_file = os.path.join(root_dir, "local/run/spectator_room.json")
+        self.seed_file = os.path.join(root_dir, "context/pillars/spectator_seed.json")
         self.readme_file = os.path.join(root_dir, "README.md")
+        
+        # Default queue if seed missing
         self.canonical_queue = [
             "G01-builder", 
             "G02-tuner", 
@@ -32,23 +35,37 @@ class SpectatorRoom:
             self._initialize_new_state()
 
     def _initialize_new_state(self):
-        readme_content = ""
-        if os.path.exists(self.readme_file):
+        # 1. Load from seed artifact
+        seed_data = {}
+        if os.path.exists(self.seed_file):
             try:
-                with open(self.readme_file, 'r') as f:
-                    readme_content = f.read()
-            except:
-                readme_content = "Gamma Arena: Initial Seed"
+                with open(self.seed_file, 'r') as f:
+                    seed_data = json.load(f)
+            except: pass
+            
+        queue = seed_data.get("queue_order", self.canonical_queue)
+        pinned = seed_data.get("pinned_message", "Gamma Arena Spectator Relay Active")
+        stack = seed_data.get("initial_stack", ["Initial Seed"])
         
+        # If seed missing and README exists, use as legacy fallback for stack only
+        if not stack or stack == ["Initial Seed"]:
+            if os.path.exists(self.readme_file):
+                try:
+                    with open(self.readme_file, 'r') as f:
+                        stack = [f.read()]
+                except: pass
+
         self.state = {
             "mode": "SAFE MODE",
             "status": "ALIVE",
-            "queue": self.canonical_queue,
+            "queue": queue,
             "turn_index": 0,
             "active_agents": [],
-            "pinned_message": "Welcome to the Spectator Room. Seeded from README.",
+            "pinned_message": pinned,
             "recent_messages": [],
-            "stack": [readme_content] if readme_content else ["Initial Seed"],
+            "stack": stack,
+            "lobby_topics": seed_data.get("lobby_topics", []),
+            "baseline": seed_data.get("world_baseline_summary", ""),
             "last_updated": datetime.now().isoformat()
         }
         self._save()
@@ -62,7 +79,8 @@ class SpectatorRoom:
 
     def get_current_speaker(self, available_models):
         # available_models is a list of agent_ids present in LMS
-        active_queue = [a for a in self.canonical_queue if any(m in a for m in available_models)]
+        queue = self.state.get("queue", self.canonical_queue)
+        active_queue = [a for a in queue if any(m in a for m in available_models)]
         self.state["active_agents"] = active_queue
         
         if len(active_queue) < 2:
