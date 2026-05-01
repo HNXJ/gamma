@@ -55,9 +55,15 @@ class Supervisor:
         
         try:
             env = os.environ.copy()
-            # Canonical Gate Injection
-            env["TRUTH_GATE_ENABLED"] = "1"
-            env["AUTHORITY_TOKEN"] = "CANONICAL_BACKEND_GATE"
+            
+            # Scope Truth Gate strictly to truth-mutating workers
+            if name == "orchestrator":
+                env["TRUTH_GATE_ENABLED"] = "1"
+                env["AUTHORITY_TOKEN"] = "CANONICAL_BACKEND_GATE"
+            else:
+                # Remove if present in inherited environment to ensure isolation
+                env.pop("TRUTH_GATE_ENABLED", None)
+                env.pop("AUTHORITY_TOKEN", None)
             
             # Ensure PYTHONPATH includes ROOT and ROOT/src
             env["PYTHONPATH"] = f"{ROOT}:{ROOT}/src:{env.get('PYTHONPATH', '')}"
