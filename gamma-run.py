@@ -55,6 +55,10 @@ class Supervisor:
         
         try:
             env = os.environ.copy()
+            # Canonical Gate Injection
+            env["TRUTH_GATE_ENABLED"] = "1"
+            env["AUTHORITY_TOKEN"] = "CANONICAL_BACKEND_GATE"
+            
             # Ensure PYTHONPATH includes ROOT and ROOT/src
             env["PYTHONPATH"] = f"{ROOT}:{ROOT}/src:{env.get('PYTHONPATH', '')}"
             
