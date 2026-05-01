@@ -3,7 +3,7 @@ import logging
 import time
 import os
 from typing import Dict, Any, Optional, List
-from .types import AgentId, InferenceRequest, MissionContext
+from gamma_runtime.types import AgentId, InferenceRequest, MissionContext
 from .scheduler import InferenceScheduler
 from .blackboard import Blackboard
 from .registry import RuntimeRegistry

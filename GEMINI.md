@@ -3,8 +3,13 @@
 ## 1. Infrastructure & Paths
 - **Paths:** Root: `/Users/hamednejat/workspace/` | Drive: `/Users/hamednejat/workspace/warehouse/drive/`.
 - **Python Environment:** Use `/Users/hamednejat/workspace/gemini-cli-env` for all analysis. Auto-install missing packages.
-- **Compute:** GLLM Control Panel (`localhost:3005`). Headless MLX Engine (`port 4474`).
-- **Remote Node (Office Mac):** `100.69.184.42` (user: HN). Verify per-service ports from live runtime; Gamma Hub UI commonly uses 3012.
+- **Compute:** Headless MLX Engine (Port 4474: legacy / inactive / not canonical).
+- **Canonical Ports:** 
+  - UI (Dashboard): 3012
+  - Monitor API: 3013
+  - LMS: 1234
+- **Anti-Drift Rule:** Never scan speculative ports. Read canonical runtime config first, then check only grounded ports.
+- **Remote Node (Office Mac):** `100.69.184.42` (user: HN). Verify per-service ports from live runtime.
   - **State Parity:** Treat the local M1 Max and remote M3 Max as a unified state machine. Mirror and validate backend routing remotely before frontend execution.
   - **Proxy Restart:** When updating `sentinel_proxy.py`, execute `sleep 3 && curl /api/status` to guarantee port binding before returning control.
 

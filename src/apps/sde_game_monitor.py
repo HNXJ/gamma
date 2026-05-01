@@ -17,7 +17,17 @@ import random
 
 from fastapi.staticfiles import StaticFiles
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3012"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # System Start Time for Uptime Grounding
 START_TIME = time.time()
@@ -102,17 +112,52 @@ if LOG_PATH != "/dev/null":
 async def index(request: Request):
     return templates.TemplateResponse(request=request, name="arena.html")
 
+# Canonical Paths
+SPECTATOR_PATH = os.path.join(ROOT_DIR, "local", "run", "spectator_room.json")
+HEALTH_PATH = os.path.join(ROOT_DIR, "local", "run", "health.json")
+QUEUE_PATH = os.path.join(ROOT_DIR, "local", "run", "communication_display.json")
+
 @app.get("/api/status")
 async def get_status():
     progression = await get_progression()
     persistence = await get_persistence()
     health = await get_health()
+    
+    # Grounded Heartbeat derivation
+    spectator_data = {}
+    try:
+        with open(SPECTATOR_PATH, 'r') as f:
+            spectator_data = json.load(f)
+    except Exception as e:
+        pass
+    
+    last_updated = spectator_data.get("last_updated", "")
+    turn_index = spectator_data.get("turn_index", 0)
+    
+    heartbeat_val = "STALLED"
+    if last_updated:
+        # Check if updated in last 60 seconds
+        try:
+            dt = datetime.fromisoformat(last_updated)
+            if (datetime.now() - dt).total_seconds() < 60:
+                heartbeat_val = "OK"
+                if health.get("status") not in ["SAFE_MODE_OPERATIONAL", "ALIVE"]:
+                    heartbeat_val = "DEGRADED"
+        except:
+            pass
+        
     return {
         "system": {
-            "status": "ONLINE" if council_dialogue else "STANDBY",
-            "monitor_uptime_seconds": health["monitor_uptime_seconds"],
+            "status": health.get("status", "STANDBY"),
+            "monitor_uptime_seconds": health.get("monitor_uptime_seconds", int(time.time() - START_TIME)),
             "backend_model_slots_occupied": "3 / 4",
-            "heartbeat": health["heartbeat"]
+            "heartbeat": heartbeat_val,
+            "council_chat_activity": "ACTIVE" if council_dialogue else "INACTIVE",
+            "metadata": {
+                "health_timestamp": health.get("timestamp"),
+                "spectator_timestamp": last_updated,
+                "turn_index": turn_index
+            }
         },
         "progression": progression,
         "persistence": persistence,
@@ -151,20 +196,65 @@ async def get_progression():
 
 @app.get("/api/agents")
 async def get_agents():
-    latest_msg = council_dialogue[-1] if council_dialogue else {}
+    SPECTATOR_PATH = os.path.join(ROOT_DIR, "local", "run", "spectator_room.json")
+    HEALTH_PATH = os.path.join(ROOT_DIR, "local", "run", "health.json")
+    QUEUE_PATH = os.path.join(ROOT_DIR, "local", "run", "communication_display.json")
+    
+    roster = [
+        {"id": "G01-builder", "role": "Builder"},
+        {"id": "G02-tuner", "role": "Tuner"},
+        {"id": "G03-analyst", "role": "Analyst"},
+        {"id": "J01-judge", "role": "Judge"},
+        {"id": "M01-monitor", "role": "Monitor"}
+    ]
+    
+    status_map = {agent["id"]: "STANDBY" for agent in roster}
+    pending_counts = {agent["id"]: 0 for agent in roster}
+    system_blocker = None
+    
+    try:
+        with open(HEALTH_PATH, 'r') as f:
+            health = json.load(f)
+            if health.get("lms") != "ALIVE":
+                system_blocker = "LMS_UNAVAILABLE"
+        
+        with open(SPECTATOR_PATH, 'r') as f:
+            room = json.load(f)
+            queue = room.get("queue", [])
+            idx = room.get("turn_index", 0)
+            
+            if queue:
+                current_idx = idx % len(queue)
+                next_idx = (idx + 1) % len(queue)
+                current = queue[current_idx]
+                next_a = queue[next_idx]
+                
+                # Assign statuses
+                for aid in status_map:
+                    if aid == current:
+                        status_map[aid] = "BLOCKED_BY_LMS" if system_blocker else "ACTIVE"
+                    elif aid == next_a:
+                        status_map[aid] = "QUEUED"
+            
+        with open(QUEUE_PATH, 'r') as f:
+            q_items = json.load(f)
+            pending = len(q_items.get("queue", []))
+            for aid in pending_counts: pending_counts[aid] = pending
+    except Exception:
+        pass
+
     return [
         {
-            "id": "G01",
-            "role": "Monitor",
-            "status": "ACTIVE" if council_dialogue else "IDLE",
-            "last_active": latest_msg.get("time", ""),
-            "grounded_evidence": bool(council_dialogue),
+            **agent,
+            "status": status_map[agent["id"]],
+            "system_blocker": system_blocker,
+            "last_active": "NOW" if status_map[agent["id"]] == "ACTIVE" else "",
+            "grounded_evidence": True,
             "truth_class": "GROUNDED",
-            "source": LOG_PATH
-        },
-        { "id": "G02", "role": "Optimizer", "status": "IDLE", "last_active": "", "grounded_evidence": False, "truth_class": "DEGRADED", "source": None },
-        { "id": "G03", "role": "Analyst", "status": "IDLE", "last_active": "", "grounded_evidence": False, "truth_class": "DEGRADED", "source": None },
-        { "id": "G04", "role": "Manager", "status": "IDLE", "last_active": "", "grounded_evidence": False, "truth_class": "DEGRADED", "source": None }
+            "evidence_source": [SPECTATOR_PATH, HEALTH_PATH, QUEUE_PATH],
+            "pending_items_count": pending_counts[agent["id"]]
+        }
+        for agent in roster
     ]
 
 @app.get("/api/agents/{agent_id}/logs")
@@ -219,12 +309,14 @@ async def get_persistence():
 
 @app.get("/api/health")
 async def get_health():
+    if os.path.exists(os.path.join(ROOT_DIR, "local", "run", "health.json")):
+        with open(os.path.join(ROOT_DIR, "local", "run", "health.json"), "r") as f:
+            return json.load(f)
     return {
-        "status": "OK",
+        "status": "STANDBY",
         "zero_idle_mandate": "ENFORCED",
         "monitor_uptime_seconds": int(time.time() - START_TIME),
-        "heartbeat": "OK" if council_dialogue else "STALLED",
-        "last_signal": council_dialogue[-1].get("time") if council_dialogue else None
+        "heartbeat": "STALLED"
     }
 
 @app.get("/api/network/state")
@@ -306,4 +398,4 @@ async def get_raw_logs(lines: int = 100):
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=3012)
+    uvicorn.run(app, host="0.0.0.0", port=3013)

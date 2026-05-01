@@ -1,9 +1,18 @@
 # PILLAR : WARNING
 # CRITICAL: DEFINES SERVICE SURFACES
+# DO NOT ADD ARBITRARY PORTS. 
+# VALIDATE ALL ADDITIONS AGAINST CANONICAL CONFIG.
 
 import os
 import socket
 from enum import Enum
+
+# ANTI-REGRESSION VALIDATION
+ALLOWED_PORTS = {1234, 3012, 3013}
+
+def _validate_port(port: int, name: str):
+    if port not in ALLOWED_PORTS:
+        raise ValueError(f"CRITICAL PORT ERROR: {name} attempted to use non-canonical port {port}. Allowed: {ALLOWED_PORTS}")
 
 class LMSConnectivityMode(Enum):
     UNAVAILABLE = "UNAVAILABLE"
@@ -21,6 +30,7 @@ PUBLIC_HOST = os.environ.get("OFFICE_MAC_PUBLIC_IP", "100.69.184.42")
 
 # 1. LMS Inference Server
 LMS_PORT = int(os.environ.get("LMS_PORT", 1234))
+_validate_port(LMS_PORT, "LMS")
 LMS_BIND_HOST = "0.0.0.0"
 
 def get_lms_local_url() -> str: return f"http://localhost:{LMS_PORT}"
@@ -37,17 +47,12 @@ def detect_lms_connectivity_mode() -> LMSConnectivityMode:
     # 2. Check if localhost is reachable
     try:
         with socket.create_connection(("localhost", LMS_PORT), timeout=1) as s:
-            # On macOS/Linux, an SSH tunnel usually doesn't show up as a local process
-            # owning the listener in the same way a native app does.
-            # However, the most reliable way to check for a tunnel vs local app
-            # is to check if we are on the Office Mac.
             hostname = socket.gethostname()
-            is_office_mac = "100.69.184.42" in hostname or "HN" in hostname # Common identifiers
+            is_office_mac = "100.69.184.42" in hostname or "HN" in hostname
             
             if is_office_mac:
                 return LMSConnectivityMode.LOCAL
             else:
-                # If we are NOT on the Office Mac but localhost:1234 is open, it MUST be a tunnel.
                 return LMSConnectivityMode.TUNNELED
     except:
         pass
@@ -55,13 +60,15 @@ def detect_lms_connectivity_mode() -> LMSConnectivityMode:
     return LMSConnectivityMode.UNAVAILABLE
 
 # 2. Hub API (Orchestrator/Events)
-HUB_PORT = int(os.environ.get("HUB_PORT", 8001))
+HUB_PORT = int(os.environ.get("HUB_PORT", 3013))
+_validate_port(HUB_PORT, "HUB")
 HUB_BIND_HOST = "0.0.0.0"
 def get_hub_local_url() -> str: return f"http://localhost:{HUB_PORT}"
 def get_hub_public_url() -> str: return f"http://{PUBLIC_HOST}:{HUB_PORT}"
 
 # 3. Dashboard UI
 DASHBOARD_PORT = int(os.environ.get("DASHBOARD_PORT", 3012))
+_validate_port(DASHBOARD_PORT, "DASHBOARD")
 DASHBOARD_BIND_HOST = "0.0.0.0"
 def get_dashboard_local_url() -> str: return f"http://localhost:{DASHBOARD_PORT}"
 def get_dashboard_public_url() -> str: return f"http://{PUBLIC_HOST}:{DASHBOARD_PORT}"

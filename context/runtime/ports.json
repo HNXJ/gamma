@@ -1,0 +1,13 @@
+{
+  "ports": {
+    "ui": 3012,
+    "monitor_api": 3013,
+    "lms": 1234
+  },
+  "runtime_resolution": {
+    "lms_access_mode": "REMOTE_ONLY",
+    "resolved_lms_endpoint": "http://100.69.184.42:1234",
+    "local_tunnel_required_by": ["spectator_heartbeat", "local_cli_tools"],
+    "last_grounded": "2026-04-30T19:40:00Z"
+  }
+}

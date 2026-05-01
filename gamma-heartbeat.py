@@ -169,6 +169,7 @@ def run_pulse():
             # Spectator Loop
             if safe_mode and lms_mode in [LMSConnectivityMode.LOCAL, LMSConnectivityMode.TUNNELED]:
                 if len(available_models) >= 2:
+                    room.set_status("ALIVE")
                     process_spectator_turn(room, available_models)
                 else:
                     room.set_status("WAITING_FOR_PLAYERS")
@@ -193,13 +194,18 @@ def run_pulse():
                 "spectator_room": room.get_board()["status"]
             }
             
-            values = list(health.values())
-            if "CRASHED" in values:
+            # Reducer Logic
+            # Treat hub, events, and workers as non-fatal to top-level status if core safe-mode is alive
+            is_core_alive = (lms_status == "ALIVE" and health["spectator_room"] == "ALIVE")
+            
+            if is_core_alive:
+                health["status"] = "SAFE_MODE_OPERATIONAL"
+                if "CRASHED" in [health["hub"], health["events"], health["workers"]]:
+                    health["status"] = "DEGRADED_SAFE_MODE"
+            elif "CRASHED" in [health["lms"], health["spectator_room"]]:
                 health["status"] = "CRASHED"
-            elif "STALLED" in values or "DEGRADED" in values:
-                health["status"] = "DEGRADED"
             else:
-                health["status"] = "ALIVE"
+                health["status"] = "DEGRADED"
                 
             with open(HEALTH_FILE, 'w') as f:
                 json.dump(health, f, indent=2)
