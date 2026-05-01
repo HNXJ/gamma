@@ -121,8 +121,38 @@ class Supervisor:
                 proc.kill()
         sys.exit(0)
 
+    def preflight_checks(self):
+        logger.info("Running governance preflight checks...")
+        checks = [
+            "tools/scripts/check_code_sensitivity.py",
+            "tools/scripts/check_safe_mode_config.py",
+            "tools/scripts/check_spectator_seed.py"
+        ]
+        
+        for check_script in checks:
+            script_path = os.path.join(ROOT, check_script)
+            if not os.path.exists(script_path):
+                logger.error(f"Preflight check script missing: {check_script}")
+                sys.exit(1)
+            
+            try:
+                result = subprocess.run([self.python_exe, script_path], capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.error(f"Governance Check FAILED: {check_script}")
+                    logger.error(f"STDOUT: {result.stdout}")
+                    logger.error(f"STDERR: {result.stderr}")
+                    sys.exit(1)
+                else:
+                    logger.info(f"Check PASSED: {check_script}")
+            except Exception as e:
+                logger.error(f"Check execution failed: {check_script} - {e}")
+                sys.exit(1)
+        
+        logger.info("All governance preflight checks PASSED.")
+
 if __name__ == "__main__":
     sv = Supervisor()
+    sv.preflight_checks()
     # Filter workers based on safe_mode_required
     # In Safe Mode, we only start workers with safe_mode_required=true
     run_mode = os.environ.get("SAFE_MODE", "true").lower() == "true"

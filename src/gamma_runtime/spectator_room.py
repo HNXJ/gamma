@@ -35,25 +35,34 @@ class SpectatorRoom:
             self._initialize_new_state()
 
     def _initialize_new_state(self):
-        # 1. Load from seed artifact
+        # 1. Load from seed artifact (Authoritative)
         seed_data = {}
         if os.path.exists(self.seed_file):
             try:
                 with open(self.seed_file, 'r') as f:
                     seed_data = json.load(f)
-            except: pass
+            except Exception as e:
+                print(f"ERROR: Failed to load spectator seed: {e}")
             
         queue = seed_data.get("queue_order", self.canonical_queue)
         pinned = seed_data.get("pinned_message", "Gamma Arena Spectator Relay Active")
-        stack = seed_data.get("initial_stack", ["Initial Seed"])
+        stack = seed_data.get("initial_stack", [])
         
-        # If seed missing and README exists, use as legacy fallback for stack only
-        if not stack or stack == ["Initial Seed"]:
-            if os.path.exists(self.readme_file):
+        # 2. Strict Decoupling Logic
+        allow_fallback = os.environ.get("ALLOW_README_SEED_FALLBACK", "0") == "1"
+        
+        if not stack:
+            if allow_fallback and os.path.exists(self.readme_file):
                 try:
+                    print("WARNING: Using legacy README fallback for spectator seeding (DEGRADED MODE)")
                     with open(self.readme_file, 'r') as f:
                         stack = [f.read()]
-                except: pass
+                except: 
+                    stack = ["Fallback: README read failed"]
+            else:
+                if not allow_fallback and not seed_data:
+                    print("CRITICAL: No authoritative seed found and README fallback disabled.")
+                stack = ["Authoritative Initial Seed (Empty Stack)"]
 
         self.state = {
             "mode": "SAFE MODE",

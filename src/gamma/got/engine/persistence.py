@@ -48,8 +48,14 @@ class ArenaPersistence:
 
     def save_state(self, updates: Optional[Dict[str, Any]] = None):
         """
-        Atomic Write: tempfile -> fsync -> rename.
+        Atomic Write with Canonical Backend Gate enforcement.
         """
+        # Enforcement: prevent bypass
+        if os.environ.get("TRUTH_GATE_ENABLED", "1") == "1":
+            caller = os.environ.get("AUTHORITY_TOKEN")
+            if caller != "CANONICAL_BACKEND_GATE":
+                raise PermissionError("SECURITY VIOLATION: Unauthorized write to TRUTH artifact.")
+        
         if updates:
             self.state.update(updates)
         
@@ -85,5 +91,5 @@ if __name__ == "__main__":
     # Smoke test for namespaced persistence
     p = ArenaPersistence(game_id="game001", root_dir="/Users/hamednejat/workspace/computational/gamma")
     p.record_boot()
-    p.save_state({"accepted_streak": p.get_state()["accepted_streak"] + 1})
+    p.save_state({"largest_pass_network_neuron_count": 12})
     print(f"Arena World State grounded at: {p.state_path}")

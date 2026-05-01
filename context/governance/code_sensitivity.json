@@ -8,7 +8,7 @@
       "can_run_in_safe_mode": true
     },
     "KERNEL": {
-      "description": "Truth or relay substrate.",
+      "description": "Authoritative code logic or relay logic substrate.",
       "requires_syntax_gate": true,
       "requires_smoke_test": true,
       "requires_explicit_override": true,
@@ -85,36 +85,28 @@
       "notes": "Canonical port and host configuration."
     },
     {
-      "label": "Spectator Room",
+      "label": "Spectator Room Logic",
       "path": "src/gamma_runtime/spectator_room.py",
       "level": "KERNEL",
-      "warning": "STRICT: RELAY TRUTH SUBSTRATE",
+      "warning": "STRICT: RELAY LOGIC SUBSTRATE",
       "owner_plane": "Plane-A",
-      "notes": "Manages spectator state and relay stack."
+      "notes": "Manages spectator relay logic."
     },
     {
       "label": "Event Substrate",
       "path": "src/gamma_runtime/events.py",
       "level": "KERNEL",
-      "warning": "STRICT: WORLD EVENT TRUTH",
+      "warning": "STRICT: WORLD EVENT SCHEMA",
       "owner_plane": "Plane-A",
       "notes": "Event definition and streaming logic."
     },
     {
-      "label": "Spectator State",
-      "path": "local/run/spectator_room.json",
-      "level": "KERNEL",
-      "warning": "STRICT: LIVE RELAY STATE",
-      "owner_plane": "Plane-A",
-      "notes": "Drives the relay stack."
-    },
-    {
-      "label": "README Seed",
+      "label": "README",
       "path": "README.md",
-      "level": "KERNEL",
-      "warning": "STRICT-DOC-SEED: USED AS RUNTIME SEED",
+      "level": "FEATURE",
+      "warning": "DOC: PROJECT OVERVIEW",
       "owner_plane": "Plane-A",
-      "notes": "Temporary runtime seed surface."
+      "notes": "Legacy seed reference. No longer authoritative for runtime."
     },
     {
       "label": "Startup Control",
