@@ -28,8 +28,9 @@
                     <div><div class="label">Arena Status</div><div class="value" style="color: var(--success); display: flex; align-items: center; gap: 5px;"><div class="dot"></div> ONLINE</div></div>
                 </div>
                 <div><div class="label">Uptime</div><div class="value" id="uptime">15h 47m</div></div>
-                <div><div class="label">Agents Active</div><div class="value" id="agents-active">4 / 8</div></div>
+                <div><div class="label">World Inhabitants</div><div class="value" id="agents-active">7 / 12</div></div>
                 <div><div class="label">Tasks Running</div><div class="value" id="tasks-running">3</div></div>
+
                 <div><div class="label">Heartbeat</div><div class="heartbeat" id="heartbeat">OK</div></div>
             </div>
         </header>
@@ -114,7 +115,27 @@
                     <input type="text" id="terminal-input" style="flex: 1; background: transparent; border: none; color: #fff; font-family: var(--font-mono); font-size: 10px; outline: none;" autofocus>
                 </div>
             </div>
+
+            <!-- INHABITANTS TEASER -->
+            <div class="panel" style="margin-top: 10px; border-top: 2px solid var(--accent);">
+                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>World Inhabitants Summary</span>
+                    <a href="/roster" style="color: var(--accent); font-size: 10px; text-decoration: none; border: 1px solid var(--accent); padding: 2px 8px; border-radius: 2px;">VIEW FULL ROSTER</a>
+                </div>
+                <div style="display: flex; gap: 15px; padding: 10px 0;">
+                    <div style="flex: 1; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 4px;">
+                        <div class="label">Core Actors</div>
+                        <div class="value" style="color: var(--blue);">5 ACTIVE</div>
+                    </div>
+                    <div style="flex: 1; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 4px;">
+                        <div class="label">Persisted Guests</div>
+                        <div class="value" id="guest-count-summary" style="color: var(--accent);">2 PROVEN</div>
+                    </div>
+                </div>
+                <p class="label" style="font-size: 9px; opacity: 0.6;">Verified identities with full canonical persistence (Account, Binding, Inventory, Mailbox).</p>
+            </div>
         </div>
+
 
         <!-- RIGHT SIDEBAR -->
         <div class="right-sidebar">
@@ -222,8 +243,16 @@
                 // Update basic metrics
                 document.getElementById('heartbeat').innerText = 'SEC_' + Math.floor(Date.now()/1000 % 60) + '_OK';
                 document.getElementById('uptime').innerText = data.system?.uptime || "00:00:00";
-                document.getElementById('agents-active').innerText = data.system?.agents_active || "0 / 0";
+                
+                // Update Agents / Inhabitants count
+                const agents = await fetch('/api/agents').then(r => r.json());
+                document.getElementById('agents-active').innerText = agents.length + " / 12";
+                
+                const guests = agents.filter(a => a.category === 'Persisted Identity');
+                document.getElementById('guest-count-summary').innerText = guests.length + " PROVEN";
+
                 document.getElementById('tasks-running').innerText = data.system?.tasks_running || "0";
+
                 
                 // Update Persistence
                 if (data.persistence) {

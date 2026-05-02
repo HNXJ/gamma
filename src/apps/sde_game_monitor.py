@@ -21,6 +21,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from gamma_runtime.config import HUB_PORT, DASHBOARD_PORT, get_dashboard_local_url, MONITOR_PORT
+from gamma_runtime.player_identity import PlayerIdentityManager
+
 
 app = FastAPI()
 
@@ -179,6 +181,10 @@ if LOG_PATH != "/dev/null":
 async def index(request: Request):
     return templates.TemplateResponse(request=request, name="arena.html")
 
+@app.get("/roster", response_class=HTMLResponse)
+async def roster_page(request: Request):
+    return templates.TemplateResponse(request=request, name="roster.html")
+
 # Canonical Paths
 SPECTATOR_PATH = os.path.join(ROOT_DIR, "local", "run", "spectator_room.json")
 HEALTH_PATH = os.path.join(ROOT_DIR, "local", "run", "health.json")
@@ -269,12 +275,28 @@ async def get_agents():
     QUEUE_PATH = os.path.join(ROOT_DIR, "local", "run", "communication_display.json")
     
     roster = [
-        {"id": "G01", "role": "Builder"},
-        {"id": "G02", "role": "Tuner"},
-        {"id": "G03", "role": "Analyst"},
-        {"id": "J01", "role": "Judge"},
-        {"id": "M01", "role": "Monitor"}
+        {"id": "G01", "role": "Builder", "category": "Core Actor", "provenance": "Canonical Logic | Active"},
+        {"id": "G02", "role": "Tuner", "category": "Core Actor", "provenance": "Canonical Logic | Active"},
+        {"id": "G03", "role": "Analyst", "category": "Core Actor", "provenance": "Canonical Logic | Active"},
+        {"id": "J01", "role": "Judge", "category": "Core Actor", "provenance": "Canonical Logic | Active"},
+        {"id": "M01", "role": "Monitor", "category": "Core Actor", "provenance": "Canonical Logic | Active"}
     ]
+    
+    # Dynamic Guest Loading
+    try:
+        manager = PlayerIdentityManager(root_dir=ROOT_DIR)
+        accounts = manager.list_accounts()
+        for acc in accounts:
+            roster.append({
+                "id": acc["username"],
+                "role": "Exploratory Guest",
+                "display_name": acc.get("display_name", acc["username"]),
+                "category": "Persisted Identity",
+                "provenance": "Dev Guest | Persisted | Runtime Visibility Pending"
+            })
+    except Exception as e:
+        logger.error(f"Failed to load dynamic roster: {e}")
+
     
     status_map = {agent["id"]: "STANDBY" for agent in roster}
     pending_counts = {agent["id"]: 0 for agent in roster}
