@@ -1,5 +1,5 @@
 from typing import List, Set, Dict
-from .types import AgentSpec, ModelSpec
+from .runtime_types import AgentSpec, ModelSpec
 
 def resolve_runtime_name(model: ModelSpec, agent_id: str) -> str:
     """

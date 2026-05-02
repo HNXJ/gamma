@@ -1,0 +1,61 @@
+{
+  "manifest_version": "1.0.0",
+  "project": "Gamma Arena",
+  "services": [
+    {
+      "service_id": "gamma-arena-ui",
+      "description": "Frontend Dashboard (Vite/React)",
+      "entrypoint": "npm run dev -- --port 3012 --host 0.0.0.0",
+      "cwd": "computational/gamma-arena",
+      "interpreter": "node",
+      "ports": [3012],
+      "health_probe": "http://localhost:3012",
+      "canonical": true,
+      "truth_class": "OBSERVATION"
+    },
+    {
+      "service_id": "sde_game_monitor",
+      "description": "Canonical External API & Monitor (FastAPI)",
+      "entrypoint": "src/apps/sde_game_monitor.py",
+      "cwd": "computational/gamma",
+      "interpreter": "python3",
+      "ports": [3013],
+      "health_probe": "http://localhost:3013/api/health",
+      "canonical": true,
+      "truth_class": "OBSERVATION"
+    },
+    {
+      "service_id": "council_app",
+      "description": "Main Orchestration Engine (Unified)",
+      "entrypoint": "src/apps/council_app.py",
+      "cwd": "computational/gamma",
+      "interpreter": "python3",
+      "ports": [3013],
+      "health_probe": "internal",
+      "canonical": true,
+      "truth_class": "EXECUTION"
+    },
+    {
+      "service_id": "hub_api",
+      "description": "Internal Bridge API (Demoted to bridge)",
+      "entrypoint": "src/gamma_runtime/hub_api.py",
+      "cwd": "computational/gamma",
+      "interpreter": "python3",
+      "ports": [3013],
+      "health_probe": "http://localhost:3013/api/status",
+      "canonical": false,
+      "truth_class": "LEGACY"
+    },
+    {
+      "service_id": "lms_tunnel",
+      "description": "LMS Inference Bridge (Office Mac)",
+      "entrypoint": "tools/scripts/lms-tunnel.sh",
+      "cwd": "computational/gamma",
+      "interpreter": "bash",
+      "ports": [1234],
+      "health_probe": "http://localhost:1234/v1/models",
+      "canonical": true,
+      "truth_class": "INFRA"
+    }
+  ]
+}

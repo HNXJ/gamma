@@ -10,8 +10,11 @@ class ArenaPersistence:
     Manages the 'Arena World State' for a namespaced game (e.g., game001).
     Ensures atomic writes and tracks critical scientific milestones.
     """
-    def __init__(self, game_id: str = "game001", root_dir: str = "/Users/HN/MLLM/gamma"):
+    def __init__(self, game_id: str = "game001", root_dir: str = None):
         self.game_id = game_id
+        if root_dir is None:
+            # Derived from __file__ to be cwd-independent
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
         self.root_dir = root_dir
         self.base_path = os.path.join(root_dir, "local", game_id)
         self.state_path = os.path.join(self.base_path, "arena_runtime_state.json")

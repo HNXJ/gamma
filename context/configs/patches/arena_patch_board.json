@@ -10,7 +10,9 @@
   "official_level_metric": "largest_pass_network_neuron_count",
   "largest_pass_network_neuron_count": 10,
   "active_mission_target": 11,
-  "active_mission_topic": "Continuous Growth Mode: 10 to 11 Neurons",
+  "active_mission_kind": "tutorial",
+  "active_tutorial_id": "T01_two_neuron_ei",
+  "active_mission_topic": "Tutorial Mode: T01 2-Neuron E/I Network",
   "next_unlock_threshold": 40,
   "omissions": 0,
   "sessions": [

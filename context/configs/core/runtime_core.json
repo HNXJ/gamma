@@ -1,0 +1,84 @@
+{
+  "environment": {
+    "label": "office-mac",
+    "version": "1.0.0",
+    "is_cloud": false
+  },
+  "paths": {
+    "world_root": "/Users/hamednejat/workspace/computational/gamma",
+    "data_root": "local",
+    "run_root": "local/run",
+    "player_accounts": "local/player_accounts",
+    "player_sessions": "local/player_sessions",
+    "player_inventory": "local/player_inventory",
+    "mail_root": "local/player_mail",
+    "inventory_root": "local/player_inventory",
+    "logs": "local/run/logs",
+    "checkpoints": "local/run/checkpoints",
+    "snapshots": "local/run/snapshots",
+    "runtime_state_root": "local/run/state",
+    "spectator_room": "local/run/spectator_room.json"
+  },
+  "network": {
+    "bind_host": "0.0.0.0",
+    "localhost": "127.0.0.1",
+    "hub_port": 8001,
+    "monitor_port": 3013,
+    "ui_port": 3012,
+    "lms_port": 1234,
+    "worker_port_range": [9000, 9999]
+  },
+  "timing": {
+    "heartbeat_interval_seconds": 10.0,
+    "idle_threshold_seconds": 300.0,
+    "poll_interval_seconds": 2.0,
+    "snapshot_interval_seconds": 3600.0,
+    "probe_timeout_seconds": 2.0,
+    "inference_timeout_seconds": 120.0,
+    "request_timeout_seconds": 30.0,
+    "stream_reconnect_ms": 5000
+  },
+  "providers": {
+    "lms": {
+      "base_url": "http://localhost:1234",
+      "connectivity_mode": "AUTO"
+    },
+    "mlx": {
+      "port": 4474,
+      "timeout": 300.0
+    },
+    "openai_compatible": {
+      "api_key_ref": "OPENAI_API_KEY",
+      "base_url": "https://api.openai.com/v1"
+    }
+  },
+  "features": {
+    "developer_guest_mode": true,
+    "enable_telemetry": false,
+    "strict_identity_validation": true,
+    "allow_unauthenticated_dev_access": true
+  },
+  "limits": {
+    "max_active_sessions": 10,
+    "max_retry_attempts": 3,
+    "max_log_tail_lines": 100
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
+  },
+  "spectator": {
+    "default_room_id": "lobby",
+    "auto_refresh_ms": 2000
+  },
+  "safety": {
+    "enforce_timeout_probes": true,
+    "readonly_audit_mode": false,
+    "block_destructive_remote_actions": true
+  },
+  "debug": {
+    "verbose": false,
+    "trace_inference": false,
+    "debug_proposal_path": "local/run/debug_proposal.json"
+  }
+}

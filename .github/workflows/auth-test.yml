@@ -1,0 +1,21 @@
+name: Validate GCP Auth
+on:
+  push:
+    branches: [ office-dev ]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  validate-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: 'projects/71704346823/locations/global/workloadIdentityPools/gamma-wif-pool/providers/github-provider'
+          service_account: 'gamma-gh-deployer@gen-lang-client-0755786908.iam.gserviceaccount.com'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+      - name: 'Validate'
+        run: gcloud auth list

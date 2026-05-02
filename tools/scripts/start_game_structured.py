@@ -60,7 +60,8 @@ def run_preflight_checks():
     for agent in agents:
         agent_dir = os.path.join(ROOT, f"local/inventory/{agent}")
         if not os.path.exists(agent_dir):
-            emit_failure("missing_inventory", f"Missing inventory directory for {agent} at {agent_dir}")
+            logger.info(f"Creating missing inventory directory for {agent} at {agent_dir}")
+            os.makedirs(agent_dir, exist_ok=True)
             
     logger.info("✅ Preflight checks passed.")
 
@@ -107,14 +108,27 @@ async def main():
     hub_server.start()
     
     # 6. Launch a real task to prove orchestration and tool harness are active
-    logger.info("Triggering real orchestrator run...")
-    await orchestrator.launch_run(
-        run_type="council",
-        topic="Initial Substrate Review: 11 Neurons Target",
-        team_id="gamma_structured_team",
-        rounds=1,
-        auto_consolidate=False
-    )
+    # Respect MissionContext from patch board
+    mission_ctx = orchestrator._load_mission_context()
+    logger.info(f"Triggering initial mission: {mission_ctx.mission_kind}")
+    
+    if mission_ctx.mission_kind == "tutorial":
+        await orchestrator.launch_run(
+            run_type="tutorial",
+            topic=f"Bootstrap: {mission_ctx.mission_topic}",
+            tutorial_id=mission_ctx.tutorial_id or "T00_single_neuron_hh"
+        )
+    else:
+        await orchestrator.launch_run(
+            run_type="council",
+            topic=mission_ctx.mission_topic,
+            team_id="gamma_structured_team",
+            rounds=1,
+            auto_consolidate=False
+        )
+    
+    # Activate heartbeat for autonomous progression
+    orchestrator.start_heartbeat_monitor()
     
     logger.info("✅ Gamma Game is now RUNNING with Tool Harness active.")
     logger.info(f"Hub API: http://localhost:{HUB_PORT}")

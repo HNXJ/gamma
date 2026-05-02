@@ -196,11 +196,13 @@ class ContextHydrator:
 
     def hydrate(self, agent_role: str, memory: str, task: str, 
                 active_skills: List[str] = None,
-                scenario_tags: Set[str] = None) -> str:
+                scenario_tags: Set[str] = None,
+                protocol: Optional[str] = None) -> str:
         
         role_block = f"## Role Profile\n{agent_role}"
         memory_block = f"## Long-Term Memory\n{memory}"
         task_block = f"## Active Task\n{task}"
+        protocol_block = f"## Response Protocol\n{protocol}" if protocol else ""
         
         selected_skills = self._resolve_skills(active_skills, scenario_tags)
         skill_blocks = []
@@ -211,6 +213,8 @@ class ContextHydrator:
                 skill_blocks.append(content)
         
         blocks = [role_block, memory_block, task_block]
+        if protocol_block:
+            blocks.append(protocol_block)
         
         if os.path.exists(self.central_context_path):
             with open(self.central_context_path, 'r') as f:

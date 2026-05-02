@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 from typing import List, Dict, Optional
-from gamma_runtime.types import AgentSpec, InferenceRequest
+from gamma_runtime.runtime_types import AgentSpec, InferenceRequest
 from gamma_runtime.scheduler import InferenceScheduler, ResourceBudget
 from gamma_runtime.blackboard import Blackboard
 from gamma_runtime.registry import RuntimeRegistry
@@ -62,7 +62,7 @@ class CouncilOrchestrator:
                     result_text = result.text
                 
                 await self.blackboard.add_entry(agent.agent_id, result_text)
-                logger.info(f"[{agent_id}] Entry committed to blackboard.")
+                logger.info(f"Agent {agent.agent_id} Contribution: {result_text}")
                 
         return self.blackboard
 
@@ -143,7 +143,7 @@ async def main():
     from gamma_runtime.orchestrator import UnifiedOrchestrator
     from gamma_runtime.hub_api import HubAPIServer
     from gamma_runtime.config import get_lms_url, HUB_PORT
-    root = os.getcwd()
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     config_path = os.path.join(root, "context", "configs")
     registry = RuntimeRegistry(config_path)
     scheduler = InferenceScheduler()

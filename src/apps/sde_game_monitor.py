@@ -14,16 +14,19 @@ import plotly.graph_objects as go
 import subprocess
 from pydantic import BaseModel
 import random
+import hashlib
 
 from fastapi.staticfiles import StaticFiles
 
 from fastapi.middleware.cors import CORSMiddleware
 
+from gamma_runtime.config import HUB_PORT, DASHBOARD_PORT, get_dashboard_local_url, MONITOR_PORT
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3012"],
+    allow_origins=[get_dashboard_local_url()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,11 +70,44 @@ council_dialogue = []
 structured_events = [] # Placeholder for future structured provenance events
 tps_stats = {"total_tokens": 0, "last_tps_check": time.time(), "tps": 0.0}
 
+# Agent Activity + Novelty Tracking
+AGENT_ACTIVITY = {}
+IDENTITY_ALIASES = {}
+
+def load_aliases():
+    global IDENTITY_ALIASES
+    alias_path = os.path.join(ROOT_DIR, "context", "configs", "identity_aliases.json")
+    if os.path.exists(alias_path):
+        try:
+            with open(alias_path, "r") as f:
+                data = json.load(f)
+                IDENTITY_ALIASES = data.get("aliases", {})
+        except: pass
+
+load_aliases()
+
+def resolve_agent_id(raw_id: str) -> str:
+    # Check for direct match in aliases
+    if raw_id in IDENTITY_ALIASES:
+        return IDENTITY_ALIASES[raw_id]
+    # Check for substring match in roster (e.g. G01-builder -> G01)
+    for canonical in ["G01", "G02", "G03", "J01", "M01"]:
+        if canonical in raw_id:
+            return canonical
+    return raw_id
+
+def get_content_hash(content: str) -> str:
+    return hashlib.md5(content.strip().encode()).hexdigest()
+
 def update_monitor_data():
     global council_dialogue, tps_stats, structured_events
     last_pos = 0
     while True:
         try:
+            # Refresh aliases occasionally
+            if random.random() < 0.1: load_aliases()
+            
+            # ... (rest of parsing)
             # 1. Check for structured provenance records (Durable Path)
             # Placeholder for future structured sink integration
             pass
@@ -87,12 +123,43 @@ def update_monitor_data():
                         # Regex Extraction: [Agent], [Timestamp], [Message]
                         match = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - (.*?) - INFO - (.*)", line)
                         if match:
-                            ts, agent, msg = match.groups()
-                            if any(a in agent for a in ["Macro", "Meso", "Micro", "Critic", "Monitor", "Optimizer", "Analyst", "Manager", "v1_gamma"]):
-                                entry = {"time": ts, "agent": agent, "msg": msg}
+                            ts, log_source, msg = match.groups()
+                            
+                            # Standard Dialogue Logging
+                            if any(a in log_source for a in ["Macro", "Meso", "Micro", "Critic", "Monitor", "Optimizer", "Analyst", "Manager", "v1_gamma", "G01", "G02", "G03", "J01", "M01"]):
+                                entry = {"time": ts, "agent": log_source, "msg": msg}
                                 council_dialogue.append(entry)
                                 if len(council_dialogue) > 100: council_dialogue.pop(0)
                                 tps_stats["total_tokens"] += len(msg.split()) * 4 # Approximation
+                            
+                            # Activity + Novelty Tracking (Structured Contribution)
+                            contrib_match = re.search(r"Agent (.*?) Contribution: (.*)", msg)
+                            if contrib_match:
+                                raw_id, content = contrib_match.groups()
+                                agent_id = resolve_agent_id(raw_id)
+                                msg_hash = get_content_hash(content)
+                                
+                                if agent_id not in AGENT_ACTIVITY:
+                                    AGENT_ACTIVITY[agent_id] = {
+                                        "last_message_ts": ts,
+                                        "last_message_hash": msg_hash,
+                                        "consecutive_repeat_count": 0,
+                                        "novelty_state": "NOVEL",
+                                        "last_event_ts": time.time(),
+                                        "turns_since_last_contribution": 0
+                                    }
+                                else:
+                                    act = AGENT_ACTIVITY[agent_id]
+                                    if msg_hash == act["last_message_hash"]:
+                                        act["consecutive_repeat_count"] += 1
+                                    else:
+                                        act["consecutive_repeat_count"] = 0
+                                        act["last_message_hash"] = msg_hash
+                                    
+                                    act["last_message_ts"] = ts
+                                    act["last_event_ts"] = time.time()
+                                    act["novelty_state"] = "REPEATING" if act["consecutive_repeat_count"] >= 1 else "NOVEL"
+                                    act["turns_since_last_contribution"] = 0
                         
                         # Simple TPS calc
                         now = time.time()
@@ -149,10 +216,11 @@ async def get_status():
     return {
         "system": {
             "status": health.get("status", "STANDBY"),
+            "heartbeat": heartbeat_val,
+            "dialogue_activity": "ACTIVE" if council_dialogue else "INACTIVE",
+            "last_signal": last_updated,
             "monitor_uptime_seconds": health.get("monitor_uptime_seconds", int(time.time() - START_TIME)),
             "backend_model_slots_occupied": "3 / 4",
-            "heartbeat": heartbeat_val,
-            "council_chat_activity": "ACTIVE" if council_dialogue else "INACTIVE",
             "metadata": {
                 "health_timestamp": health.get("timestamp"),
                 "spectator_timestamp": last_updated,
@@ -201,16 +269,18 @@ async def get_agents():
     QUEUE_PATH = os.path.join(ROOT_DIR, "local", "run", "communication_display.json")
     
     roster = [
-        {"id": "G01-builder", "role": "Builder"},
-        {"id": "G02-tuner", "role": "Tuner"},
-        {"id": "G03-analyst", "role": "Analyst"},
-        {"id": "J01-judge", "role": "Judge"},
-        {"id": "M01-monitor", "role": "Monitor"}
+        {"id": "G01", "role": "Builder"},
+        {"id": "G02", "role": "Tuner"},
+        {"id": "G03", "role": "Analyst"},
+        {"id": "J01", "role": "Judge"},
+        {"id": "M01", "role": "Monitor"}
     ]
     
     status_map = {agent["id"]: "STANDBY" for agent in roster}
     pending_counts = {agent["id"]: 0 for agent in roster}
     system_blocker = None
+    
+    pending_items = {agent["id"]: [] for agent in roster}
     
     try:
         with open(HEALTH_PATH, 'r') as f:
@@ -226,8 +296,11 @@ async def get_agents():
             if queue:
                 current_idx = idx % len(queue)
                 next_idx = (idx + 1) % len(queue)
-                current = queue[current_idx]
-                next_a = queue[next_idx]
+                current_raw = queue[current_idx]
+                next_raw = queue[next_idx]
+                
+                current = resolve_agent_id(current_raw)
+                next_a = resolve_agent_id(next_raw)
                 
                 # Assign statuses
                 for aid in status_map:
@@ -237,25 +310,65 @@ async def get_agents():
                         status_map[aid] = "QUEUED"
             
         with open(QUEUE_PATH, 'r') as f:
-            q_items = json.load(f)
-            pending = len(q_items.get("queue", []))
-            for aid in pending_counts: pending_counts[aid] = pending
+            q_data = json.load(f)
+            items = q_data.get("queue", [])
+            for aid in pending_items:
+                # In this system, items are broadcast to all or directed. 
+                # For the contract, we expose what is currently in the display queue.
+                pending_items[aid] = items
     except Exception:
         pass
 
-    return [
-        {
+    results = []
+    for agent in roster:
+        aid = agent["id"]
+        status = status_map[aid]
+        
+        # Activity State Logic
+        act_state = status
+        if status == "STANDBY":
+            if pending_items[aid]:
+                act_state = "WAITING"
+            else:
+                act_state = "IDLE"
+        
+        # Overwrite if blocked
+        if system_blocker and status == "ACTIVE":
+            act_state = "BLOCKED"
+
+        results.append({
             **agent,
-            "status": status_map[agent["id"]],
+            "status": status,
+            "activity_state": act_state,
+            "activity_reason": "LMS_BLOCK" if act_state == "BLOCKED" else "NORMAL",
+            "novelty_state": AGENT_ACTIVITY.get(aid, {}).get("novelty_state", "UNKNOWN"),
+            "consecutive_repeat_count": AGENT_ACTIVITY.get(aid, {}).get("consecutive_repeat_count", 0),
+            "last_message_ts": AGENT_ACTIVITY.get(aid, {}).get("last_message_ts"),
+            "last_turn_index_seen": AGENT_ACTIVITY.get(aid, {}).get("last_turn_index_seen"),
+            "turns_since_last_contribution": AGENT_ACTIVITY.get(aid, {}).get("turns_since_last_contribution", 0),
+            "pending_items_count": len(pending_items[aid]),
             "system_blocker": system_blocker,
-            "last_active": "NOW" if status_map[agent["id"]] == "ACTIVE" else "",
+            "last_active": "NOW" if status == "ACTIVE" else "",
             "grounded_evidence": True,
             "truth_class": "GROUNDED",
             "evidence_source": [SPECTATOR_PATH, HEALTH_PATH, QUEUE_PATH],
-            "pending_items_count": pending_counts[agent["id"]]
-        }
-        for agent in roster
-    ]
+            "pending_items": pending_items[aid],
+            "activity_metadata": AGENT_ACTIVITY.get(aid, {})
+        })
+    return results
+
+@app.get("/api/agents/activity")
+async def get_agent_activity_summary():
+    agents = await get_agents()
+    return {a["id"]: a.get("activity_metadata", {}) for a in agents}
+
+@app.get("/api/agents/novelty")
+async def get_agent_novelty_summary():
+    agents = await get_agents()
+    return {a["id"]: {
+        "novelty_state": a["novelty_state"], 
+        "consecutive_repeat_count": a["consecutive_repeat_count"]
+    } for a in agents}
 
 @app.get("/api/agents/{agent_id}/logs")
 async def get_agent_logs(agent_id: str, lines: int = 100):
@@ -333,7 +446,7 @@ async def get_network_state():
         "z": [0.0] * n,
         "radius": [0.02] * n,
         "status": ["active"] * n,
-        "truth_class": ["GROUNDED"] * n
+        "truth_class": ["SYNTHETIC"] * n
     }
     edges = {
         "src": ["n0", "n1", "n2", "n7", "n8"],
@@ -341,7 +454,7 @@ async def get_network_state():
         "weight": [0.8, 0.7, 0.9, -0.5, -0.6],
         "sign": ["exc", "exc", "exc", "inh", "inh"],
         "kind": ["synapse"] * 5,
-        "truth_class": ["GROUNDED"] * 5
+        "truth_class": ["SYNTHETIC"] * 5
     }
     
     now_iso = datetime.now().isoformat()
@@ -350,8 +463,8 @@ async def get_network_state():
         "snapshot_version": SNAPSHOT_VERSION,
         "network_epoch": NETWORK_EPOCH,
         "snapshot_time": now_iso,
-        "truth_class": "GROUNDED",
-        "source": "local/game001/arena_runtime_state.json",
+        "truth_class": "SYNTHETIC",
+        "source": "MOCK_TOPOLOGY",
         "units": { "position": "normalized", "radius": "normalized", "weight": "unitless" },
         "nodes": nodes,
         "edges": edges,
@@ -398,4 +511,4 @@ async def get_raw_logs(lines: int = 100):
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=3013)
+    uvicorn.run(app, host="0.0.0.0", port=MONITOR_PORT)

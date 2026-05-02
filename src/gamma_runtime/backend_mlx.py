@@ -1,7 +1,7 @@
 import time
 import httpx
 import logging
-from .types import ModelSpec, InferenceRequest, InferenceResult
+from .runtime_types import ModelSpec, InferenceRequest, InferenceResult
 from .backend_base import InferenceBackend
 from .config import get_lms_url
 

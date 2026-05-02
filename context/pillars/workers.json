@@ -35,8 +35,8 @@
       "name": "orchestrator",
       "cmd": "python3 tools/scripts/start_game_structured.py",
       "restart_policy": "on-failure",
-      "safe_mode_required": false,
-      "mandatory_pillar": false,
+      "safe_mode_required": true,
+      "mandatory_pillar": true,
       "optional_in_safe_mode": false,
       "degraded_allowed": false,
       "priority": 3

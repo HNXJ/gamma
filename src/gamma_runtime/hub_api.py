@@ -43,20 +43,12 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 self._set_headers(404)
                 self.wfile.write(json.dumps({"error": "Session not found"}).encode())
         elif path == "/api/status":
-            # Returns the complete state for the dashboard
+            # Returns the runtime state for internal bridge consumption
             state = {
                 "system": {
                     "id": "GAMMA-M3MAX-01",
-                    "status": "IDLE", # To be linked to scheduler pressure
-                    "vram": "14.2 / 96.0 GB", # Mocking for now, will link to scheduler
-                    "uptime": "04:32:11",
-                    "heartbeat": time.time(),
-                    "boot_epoch": "2026-04-30T00:00:00Z"
-                },
-                "research": {
-                    "pass_network": "14-Node grounded",
-                    "active_patch": "v1.2.4-hotfix",
-                    "omissions": 0
+                    "status": "RUNNING",
+                    "heartbeat": time.time()
                 },
                 "sessions": self.orchestrator.get_all_sessions()
             }

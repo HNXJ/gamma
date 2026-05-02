@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
-from .types import InferenceRequest, InferenceResult, ModelSpec
+from .runtime_types import InferenceRequest, InferenceResult, ModelSpec
 from .model_pool import SharedModelPool
 
 @dataclass

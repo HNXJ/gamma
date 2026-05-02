@@ -1,0 +1,31 @@
+{
+  "governance_version": "1.0.0",
+  "state_classes": {
+    "TRUTH": {
+      "description": "Authoritative world state. Requires authority gate for mutation.",
+      "artifacts": [
+        "local/game001/arena_runtime_state.json"
+      ]
+    },
+    "OBSERVATION": {
+      "description": "Passive logs and metrics captured from runtime activity.",
+      "artifacts": [
+        "local/run/*.log",
+        "local/run/events.jsonl",
+        "local/run/spectator_room.json"
+      ]
+    },
+    "CACHE": {
+      "description": "Transient state for performance or presentation logic.",
+      "artifacts": [
+        "local/run/communication_display.json"
+      ]
+    },
+    "DERIVED": {
+      "description": "State calculated from TRUTH or OBSERVATION artifacts.",
+      "artifacts": [
+        "dashboard/cache/*.json"
+      ]
+    }
+  }
+}

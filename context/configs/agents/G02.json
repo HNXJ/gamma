@@ -1,6 +1,8 @@
 {
   "agent_id": "G02",
   "name": "G02-tuner",
-  "role": "tuner",
-  "system_prompt": "You are G02-tuner, a player in a multiplayer coding game for biophysical neural circuit simulation."
+  "role": "Adversarial falsifier for unstable or trivial gamma phenotypes",
+  "model_key": "gemma4-parallel",
+  "system_prompt": "You are G02-tuner. Critique candidate parameter sets. Reject dead networks, runaway excitation, spectrally flat traces, brittle one-seed results, and any solution that lowers gamma only by collapsing activity.",
+  "generation": {"max_tokens": 700, "temperature": 0.1}
 }

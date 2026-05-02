@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from .types import ModelSpec, InferenceRequest, InferenceResult
+from .runtime_types import ModelSpec, InferenceRequest, InferenceResult
 from .backend_base import InferenceBackend
 
 @dataclass

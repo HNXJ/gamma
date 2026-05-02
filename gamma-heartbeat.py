@@ -17,6 +17,7 @@ from src.gamma_runtime.config import (
     LMSConnectivityMode
 )
 from src.gamma_runtime.spectator_room import SpectatorRoom
+from src.gamma_runtime.core_config import config
 
 # Logging setup
 logging.basicConfig(
@@ -166,6 +167,35 @@ def run_pulse():
             lms_mode = detect_lms_connectivity_mode()
             available_models = get_lms_models() if lms_status == "ALIVE" else []
             
+            # --- IDLE RECOVERY PROTOCOL (Refined) ---
+            board = room.get_board()
+            now = time.time()
+            
+            # Detect idle if no turn index progress and no quest updates for 5 mins
+            if "last_turn_time" not in board:
+                board["last_turn_time"] = now
+            
+            if board["turn_index"] > board.get("prev_turn_index", 0):
+                board["last_turn_time"] = now
+                board["prev_turn_index"] = board["turn_index"]
+            
+            idle_duration = now - board["last_turn_time"]
+            if idle_duration > 300: # 5 minutes
+                logger.warning(f"IDLE DETECTED: {idle_duration}s. Requesting Judge recovery.")
+                
+                # Emit idle alert to Judge role (J01)
+                alert_payload = {
+                    "trigger": "prolonged_silence",
+                    "duration": idle_duration,
+                    "target_role": "J01-judge",
+                    "action_required": "trigger_recovery_cycle"
+                }
+                room.post_turn("HEARTBEAT", "IDLE_ALERT", alert_payload)
+                
+                # Log detection event
+                room.log_telemetry("HEARTBEAT", "monitor", "idle_detection", "none", "exploratory")
+            # ----------------------------------------
+
             # Spectator Loop
             if safe_mode and lms_mode in [LMSConnectivityMode.LOCAL, LMSConnectivityMode.TUNNELED]:
                 if len(available_models) >= 2:
@@ -227,8 +257,8 @@ def run_pulse():
         finally:
             # Release the lock
             fcntl.flock(lock_fd, fcntl.LOCK_UN)
-                
-        time.sleep(5)
 
+        interval = config.get("timing.heartbeat_interval_seconds", 5.0)
+        time.sleep(interval)
 if __name__ == "__main__":
     run_pulse()
