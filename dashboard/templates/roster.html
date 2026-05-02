@@ -212,30 +212,38 @@
                 const agents = await res.json();
                 
                 const grid = document.getElementById('roster-grid');
-                grid.innerHTML = agents.map(a => `
-                    <div class="card ${a.category === 'Core Actor' ? 'core' : ''}">
+                grid.innerHTML = agents.map(a => {
+                    const name = a.name || a.display_name || a.id;
+                    const role = a.role || 'Agent';
+                    const status = a.status || a.state || 'UNKNOWN';
+                    const category = a.category || 'CORE';
+                    const description = a.description || 'Authenticated inhabitant of the Gamma exploratory layer.';
+                    const provenance = a.provenance || 'CANONICAL';
+                    
+                    return `
+                    <div class="card ${category === 'Core Actor' ? 'core' : ''}">
                         <div class="card-header">
                             <span class="id-tag">${a.id}</span>
                             <div style="display: flex; gap: 6px;">
-                                <span class="state-badge" style="border-color: ${a.status === 'ACTIVE' ? 'var(--success)' : 'var(--text-dim)'}; color: ${a.status === 'ACTIVE' ? 'var(--success)' : 'var(--text-dim)'}">
-                                    ${a.status}
+                                <span class="state-badge" style="border-color: ${status === 'ACTIVE' ? 'var(--success)' : 'var(--text-dim)'}; color: ${status === 'ACTIVE' ? 'var(--success)' : 'var(--text-dim)'}">
+                                    ${status}
                                 </span>
                                 <span class="state-badge" style="border-color: var(--blue); color: var(--blue); opacity: 0.8;">
-                                    ${a.category}
+                                    ${category}
                                 </span>
                             </div>
                         </div>
-                        <div class="display-name">${a.display_name || a.id}</div>
-                        <div class="role">${a.role}</div>
+                        <div class="display-name">${name}</div>
+                        <div class="role">${role}</div>
                         <div style="font-size: 11px; opacity: 0.8; height: 32px; overflow: hidden; line-height: 1.4;">
-                            Authenticated inhabitant of the Gamma exploratory layer. Grounded identity verified.
+                            ${description}
                         </div>
                         <div class="meta-line">
                             <span style="color: var(--text-dim); font-weight: 700;">PROVENANCE</span>
-                            <span style="color: var(--accent); font-family: 'JetBrains Mono', monospace;">${a.provenance || 'CANONICAL'}</span>
+                            <span style="color: var(--accent); font-family: 'JetBrains Mono', monospace;">${provenance}</span>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
 
             } catch (e) {
                 console.error("Roster load failed", e);

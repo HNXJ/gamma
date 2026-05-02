@@ -30,6 +30,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from gamma_runtime.config import HUB_PORT, DASHBOARD_PORT, get_dashboard_local_url, MONITOR_PORT
 from gamma_runtime.player_identity import PlayerIdentityManager
 
+import logging
+import subprocess
+from datetime import datetime
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("sde_monitor")
+
 
 
 app = FastAPI()
@@ -198,6 +206,22 @@ SPECTATOR_PATH = os.path.join(ROOT_DIR, "local", "run", "spectator_room.json")
 HEALTH_PATH = os.path.join(ROOT_DIR, "local", "run", "health.json")
 QUEUE_PATH = os.path.join(ROOT_DIR, "local", "run", "communication_display.json")
 
+@app.get("/api/diag")
+async def get_diag():
+    """Diagnostic endpoint for path verification."""
+    manager = PlayerIdentityManager(root_dir=ROOT_DIR)
+    return {
+        "ROOT_DIR": ROOT_DIR,
+        "CONFIG_ROOT": config.root,
+        "LOG_PATH": LOG_PATH,
+        "TEMPLATES_DIR": str(TEMPLATES_DIR),
+        "registry_exists": os.path.exists(os.path.join(ROOT_DIR, "local/player_accounts/registry.json")),
+        "bindings_exists": os.path.exists(os.path.join(ROOT_DIR, "local/player_accounts/bindings.json")),
+        "sessions_exists": os.path.exists(os.path.join(ROOT_DIR, "local/player_sessions/active.json")),
+        "manager_accounts_path": str(manager.accounts_path),
+        "manager_sessions_path": str(manager.sessions_path)
+    }
+
 @app.get("/api/status")
 async def get_status():
     progression = await get_progression()
@@ -253,6 +277,22 @@ async def get_status():
         }
     }
 
+@app.get("/api/diag")
+async def get_diag():
+    """Diagnostic endpoint for path verification."""
+    manager = PlayerIdentityManager(root_dir=ROOT_DIR)
+    return {
+        "ROOT_DIR": ROOT_DIR,
+        "CONFIG_ROOT": config.root,
+        "LOG_PATH": LOG_PATH,
+        "TEMPLATES_DIR": str(TEMPLATES_DIR),
+        "registry_exists": os.path.exists(os.path.join(ROOT_DIR, "local/player_accounts/registry.json")),
+        "bindings_exists": os.path.exists(os.path.join(ROOT_DIR, "local/player_accounts/bindings.json")),
+        "sessions_exists": os.path.exists(os.path.join(ROOT_DIR, "local/player_sessions/active.json")),
+        "manager_accounts_path": str(manager.accounts_path),
+        "manager_sessions_path": str(manager.sessions_path)
+    }
+
 @app.get("/api/progression")
 async def get_progression():
     progression = {"largest_pass_network_neuron_count": 10, "active_patches": [], "truth_class": "DEGRADED"}
@@ -293,19 +333,36 @@ async def get_agents():
     # Dynamic Guest Loading
     try:
         manager = PlayerIdentityManager(root_dir=ROOT_DIR)
-        accounts = manager.list_accounts()
-        for acc in accounts:
-            roster.append({
-                "id": acc["username"],
-                "role": "Exploratory Guest",
-                "display_name": acc.get("display_name", acc["username"]),
-                "category": "Persisted Identity",
-                "provenance": "Dev Guest | Runtime Visibility Pending",
-                "status": "ACTIVE" if acc.get("is_active") else "STANDBY"
-            })
-
+        accounts = manager.list_accounts() # Returns Dict[str, PlayerAccount]
+        logger.info(f"Identity Manager loaded {len(accounts)} accounts from {manager.accounts_path}")
+        
+        for username, acc in accounts.items():
+            if username.startswith("lite_guest_"):
+                # Check for active session
+                session = manager.get_active_session(acc.account_id)
+                status = "ACTIVE" if session else "PERSISTED"
+                
+                roster.append({
+                    "id": username,
+                    "name": acc.display_name,
+                    "role": "Exploratory Guest",
+                    "state": status,
+                    "category": "GUEST",
+                    "description": "Dev Guest | Exploratory Guest",
+                    "provenance": "Persisted Identity | Runtime Visibility Pending"
+                })
     except Exception as e:
         logger.error(f"Failed to load dynamic roster: {e}")
+        # Diagnostic entry
+        roster.append({
+            "id": "sys_err",
+            "name": "System Error",
+            "role": "DIAGNOSTIC",
+            "state": "FAILED",
+            "category": "SYSTEM",
+            "description": f"Error loading guests: {str(e)}",
+            "provenance": "Monitor Trace"
+        })
 
     
     status_map = {agent["id"]: "STANDBY" for agent in roster}
