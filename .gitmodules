@@ -1,0 +1,3 @@
+[submodule "src/computational/jbiophysic"]
+	path = src/computational/jbiophysic
+	url = https://github.com/HNXJ/jbiophysic.git
