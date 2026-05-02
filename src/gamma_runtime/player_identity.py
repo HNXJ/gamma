@@ -17,6 +17,7 @@ class PlayerAccount:
     display_name: str
     enabled: bool = True
     dev_only: bool = True
+    roles: List[str] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
     last_login_at: Optional[float] = None
 
@@ -57,6 +58,9 @@ class PlayerIdentityManager:
         for p in [self.accounts_path, self.sessions_path, self.inventory_path, self.mail_path]:
             p.mkdir(parents=True, exist_ok=True)
 
+        self.invites_path = self._resolve_path(config.get("paths.player_invites", "local/player_invites"))
+        self.invites_path.mkdir(parents=True, exist_ok=True)
+
     def _resolve_path(self, path_str: str) -> Path:
         p = Path(path_str)
         if p.is_absolute():
@@ -88,7 +92,7 @@ class PlayerIdentityManager:
     def _save_json(self, path: Path, data: dict):
         with open(path, "w") as f: json.dump(data, f, indent=2)
 
-    def sign_up(self, username, password, display_name=None) -> Optional[Dict]:
+    def sign_up(self, username, password, display_name=None, roles=None) -> Optional[Dict]:
         accounts = self._load_json(self.accounts_path / "registry.json")
         if username in accounts: return None
         
@@ -97,7 +101,8 @@ class PlayerIdentityManager:
             account_id=account_id,
             username=username,
             password_hash=self._hash_password(password),
-            display_name=display_name or username
+            display_name=display_name or username,
+            roles=roles or []
         )
         accounts[username] = asdict(account)
         self._save_json(self.accounts_path / "registry.json", accounts)
@@ -190,3 +195,37 @@ class PlayerIdentityManager:
 
     def list_accounts(self) -> List[dict]:
         return list(self._load_json(self.accounts_path / "registry.json").values())
+
+    def create_invite(self, username, roles=None, display_name=None) -> str:
+        invites = self._load_json(self.invites_path / "invites.json")
+        token = secrets.token_urlsafe(32)
+        invites[token] = {
+            "username": username,
+            "roles": roles or [],
+            "display_name": display_name or username,
+            "created_at": time.time(),
+            "used": False
+        }
+        self._save_json(self.invites_path / "invites.json", invites)
+        return token
+
+    def redeem_invite(self, token, password) -> Optional[Dict]:
+        invites = self._load_json(self.invites_path / "invites.json")
+        invite = invites.get(token)
+        if not invite or invite["used"]:
+            return None
+        
+        account = self.sign_up(
+            username=invite["username"],
+            password=password,
+            display_name=invite["display_name"],
+            roles=invite["roles"]
+        )
+        
+        if account:
+            invite["used"] = True
+            invite["redeemed_at"] = time.time()
+            invite["account_id"] = account["account_id"]
+            self._save_json(self.invites_path / "invites.json", invites)
+            
+        return account
