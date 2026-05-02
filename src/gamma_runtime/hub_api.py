@@ -8,6 +8,9 @@ import time
 from typing import Optional
 from urllib.parse import urlparse, parse_qs
 from .orchestrator import UnifiedOrchestrator
+from .player_identity import PlayerIdentityManager
+from .content_service import ContentService
+from .content_admin import ContentAuthorizationError
 
 logger = logging.getLogger("HubAPI")
 
@@ -17,21 +20,42 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
     Provides zero-dependency REST endpoints for the Dashboard.
     """
     orchestrator: Optional[UnifiedOrchestrator] = None
+    identity_manager: Optional[PlayerIdentityManager] = None
+    content_service: Optional[ContentService] = None
 
     def _set_headers(self, status=200):
         self.send_response(status)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*') # Enable CORS for the local dashboard
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
 
     def do_OPTIONS(self):
         self._set_headers()
 
+    def _get_authenticated_account(self) -> Optional[dict]:
+        auth_header = self.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return None
+        session_id = auth_header.split(' ')[1]
+        
+        sessions = self.identity_manager._load_json(self.identity_manager.sessions_path / "active.json")
+        session = sessions.get(session_id)
+        if not session or not session.get('active'):
+            return None
+        
+        account_id = session.get('account_id')
+        accounts = self.identity_manager._load_json(self.identity_manager.accounts_path / "registry.json")
+        for acc in accounts.values():
+            if acc['account_id'] == account_id:
+                return acc
+        return None
+
     def do_GET(self):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
+        query = parse_qs(parsed_path.query)
         
         if path.startswith("/api/session/"):
             session_id = path.split("/")[-1]
@@ -50,7 +74,7 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                     "status": "RUNNING",
                     "heartbeat": time.time()
                 },
-                "sessions": self.orchestrator.get_all_sessions()
+                "sessions": self.orchestrator.get_all_sessions() if self.orchestrator else []
             }
             self._set_headers()
             self.wfile.write(json.dumps(state).encode())
@@ -67,6 +91,21 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                             except: pass
             self._set_headers()
             self.wfile.write(json.dumps(events[-100:]).encode()) # Return last 100 events
+        elif path == "/api/content/list":
+            surface = query.get("surface", ["blog"])[0]
+            pages = self.content_service.list_pages(surface)
+            self._set_headers()
+            self.wfile.write(json.dumps({"surface": surface, "pages": pages}).encode())
+        elif path == "/api/content/read":
+            surface = query.get("surface", ["blog"])[0]
+            page_id = query.get("page_id", [""])[0]
+            content = self.content_service.read_page(surface, page_id)
+            if content is not None:
+                self._set_headers()
+                self.wfile.write(json.dumps({"surface": surface, "page_id": page_id, "content": content}).encode())
+            else:
+                self._set_headers(404)
+                self.wfile.write(json.dumps({"error": "Page not found"}).encode())
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
@@ -75,21 +114,88 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
         
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        params = json.loads(post_data)
+
         if path == "/api/launch":
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            params = json.loads(post_data)
+            account = self._get_authenticated_account()
+            if not account:
+                self._set_headers(401)
+                return
             
+            from .content_admin import can_control_runtime
+            if not can_control_runtime(account):
+                self._set_headers(403)
+                self.wfile.write(json.dumps({"error": "Account lacks world_operator privileges."}).encode())
+                return
+
             # Use a wrapper to run the async launch in the current event loop
             # Note: This requires the server to be running in an async context or thread
             session_id = self._launch_sync(params)
-            
             self._set_headers(201)
             self.wfile.write(json.dumps({"session_id": session_id}).encode())
+        elif path == "/api/auth/login":
+            username = params.get("username")
+            password = params.get("password")
+            account = self.identity_manager.sign_in(username, password)
+            if account:
+                # We need a binding for session creation, but for content-admin we can skip or use dummy
+                session = self.identity_manager.create_session(account['account_id'], "internal")
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    "session_id": session['session_id'],
+                    "account_id": account['account_id'],
+                    "username": account['username'],
+                    "display_name": account['display_name'],
+                    "roles": account.get('roles', [])
+                }).encode())
+            else:
+                self._set_headers(401)
+                self.wfile.write(json.dumps({"error": "Invalid credentials"}).encode())
+        elif path == "/api/content/write":
+            account = self._get_authenticated_account()
+            if not account:
+                self._set_headers(401)
+                return
+            
+            try:
+                self.content_service.write_page(
+                    account=account,
+                    surface=params.get("surface"),
+                    page_id=params.get("page_id"),
+                    content=params.get("content"),
+                    metadata=params.get("metadata")
+                )
+                self._set_headers()
+                self.wfile.write(json.dumps({"status": "success"}).encode())
+            except ContentAuthorizationError as e:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+        elif path == "/api/content/publish":
+            account = self._get_authenticated_account()
+            if not account:
+                self._set_headers(401)
+                return
+            
+            try:
+                self.content_service.publish_page(
+                    account=account,
+                    surface=params.get("surface"),
+                    page_id=params.get("page_id"),
+                    metadata=params.get("metadata")
+                )
+                self._set_headers()
+                self.wfile.write(json.dumps({"status": "success"}).encode())
+            except ContentAuthorizationError as e:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
         else:
             self._set_headers(404)
 
     def _launch_sync(self, params):
+        if not self.orchestrator:
+            return "mock-session-id"
         # This is a bit tricky with http.server. 
         # In a real async server (FastAPI), this would be clean.
         # Here we assume the orchestrator has an async loop running.
@@ -105,13 +211,18 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         return future.result()
 
 class HubAPIServer:
-    def __init__(self, orchestrator: UnifiedOrchestrator, port: int = None):
+    def __init__(self, orchestrator: Optional[UnifiedOrchestrator], port: int = None):
         if port is None:
             from .config import HUB_PORT
             port = HUB_PORT
         self.orchestrator = orchestrator
         self.port = port
+        self.identity_manager = PlayerIdentityManager()
+        self.content_service = ContentService()
+        
         HubAPIHandler.orchestrator = orchestrator
+        HubAPIHandler.identity_manager = self.identity_manager
+        HubAPIHandler.content_service = self.content_service
 
     def start(self):
         # We run the TCPServer in a separate thread to not block the main loop

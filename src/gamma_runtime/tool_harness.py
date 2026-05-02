@@ -9,7 +9,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
 # Config Doctrine: Use LOCAL_URL for co-located workers
-from src.gamma_runtime.config import get_lms_local_url
+from .config import get_lms_local_url
 
 logger = logging.getLogger("ToolHarness")
 
