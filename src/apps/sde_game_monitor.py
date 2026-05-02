@@ -4,7 +4,14 @@ import json
 import time
 import re
 import asyncio
+import sys
 from datetime import datetime
+
+# Dynamic Path Resolution for gamma_runtime
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if os.path.join(ROOT_DIR, 'src') not in sys.path:
+    sys.path.append(os.path.join(ROOT_DIR, 'src'))
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -22,6 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from gamma_runtime.config import HUB_PORT, DASHBOARD_PORT, get_dashboard_local_url, MONITOR_PORT
 from gamma_runtime.player_identity import PlayerIdentityManager
+
 
 
 app = FastAPI()
@@ -292,8 +300,10 @@ async def get_agents():
                 "role": "Exploratory Guest",
                 "display_name": acc.get("display_name", acc["username"]),
                 "category": "Persisted Identity",
-                "provenance": "Dev Guest | Persisted | Runtime Visibility Pending"
+                "provenance": "Dev Guest | Runtime Visibility Pending",
+                "status": "ACTIVE" if acc.get("is_active") else "STANDBY"
             })
+
     except Exception as e:
         logger.error(f"Failed to load dynamic roster: {e}")
 
