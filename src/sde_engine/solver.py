@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import json
+import re
 from typing import Dict, Any, Optional, List
 from src.gamma_runtime.types import AgentId, InferenceRequest, AgentSpec
 from src.gamma_runtime.scheduler import InferenceScheduler
@@ -20,6 +22,49 @@ class SDESolver:
         self.blackboard = blackboard
         self.registry = registry or RuntimeRegistry("configs")
         self.metrics = SDEMetrics()
+
+    def _parse_proposal_text(self, text: str) -> Dict[str, Any]:
+        """
+        Extracts JSON from agent proposal text. Supports fenced and raw JSON.
+        """
+        # 1. Try to find fenced JSON blocks
+        fenced_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        if fenced_match:
+            try:
+                return {"status": "success", "data": json.loads(fenced_match.group(1))}
+            except json.JSONDecodeError as e:
+                return {"status": "failed", "error": f"JSONDecodeError in fenced block: {str(e)}"}
+                
+        # 2. Try to find anything that looks like a JSON object
+        json_match = re.search(r"(\{.*\})", text, re.DOTALL)
+        if json_match:
+            try:
+                return {"status": "success", "data": json.loads(json_match.group(1))}
+            except json.JSONDecodeError as e:
+                return {"status": "failed", "error": f"JSONDecodeError in text: {str(e)}"}
+                
+        return {"status": "failed", "error": "No JSON object found in proposal text"}
+
+    def _extract_parameters(self, proposal_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extracts scientific parameters from parsed proposal data.
+        """
+        params = proposal_data.get("parameters", proposal_data)
+        
+        valid_keys = {
+            "gmax", "gNa_gmax", "gNa", "gNa_bar", "gK", "gLeak", 
+            "gCa", "gM", "gA", "gH", "gK_bar", "gL", "g_leak",
+            "mse", "mse_estimate"
+        }
+        
+        extracted = {k: v for k, v in params.items() if k in valid_keys and isinstance(v, (int, float))}
+        
+        # Check for at least one conductance parameter (scientific causality)
+        conductance_keys = {"gmax", "gNa_gmax", "gNa", "gNa_bar", "gK", "gLeak"}
+        if not any(k in extracted for k in conductance_keys):
+            return {"status": "failed", "error": "No valid conductance parameters found (e.g., gmax, gNa)"}
+            
+        return {"status": "success", "parameters": extracted}
 
     async def _run_optimization_cycle(
         self, 
@@ -45,9 +90,31 @@ class SDESolver:
         proposal_res = await self.scheduler.schedule(prop_spec.model_key, proposal_req)
         proposal_text = proposal_res.text
         
-        # 2. Heuristic Parameter Extraction (Mocked for Phase 2)
-        gmax_estimate = 0.42 # Extracted from proposal_text
-        mse_estimate = 0.05
+        # 2. Robust Parameter Extraction
+        parse_res = self._parse_proposal_text(proposal_text)
+        if parse_res["status"] == "success":
+            extract_res = self._extract_parameters(parse_res["data"])
+        else:
+            extract_res = parse_res
+
+        if extract_res["status"] == "failed":
+            logger.error(f"Proposal parsing failed: {extract_res['error']}")
+            # Mark the execution as proposal_parse_failed and abort cycle
+            await self.blackboard.add_entry(
+                sender=prop_spec.agent_id,
+                content=proposal_text,
+                metadata={
+                    "kind": "sde_proposal", 
+                    "status": "proposal_parse_failed", 
+                    "error": extract_res["error"]
+                }
+            )
+            return
+
+        params = extract_res["parameters"]
+        # Prioritize 'gmax' or first available conductance
+        gmax_estimate = params.get("gmax") or params.get("gNa") or params.get("gNa_bar") or 0.0
+        mse_estimate = params.get("mse") or params.get("mse_estimate") or 0.1 # Defaulting to 0.1 if missing but JSON parsed
         
         x = self.metrics.calculate_x(mse_estimate)
         z = self.metrics.calculate_z(gmax_estimate)
@@ -66,7 +133,13 @@ class SDESolver:
         await self.blackboard.add_entry(
             sender=prop_spec.agent_id,
             content=proposal_text,
-            metadata={"kind": "sde_proposal", "x": x, "z": z, "batch_size": len(batch_data) if batch_data else 0}
+            metadata={
+                "kind": "sde_proposal", 
+                "x": x, 
+                "z": z, 
+                "parameters": params,
+                "batch_size": len(batch_data) if batch_data else 0
+            }
         )
         
         await self.blackboard.add_entry(

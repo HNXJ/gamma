@@ -122,16 +122,14 @@ class T01TwoNeuronEI(TutorialHarness):
             decision = "PASS"
             notes = "E/I network simulation completed successfully."
             
+            # Additional mission-specific structural check
             if v_traces.shape[0] != 2:
                 decision = "FAIL"
                 notes = f"Expected 2 neurons, got {v_traces.shape[0]}"
-            elif np.any(np.isnan(v_traces)):
-                decision = "FAIL"
-                notes = "NaN detected in voltage traces."
             
             metrics["evaluation_decision"] = decision
             self.write_artifact("summary_metrics.json", metrics)
-            self.generate_evaluation(decision, notes)
+            self.generate_evaluation(decision, notes, v_trace=v_traces, warnings=metrics.get("warnings"))
             self.generate_run_manifest("COMPLETED", config)
             
             return metrics

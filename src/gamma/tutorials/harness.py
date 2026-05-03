@@ -42,7 +42,49 @@ class TutorialHarness:
         }
         return self.write_artifact("run_manifest.json", manifest)
 
-    def generate_evaluation(self, decision: str, notes: str):
+    def generate_evaluation(self, decision: str, notes: str, v_trace: Any = None, warnings: List[str] = None):
+        """
+        Generates evaluation_decision.json with mandatory scientific gates.
+        Enforces FAIL if simulation was bypassed or produced invalid data.
+        """
+        forced_fail = False
+        fail_reasons = []
+
+        if decision == "PASS":
+            # 1. Check if simulation executed (no bypass warning)
+            if warnings and any("bypassed" in w.lower() for w in warnings):
+                forced_fail = True
+                fail_reasons.append("Simulation bypass detected in warnings")
+
+            # 2. Check if v_trace is missing or invalid
+            if v_trace is None:
+                forced_fail = True
+                fail_reasons.append("Voltage trace (v_trace) is missing")
+            else:
+                import numpy as np
+                try:
+                    v_trace_arr = np.array(v_trace)
+                    if v_trace_arr.size == 0:
+                        forced_fail = True
+                        fail_reasons.append("Voltage trace is empty")
+                    elif np.any(np.isnan(v_trace_arr)):
+                        forced_fail = True
+                        fail_reasons.append("NaN detected in voltage trace")
+                    elif np.any(np.isinf(v_trace_arr)):
+                        forced_fail = True
+                        fail_reasons.append("Inf detected in voltage trace")
+                    
+                    # TODO: Add check for pathological saturation or all-silent neurons
+                    # This requires baseline expectations per model type.
+                except Exception as e:
+                    forced_fail = True
+                    fail_reasons.append(f"Error validating v_trace: {str(e)}")
+
+        if forced_fail:
+            decision = "FAIL"
+            notes = f"[GATE KICKBACK] Original Decision PASS overridden. Reasons: {'; '.join(fail_reasons)}. Original Notes: {notes}"
+            logger.warning(f"Evaluation PASS overridden for {self.run_id}: {notes}")
+
         eval_doc = {
             "run_id": self.run_id,
             "tutorial_id": self.tutorial_id,

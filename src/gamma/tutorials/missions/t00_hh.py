@@ -103,13 +103,9 @@ class T00SingleNeuronHH(TutorialHarness):
             decision = "PASS"
             notes = "Simulation completed successfully using Gamma-side harness."
             
-            if v_trace.size == 0:
-                decision = "FAIL"
-                notes = "Voltage trace is empty."
-            
             metrics["evaluation_decision"] = decision
             self.write_artifact("summary_metrics.json", metrics)
-            self.generate_evaluation(decision, notes)
+            self.generate_evaluation(decision, notes, v_trace=v_trace, warnings=metrics.get("warnings"))
             self.generate_run_manifest("COMPLETED", config)
             
             return metrics
