@@ -1,11 +1,7 @@
 {
   "run_id": "292b95d8-a64f-4def-a814-7ead918f69f1",
   "tutorial_id": "T01_two_neuron_ei",
-  "timestamp": 1777774102.052184,
-  "status": "RUNNING",
-  "mission_config": {
-    "t_max": 500.0,
-    "dt": 0.1,
-    "seed": 42
-  }
+  "timestamp": 1777774103.537172,
+  "status": "FAILED",
+  "mission_config": {}
 }
