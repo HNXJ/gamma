@@ -10,9 +10,9 @@
   "official_level_metric": "largest_pass_network_neuron_count",
   "largest_pass_network_neuron_count": 11,
   "active_mission_target": 12,
-  "active_mission_kind": "tutorial",
-  "active_tutorial_id": "T02_three_neuron_motif",
-  "active_mission_topic": "Continuous Growth Mode: 11 to 12 Neurons",
+  "active_mission_kind": "pending_approval",
+  "active_tutorial_id": "NONE",
+  "active_mission_topic": "Recovered N=11; next growth mission pending G04/Role approval",
   "next_unlock_threshold": 40,
   "omissions": 0,
   "sessions": [
