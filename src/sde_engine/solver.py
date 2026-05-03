@@ -8,6 +8,7 @@ from src.gamma_runtime.scheduler import InferenceScheduler
 from src.gamma_runtime.blackboard import Blackboard
 from src.gamma_runtime.registry import RuntimeRegistry
 from .metrics import SDEMetrics
+from src.gamma_runtime.receipt import ReceiptManager
 
 logger = logging.getLogger("SDESolver")
 
@@ -22,6 +23,7 @@ class SDESolver:
         self.blackboard = blackboard
         self.registry = registry or RuntimeRegistry("configs")
         self.metrics = SDEMetrics()
+        self.receipt_manager = ReceiptManager()
 
     def _parse_proposal_text(self, text: str) -> Dict[str, Any]:
         """
