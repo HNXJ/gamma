@@ -91,8 +91,12 @@ class ArenaPersistence:
         return self.state
 
 if __name__ == "__main__":
-    # Smoke test for namespaced persistence
-    p = ArenaPersistence(game_id="game001", root_dir="/Users/hamednejat/workspace/computational/gamma")
-    p.record_boot()
-    p.save_state({"largest_pass_network_neuron_count": 12})
-    print(f"Arena World State grounded at: {p.state_path}")
+    # SAFE DEMO: Smoke test must use a temporary path, never canonical local/game001/
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"Running safe persistence demo in: {tmpdir}")
+        p = ArenaPersistence(game_id="demo_game", root_dir=tmpdir)
+        p.record_boot()
+        p.save_state({"largest_pass_network_neuron_count": 3, "demo": True})
+        print(f"Demo state saved to: {p.state_path}")
+        # DO NOT write to local/game001/ or any production path in this block.
