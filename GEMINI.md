@@ -71,11 +71,15 @@
   3. Truth: persistent state only from converged, authenticated, receipt-backed backend commits.
   4. Observation: UI, dashboards, reports, event pages, logs, visualizations.
 - Never confuse proposal, plan, execution result, committed truth, and observation/report.
-- Unless a backend receipt or canonical truth file proves otherwise, current default substrate truth is:
-  - L1
-  - 3 neurons
-  - 2 excitatory + 1 PV
-  - growth target 3→4
+- **LATEST DELTA AUDIT SYNC (2026-05-03):**
+  - **Verified Truth:** N=11 (Restored from ghost N=12 corruption; grounded and receipt-backed).
+  - **gamma (office-dev):** `20b4eab1e15020c384ef151bbc501f03879123b9`
+  - **gamma-arena (main):** `9e079d73de98604a0e0c71e66ab917ee436e4ff1`
+  - **gamma-protocol (master):** `c2cfa71d563b61f51a9a42fb541db2bffa94dfb0`
+- **Truth Progression Context:** 
+  - Previous Phase: L1, 3 neurons (2E + 1PV). 
+  - Current Baseline: N=11. 
+  - Next Target: N=12 (Continuous Growth Mission).
 - Older references to 10 neurons or 7E/2PV/1SST are stale/disputed unless backed by a current receipt and canonical truth state.
 - `gamma` owns backend orchestration, solver, adapter, persistence, receipts, schemas, tests, and truth-bearing gates.
 - `gamma-arena` owns dedicated game UI and observer-facing frontend.
