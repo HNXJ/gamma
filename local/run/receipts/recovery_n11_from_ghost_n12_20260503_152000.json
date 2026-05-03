@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "type": "truth_recovery",
+  "not_scientific_progression": true,
+  "reason": "ghost_n12_smoke_test_corruption",
+  "restored_neuron_count": 11,
+  "invalidated_neuron_count": 12,
+  "source_receipt": "75b4264d64f5d864a2e4692a049049e5f41c9dc29fe86cb0b0269890aa981c5f",
+  "source_materialization": "materialized_n11_bootstrap.json",
+  "truth_backup_path": "local/run/recovery/arena_runtime_state_ghost_n12_20260503_152000.json",
+  "promoted_to_truth": false,
+  "recovered_at": "2026-05-03T15:20:00Z"
+}
