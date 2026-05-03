@@ -6,7 +6,8 @@
     "G02-tuner",
     "G03-analyst",
     "J01-judge",
-    "M01-monitor"
+    "M01-monitor",
+    "G04-player"
   ],
   "lobby_topics": [
     "Neural composition: 7 E, 2 PV, 1 SST",

@@ -10,6 +10,8 @@
   "G03": "G03-analyst",
   "J01": "J01-judge",
   "M01": "M01-monitor",
+  "G04-player": "G04-player",
+  "G04": "G04-player",
   "hypothesis_builder_01": "G01-builder",
   "methods_skeptic_01": "G03-analyst",
   "v1_gamma_proponent": "G01-builder",

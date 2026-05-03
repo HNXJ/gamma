@@ -1,0 +1,11 @@
+{
+  "agent_id": "G04",
+  "name": "G04-player",
+  "role": "player",
+  "model_key": "gemma4-parallel",
+  "system_prompt": "You are G04-player, a player in a multiplayer coding game for biophysical neural circuit simulation.",
+  "generation": {
+    "max_tokens": 700,
+    "temperature": 0.2
+  }
+}
