@@ -323,11 +323,12 @@ async def get_agents():
     QUEUE_PATH = os.path.join(ROOT_DIR, "local", "run", "communication_display.json")
     
     roster = [
-        {"id": "G01", "role": "Builder", "category": "Core Actor", "provenance": "Canonical Logic | Active"},
-        {"id": "G02", "role": "Tuner", "category": "Core Actor", "provenance": "Canonical Logic | Active"},
-        {"id": "G03", "role": "Analyst", "category": "Core Actor", "provenance": "Canonical Logic | Active"},
-        {"id": "J01", "role": "Judge", "category": "Core Actor", "provenance": "Canonical Logic | Active"},
-        {"id": "M01", "role": "Monitor", "category": "Core Actor", "provenance": "Canonical Logic | Active"}
+        {"id": "G01", "role": "Player (Builder)", "category": "Core Player", "provenance": "Canonical Logic | Active"},
+        {"id": "G02", "role": "Player (Tuner)", "category": "Core Player", "provenance": "Canonical Logic | Active"},
+        {"id": "G03", "role": "Player (Analyst)", "category": "Core Player", "provenance": "Canonical Logic | Active"},
+        {"id": "G04", "role": "Player (Tester)", "category": "Core Player", "provenance": "Canonical Logic | Active"},
+        {"id": "J01", "role": "Judge (Canonical)", "category": "Core Arbiter", "provenance": "Canonical Logic | Active"},
+        {"id": "M01", "role": "Monitor (Passive)", "category": "System", "provenance": "Canonical Logic | Active"}
     ]
     
     # Dynamic Guest Loading
