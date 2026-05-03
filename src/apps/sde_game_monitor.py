@@ -223,7 +223,6 @@ async def get_diag():
     }
 
 @app.get("/api/status")
-@app.get("/api/v1/status")
 async def get_status():
     progression = await get_progression()
     persistence = await get_persistence()
@@ -318,7 +317,6 @@ async def get_progression():
     return progression
 
 @app.get("/api/agents")
-@app.get("/api/v1/agents")
 async def get_agents():
     SPECTATOR_PATH = os.path.join(ROOT_DIR, "local", "run", "spectator_room.json")
     HEALTH_PATH = os.path.join(ROOT_DIR, "local", "run", "health.json")
@@ -490,7 +488,6 @@ async def get_all_agent_logs(lines: int = 10):
     }
 
 @app.get("/api/persistence")
-@app.get("/api/v1/persistence")
 async def get_persistence():
     persistence = { "boot_type": "UNKNOWN", "freshness": "DEGRADED", "resume_count": 0 }
     runtime_path = os.path.join(ROOT_DIR, "local/game001/arena_runtime_state.json")
@@ -593,7 +590,6 @@ async def network_event_stream():
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/api/logs/raw")
-@app.get("/api/v1/events/recent")
 async def get_raw_logs(lines: int = 100):
     if not os.path.exists(LOG_PATH):
         return {"error": "Log file not found", "path": LOG_PATH}
@@ -604,4 +600,4 @@ async def get_raw_logs(lines: int = 100):
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=3014)
+    uvicorn.run(app, host="0.0.0.0", port=MONITOR_PORT)
