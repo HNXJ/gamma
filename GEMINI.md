@@ -19,7 +19,7 @@
   - **Fields:** `session_id`, `status` (IDLE, STARTING, RUNNING, BLOCKED, FAILED, WAITING_FOR_REVIEW, COMPLETE), `agent_statuses`, `phase`, `proposal_ids`, `blackboard_entries`, `accepted_gate`.
 
 ## 4. Office Mac Operational Rules
-- sshpass Path: When using sshpass on this machine, use the absolute path `/opt/homebrew/bin/sshpass -p "apple" ssh HN@100.69.184.42`.
+- SSH Usage: Use the pinned-key SSH doctrine defined in Section 8. Never use plaintext passwords or plain SSH commands.
 - Gamma Hub UI: Primary live observability surface is served on port 3012 unless verified otherwise. Verify with HTTP before any restart. The UI runs entirely on the Office Mac; we only access the link remotely.
 - Remote Restart Rule: Do not restart launch_hub.py, science_worker.py, or related services unless serving/execution is actually broken.
 - Remote Verification Rule: Prefer curl/HTTP checks and direct artifact inspection over guessed log paths.
@@ -57,3 +57,18 @@
   - no pathological saturation
   - physiological voltage bounds
   - unlocks require biological validity, not bookkeeping tricks
+
+## 8. Gamma SSH / Office Mac Doctrine
+- Office Mac target is `HN@100.69.184.42`; world root is `/Users/HN/gamma-world`.
+- Use only pinned-key SSH form:
+  `ssh -o BatchMode=yes -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 HN@100.69.184.42 '<command>'`
+- Never use plain `ssh HN@100.69.184.42` from agents.
+- Never ask the user to run `ssh-add -D` or clear their SSH agent.
+- The private key is passphrase-protected. The user’s interactive terminal can work after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`, but an agent subprocess may not inherit `SSH_AUTH_SOCK`.
+- If `ssh-add -l` says `Could not open a connection to your authentication agent` or `env | grep SSH` shows no `SSH_AUTH_SOCK`, do not attempt repeated SSH recovery. Report `BLOCKED_AGENT_SSH_AUTH_SOCK_MISSING`.
+- Before killing any local tunnel on port 8787, first test:
+  `curl -sS --max-time 5 http://127.0.0.1:8787/health`
+  If it works, do not kill the tunnel.
+- The local tunnel is dev-only:
+  `127.0.0.1:8787 -> Office Mac 127.0.0.1:8787`.
+- The hosted/Vercel architecture should not depend on this tunnel. Office Mac should push observation rows outward to a cloud observation relay/store; Vercel should read from cloud, not pull from Office Mac localhost.
