@@ -37,4 +37,10 @@ def test_python_policy():
     assert policy.validate_command("python3 scripts/test.py").allowed is True
     # Invalid flags
     assert policy.validate_command("python3 -c 'print(1)'").allowed is False
+    assert policy.validate_command("python3 -").allowed is False
+    # Valid modules via -m
+    assert policy.validate_command("python3 -m pytest").allowed is True
+    assert policy.validate_command("python3 -m core.start_guard").allowed is True
+    # Forbidden modules via -m
     assert policy.validate_command("python3 -m http.server").allowed is False
+    assert policy.validate_command("python3 -m SimpleHTTPServer").allowed is False

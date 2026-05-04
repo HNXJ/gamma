@@ -123,9 +123,20 @@ class GuardPolicy:
         if len(argv) < 2:
             return PolicyDecision(False, "Missing python script or module", raw_command, argv)
         
-        script_path = argv[1]
-        is_safe, reason = self._is_path_safe(script_path)
-        if not is_safe:
-            return PolicyDecision(False, f"Python script: {reason}", raw_command, argv)
+        if "-m" in argv:
+            m_index = argv.index("-m")
+            if m_index + 1 < len(argv):
+                module_name = argv[m_index + 1]
+                denied_modules = {"http.server", "SimpleHTTPServer", "CGIHTTPServer"}
+                if module_name in denied_modules:
+                    return PolicyDecision(False, f"Forbidden python module via -m: {module_name}", raw_command, argv)
+            else:
+                return PolicyDecision(False, "Missing module after -m flag", raw_command, argv)
+        else:
+            script_path = argv[1]
+            if not script_path.startswith("-"):
+                is_safe, reason = self._is_path_safe(script_path)
+                if not is_safe:
+                    return PolicyDecision(False, f"Python script: {reason}", raw_command, argv)
             
         return PolicyDecision(True, "Python execution allowed", raw_command, argv)
