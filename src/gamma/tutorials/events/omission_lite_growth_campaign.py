@@ -261,6 +261,62 @@ class GrowthCampaign(TutorialHarness):
 
         return len(reasons) == 0, reasons
 
+    def emit_proof_of_work(self, model: GrowthModel, v_traces: Dict[str, np.ndarray], step_dir: str):
+        import matplotlib.pyplot as plt
+        pow_dir = os.path.join(step_dir, "proof_of_work")
+        os.makedirs(pow_dir, exist_ok=True)
+        
+        conditions = ["baseline", "sensory", "prediction", "match"]
+        dt = self.mission_config["dt"]
+        n_n = model.n_neurons
+        
+        spike_data = []
+        cond_spikes = {c: 0 for c in conditions}
+        
+        for cond in conditions:
+            v = v_traces[cond]
+            counts = np.sum((v[:, :-1] < 0) & (v[:, 1:] >= 0), axis=1)
+            cond_spikes[cond] = int(np.sum(counts))
+            for i in range(n_n):
+                spikes = np.where((v[i, :-1] < 0) & (v[i, 1:] >= 0))[0]
+                for s_idx in spikes:
+                    spike_data.append({
+                        "condition": cond,
+                        "neuron_id": int(i),
+                        "spike_time_ms": float(s_idx * dt)
+                    })
+        
+        # CSV
+        import csv
+        with open(os.path.join(pow_dir, "spike_events.csv"), "w", newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=["condition", "neuron_id", "spike_time_ms"])
+            writer.writeheader()
+            writer.writerows(spike_data)
+            
+        # Raster (Match)
+        plt.figure(figsize=(10, 6))
+        match_spikes = [s for s in spike_data if s["condition"] == "match"]
+        plt.scatter([s["spike_time_ms"] for s in match_spikes], 
+                    [s["neuron_id"] for s in match_spikes], s=2, c='black')
+        plt.title(f"Raster N={n_n} (Match Condition)")
+        plt.savefig(os.path.join(pow_dir, "raster_match.png"))
+        plt.close()
+        
+        # Summary
+        summary = {
+            "n": n_n,
+            "total_spikes": cond_spikes,
+            "backend": self.mission_config["backend"],
+            "evidence_strength": "NUMERICAL_STABILITY_ONLY",
+            "not_scientific_truth": True
+        }
+        with open(os.path.join(pow_dir, "raster_summary.json"), "w") as f:
+            json.dump(summary, f, indent=2)
+            
+        # Growth evidence
+        with open(os.path.join(pow_dir, "growth_evidence.json"), "w") as f:
+            json.dump({"n": n_n, "status": "PASS"}, f)
+
     def run_falsifier(self, model: GrowthModel):
         """
         Phase 5: Falsifier checks.
@@ -409,6 +465,15 @@ class GrowthCampaign(TutorialHarness):
                 with open(os.path.join(step_dir, "model_state.json"), "w") as f:
                     json.dump(model.to_dict(), f, indent=2)
                 
+                # Step metrics
+                metrics = {
+                    "n": int(n_after),
+                    "timestamp": float(time.time()),
+                    "passed": True
+                }
+                with open(os.path.join(step_dir, "step_metrics.json"), "w") as f:
+                    json.dump(metrics, f, indent=2)
+                
                 # Update ledger
                 ledger_entry = {
                     "n_before": int(n_before),
@@ -430,10 +495,26 @@ class GrowthCampaign(TutorialHarness):
                 manifest["current_n"] = int(model.n_neurons)
                 with open(self.manifest_path, "w") as f:
                     json.dump(manifest, f, indent=2)
+
+                # Proof of work
+                if self.args.proof_of_work and (model.n_neurons % self.args.proof_every == 0):
+                    self.emit_proof_of_work(model, v_traces, step_dir)
+
             else:
                 logger.warning(f"FAIL: N={n_after}. Reasons: {reasons}")
                 consecutive_failures += 1
                 
+                # Rejection evidence
+                rej_dir = os.path.join(self.artifact_dir, "rejections", f"N{n_after:04d}_{int(time.time())}")
+                os.makedirs(rej_dir, exist_ok=True)
+                with open(os.path.join(rej_dir, "rejection_evidence.json"), "w") as f:
+                    json.dump({
+                        "n_target": int(n_after),
+                        "reasons": [str(r) for r in reasons],
+                        "timestamp": float(time.time()),
+                        "validation_profile": self.args.validation_profile
+                    }, f, indent=2)
+
                 # Record rejection
                 rej_entry = {
                     "n_target": int(n_after),
@@ -501,6 +582,8 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--validation-profile", type=str, choices=["weak", "strict"], default="strict")
     parser.add_argument("--resume-model", type=str, default=None)
+    parser.add_argument("--proof-of-work", action="store_true")
+    parser.add_argument("--proof-every", type=int, default=10)
     args = parser.parse_args()
     
     root = os.path.abspath(os.path.join(os.getcwd()))
