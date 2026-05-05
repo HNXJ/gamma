@@ -23,9 +23,9 @@ Gamma is a protocolized scientific discovery engine where the objective is to au
 
 ## Branch Doctrine
 
-`main` is the stable branch for reviewed, reusable backend/control-plane state. `office-dev` is a development and integration branch and must not be merged wholesale into `main` without explicit THETA approval of the full commit scope.
+`main` is the single active branch for all backend/control-plane state. All changes are reviewed before merge.
 
-Stable promotions should be exact, reviewed, and minimal. Runtime, solver, adapter, persistence, Supabase, receipt, or truth-state changes require explicit review before stable promotion.
+Promotions must be exact, reviewed, and minimal. Runtime, solver, adapter, persistence, Supabase, receipt, or truth-state changes require explicit review before merge to main.
 
 
 ---
