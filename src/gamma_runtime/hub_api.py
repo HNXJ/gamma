@@ -33,9 +33,18 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
         
-        if path.startswith("/api/session/"):
+        if path == "/health":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "service": "gamma_hub",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing": False,
+                "status": "lightweight_ready"
+            }).encode())
+        elif path.startswith("/api/session/"):
             session_id = path.split("/")[-1]
-            state = self.orchestrator.get_session_state(session_id)
+            state = self.orchestrator.get_session_state(session_id) if self.orchestrator else None
             if state:
                 self._set_headers()
                 self.wfile.write(json.dumps(state).encode())
@@ -46,19 +55,19 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
             # Returns the complete state for the dashboard
             state = {
                 "system": {
-                    "id": "GAMMA-M3MAX-01",
+                    "id": "GAMMA-WINDOWS-HOST",
                     "status": "IDLE", # To be linked to scheduler pressure
-                    "vram": "14.2 / 96.0 GB", # Mocking for now, will link to scheduler
-                    "uptime": "04:32:11",
+                    "vram": "unknown", # Mocking for now, will link to scheduler
+                    "uptime": "unknown",
                     "heartbeat": time.time(),
-                    "boot_epoch": "2026-04-30T00:00:00Z"
+                    "boot_epoch": "2026-05-05T00:00:00Z"
                 },
                 "research": {
                     "pass_network": "14-Node grounded",
-                    "active_patch": "v1.2.4-hotfix",
+                    "active_patch": "lightweight-patch",
                     "omissions": 0
                 },
-                "sessions": self.orchestrator.get_all_sessions()
+                "sessions": self.orchestrator.get_all_sessions() if self.orchestrator else []
             }
             self._set_headers()
             self.wfile.write(json.dumps(state).encode())
@@ -75,6 +84,17 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                             except: pass
             self._set_headers()
             self.wfile.write(json.dumps(events[-100:]).encode()) # Return last 100 events
+        elif path == "/api/world/spectator/latest" or path == "/api/world/spectator/active-loop/latest":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "endpoint": path,
+                "ok": False,
+                "truth_mode": "truth_safe_unverified",
+                "source": "gamma_hub_lightweight_fallback",
+                "status": "unavailable",
+                "truth_bearing": False,
+                "message": "No live spectator payload is available from this lightweight Hub instance."
+            }).encode())
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
