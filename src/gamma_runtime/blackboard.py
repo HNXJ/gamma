@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from .types import AgentId
+from .gamma_types import AgentId
 
 @dataclass
 class BlackboardEntry:

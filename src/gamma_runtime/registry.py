@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from .types import AgentSpec, ModelSpec
+from .gamma_types import AgentSpec, ModelSpec
 
 class RuntimeRegistry:
     """

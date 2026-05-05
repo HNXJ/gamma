@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from .types import ModelSpec, InferenceRequest, InferenceResult
+from .gamma_types import ModelSpec, InferenceRequest, InferenceResult
 
 class InferenceBackend(ABC):
     @abstractmethod

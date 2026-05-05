@@ -5,9 +5,8 @@ import logging
 import asyncio
 import os
 import time
-from typing import Optional
+from typing import Optional, Any
 from urllib.parse import urlparse, parse_qs
-from .orchestrator import UnifiedOrchestrator
 
 logger = logging.getLogger("HubAPI")
 
@@ -16,7 +15,7 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
     Standard Library implementation of the Gamma Hub API.
     Provides zero-dependency REST endpoints for the Dashboard.
     """
-    orchestrator: Optional[UnifiedOrchestrator] = None
+    orchestrator: Any = None
 
     def _set_headers(self, status=200):
         self.send_response(status)
@@ -42,7 +41,22 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 "truth_bearing": False,
                 "status": "lightweight_ready"
             }).encode())
+        elif path.startswith("/api/world/spectator/"):
+            # Detailed spectator fallback
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "ok": False,
+                "truth_mode": "truth_safe_unverified",
+                "source": "gamma_hub_lightweight_fallback",
+                "status": "unavailable",
+                "truth_bearing": False,
+                "message": "No live spectator payload is available from this lightweight Hub instance."
+            }).encode())
         elif path.startswith("/api/session/"):
+            if not self.orchestrator:
+                self._set_headers(503)
+                self.wfile.write(json.dumps({"error": "Orchestrator not available"}).encode())
+                return
             session_id = path.split("/")[-1]
             state = self.orchestrator.get_session_state(session_id) if self.orchestrator else None
             if state:
@@ -52,10 +66,9 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 self._set_headers(404)
                 self.wfile.write(json.dumps({"error": "Session not found"}).encode())
         elif path == "/api/status":
-            # Returns the complete state for the dashboard
             state = {
                 "system": {
-                    "id": "GAMMA-WINDOWS-HOST",
+                    "id": "GAMMA-M3MAX-01" if os.uname().sysname == "Darwin" else "GAMMA-WINDOWS-HOST",
                     "status": "IDLE", # To be linked to scheduler pressure
                     "vram": "unknown", # Mocking for now, will link to scheduler
                     "uptime": "unknown",
@@ -84,17 +97,6 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                             except: pass
             self._set_headers()
             self.wfile.write(json.dumps(events[-100:]).encode()) # Return last 100 events
-        elif path == "/api/world/spectator/latest" or path == "/api/world/spectator/active-loop/latest":
-            self._set_headers()
-            self.wfile.write(json.dumps({
-                "endpoint": path,
-                "ok": False,
-                "truth_mode": "truth_safe_unverified",
-                "source": "gamma_hub_lightweight_fallback",
-                "status": "unavailable",
-                "truth_bearing": False,
-                "message": "No live spectator payload is available from this lightweight Hub instance."
-            }).encode())
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
@@ -103,24 +105,17 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
         
-        if path == "/api/launch":
+        if path == "/api/launch" and self.orchestrator:
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             params = json.loads(post_data)
-            
-            # Use a wrapper to run the async launch in the current event loop
-            # Note: This requires the server to be running in an async context or thread
             session_id = self._launch_sync(params)
-            
             self._set_headers(201)
             self.wfile.write(json.dumps({"session_id": session_id}).encode())
         else:
             self._set_headers(404)
 
     def _launch_sync(self, params):
-        # This is a bit tricky with http.server. 
-        # In a real async server (FastAPI), this would be clean.
-        # Here we assume the orchestrator has an async loop running.
         loop = asyncio.get_event_loop()
         future = asyncio.run_coroutine_threadsafe(
             self.orchestrator.launch_run(
@@ -133,7 +128,7 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         return future.result()
 
 class HubAPIServer:
-    def __init__(self, orchestrator: UnifiedOrchestrator, port: int = None):
+    def __init__(self, orchestrator: Any = None, port: int = None):
         if port is None:
             from .config import HUB_PORT
             port = HUB_PORT
@@ -142,13 +137,10 @@ class HubAPIServer:
         HubAPIHandler.orchestrator = orchestrator
 
     def start(self):
-        # We run the TCPServer in a separate thread to not block the main loop
         import threading
-        # Try to bind to localhost, which is usually permitted even in restricted environments
         try:
             server = socketserver.TCPServer(("localhost", self.port), HubAPIHandler)
         except Exception:
-            # Fallback to 127.0.0.1 if localhost fails
             server = socketserver.TCPServer(("127.0.0.1", self.port), HubAPIHandler)
         
         thread = threading.Thread(target=server.serve_forever)

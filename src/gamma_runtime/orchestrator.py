@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 from typing import Dict, Any, Optional, List
-from .types import AgentId, InferenceRequest, MissionContext
+from .gamma_types import AgentId, InferenceRequest, MissionContext
 from .scheduler import InferenceScheduler
 from .blackboard import Blackboard
 from .registry import RuntimeRegistry
