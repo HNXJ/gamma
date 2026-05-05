@@ -19,7 +19,7 @@
   - **Fields:** `session_id`, `status` (IDLE, STARTING, RUNNING, BLOCKED, FAILED, WAITING_FOR_REVIEW, COMPLETE), `agent_statuses`, `phase`, `proposal_ids`, `blackboard_entries`, `accepted_gate`.
 
 ## 4. Office Mac Operational Rules
-- sshpass Path: When using sshpass on this machine, use the absolute path `/opt/homebrew/bin/sshpass -p "apple" ssh HN@100.69.184.42`.
+- sshpass Path: When using sshpass on this machine, use the absolute path `/opt/homebrew/bin/sshpass -p "REDACTED" ssh HN@100.69.184.42`.
 - Gamma Hub UI: Primary live observability surface is served on port 3012 unless verified otherwise. Verify with HTTP before any restart. The UI runs entirely on the Office Mac; we only access the link remotely.
 - Remote Restart Rule: Do not restart launch_hub.py, science_worker.py, or related services unless serving/execution is actually broken.
 - Remote Verification Rule: Prefer curl/HTTP checks and direct artifact inspection over guessed log paths.
