@@ -1,16 +1,18 @@
-# Local dev artifacts
-local/
-.venv/
-__pycache__/
-*.pyc
-.DS_Store
 
 # Data artifacts
-*.log
-local_cache/
-outputs/
-archive/staging/
-
+# Local dev artifacts
 # UV workspace cache
+*.html
+*.log
+*.mat
+*.npy
+*.pyc
+.DS_Store
 .uv_cache/
 .uv_python/
+.venv/
+__pycache__/
+archive/staging/
+local/
+local_cache/
+outputs/
