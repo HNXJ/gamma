@@ -30,3 +30,7 @@ Stable promotions should be exact, reviewed, and minimal. Runtime, solver, adapt
 
 ---
 *Operational Mode: Persistent Mission (S01_BOOTSTRAP)*
+
+## Coordination
+
+This repository follows the [GAMMA-BUS Coordination Doctrine](GEMINI.md). Agents should refer to `GEMINI.md` for specific instructions and coordination rules.
