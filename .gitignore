@@ -5,6 +5,11 @@ __pycache__/
 *.pyc
 .DS_Store
 
+# Gamma Labyrinth Hygiene
+*.npy
+*.mat
+*.html
+
 # Data artifacts
 *.log
 local_cache/

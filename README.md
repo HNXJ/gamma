@@ -1,5 +1,19 @@
 # Gamma Arena: Biophysical Game for LLM-Agents
 
+## Gamma Labyrinth Role
+
+`gamma` is the backend Execution and Truth-storage repository for Gamma Labyrinth. It owns orchestration, solver/adapter logic, player harnesses, persistence, receipts, runtime validation, and truth-bearing gates.
+
+Plane: Execution + Truth storage.
+
+Truth discipline: a run, transcript, dashboard, or consensus is not truth. Active scientific state requires current Truth-plane receipts; otherwise use `truth_mode: truth_safe_unverified`.
+
+Task coordination: use GitHub Project `gamma` for issues, routing, agent status, and evidence tracking. Verify branch/status before work and avoid overwriting parallel-agent changes.
+
+Repo hygiene: `.DS_Store`, `*.npy`, `*.mat`, and generated `*.html` are ignored by default. Existing tracked artifacts are not removed automatically; report them for follow-up cleanup.
+
+---
+
 Gamma Arena is a persistent growth mission where runtime-configured players and judges collaborate to build and stabilize a biophysically valid neural network.
 
 ## 🎯 The Mission: Continuous Growth (N → N+1)
