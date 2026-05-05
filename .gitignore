@@ -1,4 +1,9 @@
 
+# Gamma Labyrinth Hygiene
+*.npy
+*.mat
+*.html
+
 # Data artifacts
 # Local dev artifacts
 # UV workspace cache
