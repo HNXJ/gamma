@@ -27,13 +27,19 @@ def parse_args():
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
+def resolve_workspace_root() -> Path:
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / "repos" / "gamma").exists() and (parent / "repos" / "gamma-labyrinth").exists():
+            return parent
+    return current.parents[3] # Fallback
+
 def main():
     args = parse_args()
     
     # Robust path discovery
-    launcher_script = Path(__file__).resolve()
-    repo_root = launcher_script.parent.parent.parent.parent
-    artifact_root = repo_root / "runtime_artifacts" / "gamma_labyrinth" / "launcher_sessions"
+    workspace_root = resolve_workspace_root()
+    artifact_root = workspace_root / "runtime_artifacts" / "gamma_labyrinth" / "launcher_sessions"
     
     session_id = datetime.now().strftime("%Y%m%dT%H%M%SZ")
     session_dir = artifact_root / session_id
