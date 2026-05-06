@@ -201,6 +201,46 @@ def smoke_chat_http(provider: LMSProvider, prompt: str, max_tokens: int = 160) -
     }
 
 
+def lms_bridge_heartbeat(session_dir: str) -> Dict[str, Any]:
+    """Perform a heartbeat check of all configured LMS providers and log the result."""
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    hb_file = os.path.join(session_dir, "lms_heartbeat.jsonl")
+    
+    results = []
+    for name, provider in [("office_mac", OFFICE_MAC_LMS_PLAYERS), ("windows_guard", WINDOWS_LMS_GUARD_JUDGE)]:
+        try:
+            status = list_models_http(provider)
+            results.append({
+                "timestamp": timestamp,
+                "provider_label": name,
+                "provider_id": provider.provider_id,
+                "base_url": provider.base_url,
+                "success": status.get("success", False),
+                "model_count": status.get("model_count", 0),
+                "target_model_present": status.get("target_model_present"),
+                "adapter_policy": {
+                    "enabled": False,
+                    "future_supported": ["lora", "dora", "fedlora"],
+                    "truth_bearing": False,
+                    "rollback_required": True
+                }
+            })
+        except Exception as e:
+            results.append({
+                "timestamp": timestamp,
+                "provider_label": name,
+                "error": str(e)
+            })
+            
+    with open(hb_file, "a") as f:
+        for r in results:
+            f.write(json.dumps(r) + "\n")
+            
+    return {"status": "OK", "timestamp": timestamp, "provider_count": len(results)}
+
+
+from datetime import datetime
+
 def provider_from_arg(name: str) -> LMSProvider:
     if name == "office_mac":
         return OFFICE_MAC_LMS_PLAYERS
