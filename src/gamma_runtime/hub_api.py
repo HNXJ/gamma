@@ -46,94 +46,81 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 self._set_headers(404)
                 self.wfile.write(json.dumps({"error": "Session not found"}).encode())
         elif path == "/api/status":
+            # Returns the complete state for the dashboard
             state = {
                 "system": {
-                    "status": "ONLINE",
-                    "monitor_uptime_seconds": int(time.time() - float(time.time() - 3600)),
-                    "backend_model_slots_occupied": "0/1",
-                    "heartbeat": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-                },
-                "progression": {
-                    "largest_pass_network_neuron_count": 0,
-                    "active_patches": ["v1.2.4-hotfix"],
-                    "next_unlock_threshold": 40,
-                    "truth_class": "DEGRADED",
-                    "omissions": 0,
-                    "canonical_ladder": "alpha-1"
-                },
-                "persistence": {
-                    "boot_type": "COLD",
-                    "freshness": "UNVERIFIED",
-                    "resume_count": 0
+                    "id": "GAMMA-M3MAX-01",
+                    "status": "IDLE", # To be linked to scheduler pressure
+                    "vram": "14.2 / 96.0 GB", # Mocking for now, will link to scheduler
+                    "uptime": "04:32:11",
+                    "heartbeat": time.time(),
+                    "boot_epoch": "2026-04-30T00:00:00Z"
                 },
                 "research": {
-                    "neuron_count": 0,
                     "pass_network": "14-Node grounded",
                     "active_patch": "v1.2.4-hotfix",
                     "omissions": 0
-                }
+                },
+                "sessions": self.orchestrator.get_all_sessions() if self.orchestrator else {}
             }
             self._set_headers()
             self.wfile.write(json.dumps(state).encode())
+
         elif path == "/health":
             self._set_headers()
             self.wfile.write(json.dumps({"status": "ok", "truth_mode": "truth_safe_unverified"}).encode())
         elif path == "/api/agents":
             self._set_headers()
-            self.wfile.write(json.dumps([]).encode())
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "status": "unavailable",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_observation_fallback",
+                "agents": [],
+                "message": "No receipt-backed live agent roster is available."
+            }).encode())
         elif path == "/api/persistence":
             self._set_headers()
             self.wfile.write(json.dumps({
-                "boot_type": "COLD",
-                "freshness": "UNVERIFIED",
-                "resume_count": 0
+                "ok": True,
+                "status": "unavailable",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_observation_fallback",
+                "persistence": {
+                    "checkpoint_available": False,
+                    "resume_token_available": False
+                },
+                "message": "No receipt-backed persistence state is available."
             }).encode())
-        elif path == "/api/provenance" or path == "/api/logs/raw":
-            self._set_headers()
-            self.wfile.write(json.dumps([{
-                "content": "No provenance rail available in observation mode.",
-                "path": "null://system"
-            }]).encode())
-        elif path.startswith("/api/logs/agent/"):
+        elif path == "/api/provenance":
             self._set_headers()
             self.wfile.write(json.dumps({
-                "agent_id": path.split("/")[-1],
-                "logs": [],
-                "truth_class": "DEGRADED",
-                "source": None
+                "ok": True,
+                "status": "unavailable",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_observation_fallback",
+                "events": [],
+                "message": "No receipt-backed provenance rail is available."
             }).encode())
         elif path == "/api/events":
+            # Safely appended: return structured events for front
+            log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "local/events.jsonl")
+            events = []
+            if os.path.exists(log_path):
+                with open(log_path, "r") as f:
+                    for line in f:
+                        if line.strip():
+                            try:
+                                events.append(json.loads(line))
+                            except: pass
             self._set_headers()
-            self.wfile.write(json.dumps([]).encode())
-        elif path == "/api/world/spectator/latest":
-            self._set_headers()
-            self.wfile.write(json.dumps({
-                "ok": False,
-                "status": "unavailable",
-                "truth_mode": "truth_safe_unverified",
-                "truth_bearing_run": False,
-                "source": "gamma_hub_observation_fallback",
-                "latest": None,
-                "row_count": 0,
-                "message": "No receipt-backed spectator state is available."
-            }).encode())
-        elif path == "/api/world/spectator/active-loop/latest":
-            self._set_headers()
-            self.wfile.write(json.dumps({
-                "ok": False,
-                "status": "unavailable",
-                "truth_mode": "truth_safe_unverified",
-                "truth_bearing_run": False,
-                "source": "gamma_hub_observation_fallback",
-                "latest": None,
-                "row_count": 0,
-                "active_loop": None,
-                "message": "No receipt-backed active-loop spectator state is available."
-            }).encode())
+            self.wfile.write(json.dumps(events[-100:]).encode()) # Return last 100 events
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
-
 
     def do_POST(self):
         parsed_path = urlparse(self.path)
