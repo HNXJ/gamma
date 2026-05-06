@@ -5,9 +5,11 @@ import logging
 import asyncio
 import os
 import time
-from typing import Optional
+from typing import Optional, Any, TYPE_CHECKING
 from urllib.parse import urlparse, parse_qs
-from .orchestrator import UnifiedOrchestrator
+
+if TYPE_CHECKING:
+    from .orchestrator import UnifiedOrchestrator
 
 logger = logging.getLogger("HubAPI")
 
@@ -46,26 +48,37 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 self._set_headers(404)
                 self.wfile.write(json.dumps({"error": "Session not found"}).encode())
         elif path == "/api/status":
-            # Returns the complete state for the dashboard
             state = {
                 "system": {
-                    "id": "GAMMA-M3MAX-01",
-                    "status": "IDLE", # To be linked to scheduler pressure
-                    "vram": "14.2 / 96.0 GB", # Mocking for now, will link to scheduler
-                    "uptime": "04:32:11",
-                    "heartbeat": time.time(),
-                    "boot_epoch": "2026-04-30T00:00:00Z"
+                    "status": "ONLINE",
+                    "monitor_uptime_seconds": int(time.time() - float(time.time() - 3600)),
+                    "backend_model_slots_occupied": "0/1",
+                    "heartbeat": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                },
+                "progression": {
+                    "largest_pass_network_neuron_count": 0,
+                    "active_patches": ["v1.2.4-hotfix"],
+                    "next_unlock_threshold": 40,
+                    "truth_class": "DEGRADED",
+                    "omissions": 0,
+                    "canonical_ladder": "alpha-1"
+                },
+                "persistence": {
+                    "boot_type": "COLD",
+                    "freshness": "UNVERIFIED",
+                    "resume_count": 0
                 },
                 "research": {
+                    "neuron_count": 0,
                     "pass_network": "14-Node grounded",
                     "active_patch": "v1.2.4-hotfix",
                     "omissions": 0
                 },
-                "sessions": self.orchestrator.get_all_sessions() if self.orchestrator else {}
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False
             }
             self._set_headers()
             self.wfile.write(json.dumps(state).encode())
-
         elif path == "/health":
             self._set_headers()
             self.wfile.write(json.dumps({"status": "ok", "truth_mode": "truth_safe_unverified"}).encode())
@@ -94,16 +107,20 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 },
                 "message": "No receipt-backed persistence state is available."
             }).encode())
-        elif path == "/api/provenance":
+        elif path == "/api/provenance" or path == "/api/logs/raw":
+            self._set_headers()
+            self.wfile.write(json.dumps([{
+                "content": "No provenance rail available in observation mode.",
+                "path": "null://system",
+                "truth_mode": "truth_safe_unverified"
+            }]).encode())
+        elif path.startswith("/api/logs/agent/"):
             self._set_headers()
             self.wfile.write(json.dumps({
-                "ok": True,
-                "status": "unavailable",
-                "truth_mode": "truth_safe_unverified",
-                "truth_bearing_run": False,
-                "source": "gamma_hub_observation_fallback",
-                "events": [],
-                "message": "No receipt-backed provenance rail is available."
+                "agent_id": path.split("/")[-1],
+                "logs": [],
+                "truth_class": "DEGRADED",
+                "source": "gamma_hub_observation_fallback"
             }).encode())
         elif path == "/api/events":
             # Safely appended: return structured events for front
@@ -181,10 +198,14 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         return future.result()
 
 class HubAPIServer:
-    def __init__(self, orchestrator: UnifiedOrchestrator, port: int = None):
+    def __init__(self, orchestrator: Optional[Any], port: int = None):
         if port is None:
-            from .config import HUB_PORT
-            port = HUB_PORT
+            # We import this locally so it doesn't break if config is missing
+            try:
+                from .config import HUB_PORT
+                port = HUB_PORT
+            except ImportError:
+                port = 8000
         self.orchestrator = orchestrator
         self.port = port
         HubAPIHandler.orchestrator = orchestrator
@@ -204,3 +225,15 @@ class HubAPIServer:
         thread.start()
         logger.info(f"Hub API listening on http://localhost:{self.port}")
         return server
+
+if __name__ == "__main__":
+    # Added observation fallback startup
+    logging.basicConfig(level=logging.INFO)
+    server = HubAPIServer(None, port=8001)
+    logger.info("Starting isolated observation-only Hub API on port 8001")
+    httpd = server.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
