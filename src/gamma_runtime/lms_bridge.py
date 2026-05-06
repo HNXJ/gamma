@@ -25,7 +25,25 @@ OFFICE_MAC_LMS_PLAYERS = LMSProvider(
     provider_id="office_mac_lms_players",
     role="remote_player_model_host",
     base_url="http://100.69.184.42:1234/v1",
+    model_id="gemma-4-e4b-it-mxfp8",
 )
+
+
+def with_model_override(provider: LMSProvider, model_id: str) -> LMSProvider:
+    """Return a new LMSProvider instance with an overridden model_id."""
+    return LMSProvider(
+        provider_id=provider.provider_id,
+        role=provider.role,
+        base_url=provider.base_url,
+        model_id=model_id,
+        api_style=provider.api_style,
+        auth_mode=provider.auth_mode,
+        sdk_preferred=provider.sdk_preferred,
+        truth_mode=provider.truth_mode,
+        truth_bearing_run=provider.truth_bearing_run,
+        timeout_seconds=provider.timeout_seconds,
+    )
+
 
 WINDOWS_LMS_GUARD_JUDGE = LMSProvider(
     provider_id="windows_lms_guard_judge",
@@ -196,9 +214,12 @@ def main() -> int:
     parser.add_argument("--provider", choices=["office_mac", "windows_guard"], required=True)
     parser.add_argument("--list-models", action="store_true")
     parser.add_argument("--smoke-guard", action="store_true")
+    parser.add_argument("--model-id", help="Override provider target model ID")
     args = parser.parse_args()
 
     provider = provider_from_arg(args.provider)
+    if args.model_id:
+        provider = with_model_override(provider, args.model_id)
 
     header = {
         "provider_id": provider.provider_id,
