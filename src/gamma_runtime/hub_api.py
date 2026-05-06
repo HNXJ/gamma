@@ -32,10 +32,13 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
-        
+
         if path.startswith("/api/session/"):
             session_id = path.split("/")[-1]
-            state = self.orchestrator.get_session_state(session_id)
+            if self.orchestrator:
+                state = self.orchestrator.get_session_state(session_id)
+            else:
+                state = None
             if state:
                 self._set_headers()
                 self.wfile.write(json.dumps(state).encode())
@@ -58,10 +61,11 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                     "active_patch": "v1.2.4-hotfix",
                     "omissions": 0
                 },
-                "sessions": self.orchestrator.get_all_sessions()
+                "sessions": self.orchestrator.get_all_sessions() if self.orchestrator else {}
             }
             self._set_headers()
             self.wfile.write(json.dumps(state).encode())
+
         elif path == "/health":
             self._set_headers()
             self.wfile.write(json.dumps({"status": "ok", "truth_mode": "truth_safe_unverified"}).encode())
