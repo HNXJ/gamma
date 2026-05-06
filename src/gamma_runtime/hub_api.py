@@ -118,6 +118,31 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                             except: pass
             self._set_headers()
             self.wfile.write(json.dumps(events[-100:]).encode()) # Return last 100 events
+        elif path == "/api/world/spectator/latest":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "ok": False,
+                "status": "unavailable",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_observation_fallback",
+                "latest": None,
+                "row_count": 0,
+                "message": "No receipt-backed spectator state is available."
+            }).encode())
+        elif path == "/api/world/spectator/active-loop/latest":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "ok": False,
+                "status": "unavailable",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_observation_fallback",
+                "latest": None,
+                "row_count": 0,
+                "active_loop": None,
+                "message": "No receipt-backed active-loop spectator state is available."
+            }).encode())
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
