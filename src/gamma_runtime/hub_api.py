@@ -62,6 +62,45 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
             }
             self._set_headers()
             self.wfile.write(json.dumps(state).encode())
+        elif path == "/health":
+            self._set_headers()
+            self.wfile.write(json.dumps({"status": "ok", "truth_mode": "truth_safe_unverified"}).encode())
+        elif path == "/api/agents":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "status": "unavailable",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_observation_fallback",
+                "agents": [],
+                "message": "No receipt-backed live agent roster is available."
+            }).encode())
+        elif path == "/api/persistence":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "status": "unavailable",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_observation_fallback",
+                "persistence": {
+                    "checkpoint_available": False,
+                    "resume_token_available": False
+                },
+                "message": "No receipt-backed persistence state is available."
+            }).encode())
+        elif path == "/api/provenance":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "status": "unavailable",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_observation_fallback",
+                "events": [],
+                "message": "No receipt-backed provenance rail is available."
+            }).encode())
         elif path == "/api/events":
             # Safely appended: return structured events for front
             log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "local/events.jsonl")
