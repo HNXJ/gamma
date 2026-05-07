@@ -160,6 +160,40 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 "active_loop": None,
                 "message": "No receipt-backed active-loop spectator state is available."
             }).encode())
+        elif path == "/api/missions/latest" or path == "/api/missions/izh-spectral-omission-mvs-01":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "mission_id": "IZH-SPECTRAL-OMISSION-MVS-01",
+                "mission_type": "scientific_model_event",
+                "model_family": "Izhikevich",
+                "not_model_family": ["HH", "Hodgkin-Huxley"],
+                "status": "prepared_or_reported_unverified",
+                "evidence_status": "reported_unverified",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_mission_observation",
+                "gates": [],
+                "artifacts": ["mission_context.json", "izh_mission_event.json"],
+                "message": "Mission observation state is reported from artifacts; no Truth-plane acceptance."
+            }).encode())
+        elif path == "/api/lms/slots":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "ok": True,
+                "status": "reported_unverified",
+                "truth_mode": "truth_safe_unverified",
+                "truth_bearing_run": False,
+                "source": "gamma_hub_lms_slot_observation",
+                "model_key": "gemma-4-e4b-it-mlx",
+                "intended_variant": "nightmedia/gemma-4-E4B-it-mxfp4-mlx",
+                "vision_false_reported": True,
+                "slots": [
+                    {"slot_id": f"gamma_{i+1:02}", "role": role, "lms_instance_id": f"gemma-4-e4b-it-mlx{(':' + str(i+1)) if i > 0 else ''}", "status": "reported_not_started"}
+                    for i, role in enumerate(['receptionist', 'worker_alpha', 'worker_beta', 'critic', 'judge', 'redaction_auditor', 'receipt_verifier', 'synthesizer'])
+                ],
+                "message": "LMS slot state is observation evidence only."
+            }).encode())
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
