@@ -210,7 +210,7 @@ def run_live_verification(artifact_root: str) -> str:
             
         status_report["slots"][slot_id] = slot_status
 
-    if all_passed:
+    if all_passed and all(s.get("slot_verdict") == "PASS" for s in status_report["slots"].values()):
         verdict = "LMS_9SLOT_VERIFY_PASS"
     elif some_passed:
         verdict = "LMS_9SLOT_VERIFY_PARTIAL"
