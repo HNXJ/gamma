@@ -65,24 +65,28 @@ def extract_components(event: dict) -> dict:
     return event.get("event_definition", {}).get("components", {})
 
 def compose_prompt(components: dict, order: str, state_packet: dict | None = None) -> str:
-    if order != "A_plus_P_plus_B":
-        raise ValueError(f"Unsupported order: {order}")
-
     a_text = components.get("A", "")
     p_text = components.get("P0", "") if state_packet is None else str(state_packet)
     b_text = components.get("B", "")
 
-    prompt = f"# A_OBJECTIVE\n{a_text}\n\n# P_STATE\n{p_text}\n\n# B_RULES\n{b_text}"
-    return prompt
+    if order == "A_plus_P_plus_B":
+        return f"# A_OBJECTIVE\n{a_text}\n\n# P_STATE\n{p_text}\n\n# B_RULES\n{b_text}"
+    elif order == "B_plus_P_plus_A":
+        return f"# B_RULES\n{b_text}\n\n# P_STATE\n{p_text}\n\n# A_OBJECTIVE\n{a_text}"
+    else:
+        raise ValueError(f"Unsupported order: {order}")
 
 def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
-def make_mock_process_call(event_path: str, output_dir: str, turn_index: int = 0) -> dict:
+def make_mock_process_call(event_path: str, output_dir: str, turn_index: int = 0, composition_order: str | None = None) -> dict:
     event = load_event_definition(event_path)
     components = extract_components(event)
 
-    prompt = compose_prompt(components, "A_plus_P_plus_B")
+    if composition_order is None:
+        composition_order = "A_plus_P_plus_B"
+
+    prompt = compose_prompt(components, composition_order)
 
     a_text = components.get("A", "")
     p_text = components.get("P0", "")
@@ -99,8 +103,8 @@ def make_mock_process_call(event_path: str, output_dir: str, turn_index: int = 0
     turn_record = {
         "event_id": event.get("event_definition", {}).get("event_id"),
         "turn_index": turn_index,
-        "composition_order": "A_plus_P_plus_B",
-        "components_used": ["A", "P", "B"],
+        "composition_order": composition_order,
+        "components_used": ["B", "P", "A"] if composition_order == "B_plus_P_plus_A" else ["A", "P", "B"],
         "a_sha256": a_sha256,
         "p_sha256": p_sha256,
         "b_sha256": b_sha256,
@@ -121,9 +125,21 @@ def make_mock_process_call(event_path: str, output_dir: str, turn_index: int = 0
         json.dump(turn_record, f, indent=2)
 
     state_packet = {
-        "turn": turn_index,
-        "last_response": response_text,
-        "status": "mock_running"
+        "packet_id": f"state_packet_{turn_index:04d}",
+        "event_id": event.get("event_definition", {}).get("event_id"),
+        "turn_index": turn_index,
+        "composition_order": composition_order,
+        "components_used": ["B", "P", "A"] if composition_order == "B_plus_P_plus_A" else ["A", "P", "B"],
+        "prompt_hash": full_prompt_sha256,
+        "full_prompt_sha256": full_prompt_sha256,
+        "output_hash": response_sha256,
+        "response_sha256": response_sha256,
+        "judge_verdict": "continue",
+        "truth_mode": "truth_safe_unverified",
+        "truth_bearing_run": False,
+        "mock_transport": True,
+        "live_model_call": False,
+        "status": "mock_state_packet_not_truth"
     }
     state_packet_path = os.path.join(output_dir, f"state_packet_{turn_index:04d}.json")
     with open(state_packet_path, 'w', encoding='utf-8') as f:
@@ -136,7 +152,8 @@ if __name__ == "__main__":
     parser.add_argument("--event", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--turn", type=int, default=0)
+    parser.add_argument("--order", choices=["A_plus_P_plus_B", "B_plus_P_plus_A"], default=None)
     args = parser.parse_args()
 
-    make_mock_process_call(args.event, args.out, args.turn)
+    make_mock_process_call(args.event, args.out, args.turn, args.order)
     print(f"Mock execution completed for {args.event} -> {args.out}")
