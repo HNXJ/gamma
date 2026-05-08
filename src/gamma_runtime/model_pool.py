@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from .types import ModelSpec, InferenceRequest, InferenceResult
+from .runtime_types import ModelSpec, InferenceRequest, InferenceResult
 from .backend_base import InferenceBackend
 
 @dataclass
@@ -11,7 +11,7 @@ class PoolStats:
 
 class SharedModelPool:
     """Manages base weight residency. Ensures models are loaded exactly once."""
-    
+
     def __init__(self, spec: ModelSpec, backend: InferenceBackend):
         self.spec = spec
         self.backend = backend

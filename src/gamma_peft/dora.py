@@ -14,28 +14,28 @@ class DoRALinear(nn.Module):
     def __init__(self, base_layer: nn.Linear, rank: int, alpha: float, dropout: float = 0.0):
         super().__init__()
         print(f"DEBUG: Initializing DoRALinear with in_features={base_layer.weight.shape[1]}, out_features={base_layer.weight.shape[0]}")
-        
+
         self.base_layer = base_layer
         self.rank = rank
         self.alpha = alpha
         self.scaling = alpha / rank
-        
+
         # 1. Magnitude parameter (m). Initialized from the norm of the pre-trained weights.
         # Norm is calculated over the input dimension (axis 1).
         print("DEBUG: Calculating initial magnitude from base weights")
         self.m = mx.linalg.norm(base_layer.weight, axis=1, keepdims=True)
         print(f"DEBUG: Magnitude vector m initialized with shape {self.m.shape}")
-        
+
         # 2. LoRA A matrix (Directional update A)
         shape_a = (rank, base_layer.weight.shape[1])
         self.lora_a = mx.random.uniform(low=-1/math.sqrt(shape_a[1]), high=1/math.sqrt(shape_a[1]), shape=shape_a)
         print(f"DEBUG: lora_a initialized with shape {shape_a}")
-        
+
         # 3. LoRA B matrix (Directional update B)
         shape_b = (base_layer.weight.shape[0], rank)
         self.lora_b = mx.zeros(shape=shape_b)
         print(f"DEBUG: lora_b initialized with shape {shape_b}")
-        
+
         self.dropout = nn.Dropout(dropout) if dropout > 0 else (lambda x: x)
         print(f"DEBUG: Dropout initialized with p={dropout}")
 
@@ -55,7 +55,7 @@ class DoRALinear(nn.Module):
         delta_w = (self.lora_b @ self.lora_a) * self.scaling
         v = self.base_layer.weight + delta_w
         w_final = self.m * (v / mx.linalg.norm(v, axis=1, keepdims=True))
-        
+
         # We need to subtract the base weight contribution to get only the delta
         delta = (x @ (w_final - self.base_layer.weight).T)
         print("DEBUG: DoRA delta computation complete")
@@ -75,7 +75,7 @@ class DoRAAdapter(AdapterMethod):
 
     def attach(self, model: nn.Module, target_spec: Dict[str, Any], config: Dict[str, Any]):
         print(f"DEBUG: Attaching DoRA to model modules: {self.target_modules}") # print(f"Attaching DoRA to model modules: {self.target_modules}")
-        
+
         def replace_recursive(module, prefix=""):
             for name, child in module.children().items():
                 full_name = f"{prefix}.{name}" if prefix else name

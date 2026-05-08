@@ -1,7 +1,7 @@
 import time
 import httpx
 import logging
-from .types import ModelSpec, InferenceRequest, InferenceResult
+from .runtime_types import ModelSpec, InferenceRequest, InferenceResult
 from .backend_base import InferenceBackend
 from .config import get_lms_url
 
@@ -37,7 +37,7 @@ class MLXEngineBackend(InferenceBackend):
         resp = await self.client.post(f"{self.base_url}/v1/chat/completions", json=payload)
         resp.raise_for_status()
         data = resp.json()
-        
+
         return InferenceResult(
             text=data["choices"][0]["message"]["content"],
             raw=data,

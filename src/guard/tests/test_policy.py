@@ -18,7 +18,7 @@ def test_path_containment():
     sandbox = Path("/tmp/sandbox").resolve()
     repo = Path("/tmp/repo").resolve()
     policy = GuardPolicy(sandbox, repo)
-    
+
     # Within repo (assuming /tmp/repo/file.txt)
     assert policy._is_path_safe("/tmp/repo/file.txt")[0] is True
     # Outside

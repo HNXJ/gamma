@@ -23,7 +23,7 @@ class CommandExecutor:
                 absolute_target = (self.sandbox_dir / target).resolve()
             else:
                 absolute_target = target.resolve()
-            
+
             # Check if the sandbox directory is a parent of the target
             return self.sandbox_dir in absolute_target.parents or absolute_target == self.sandbox_dir
         except Exception:
@@ -64,12 +64,12 @@ class CommandExecutor:
                 timeout=self.timeout,
                 cwd=str(self.sandbox_dir) # Force execution inside sandbox
             )
-            
+
             result["return_code"] = proc.returncode
             # Capture tails only to be safe
             result["stdout"] = proc.stdout[-2000:] if proc.stdout else ""
             result["stderr"] = proc.stderr[-2000:] if proc.stderr else ""
-            
+
         except subprocess.TimeoutExpired:
             result["reason"] = "Command timed out"
             result["return_code"] = -1

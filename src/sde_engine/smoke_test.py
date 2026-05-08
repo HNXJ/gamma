@@ -5,7 +5,7 @@ from pathlib import Path
 # Add src to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from gamma_runtime.types import ModelSpec, InferenceResult, AgentSpec
+from gamma_runtime.runtime_types import ModelSpec, InferenceResult, AgentSpec
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.blackboard import Blackboard
 from gamma_runtime.model_pool import SharedModelPool
@@ -27,15 +27,15 @@ async def test_sde_engine():
     # Setup Runtime
     scheduler = InferenceScheduler()
     blackboard = Blackboard("Jaxley E-I Optimization")
-    
+
     # Register mock pool
     spec = ModelSpec(key="test-model", provider="mlx", max_parallel_slots=4)
     pool = SharedModelPool(spec, MockBackend())
     await scheduler.register_pool(pool)
-    
+
     # Setup SDE Engine
     solver = SDESolver(scheduler, blackboard)
-    
+
     # Define Mock Agents
     proponent = AgentSpec(
         agent_id="excitatory_specialist",
@@ -43,21 +43,21 @@ async def test_sde_engine():
         model_key="test-model",
         system_prompt="You are an expert in AMPA kinetics."
     )
-    
+
     adversary = AgentSpec(
         agent_id="inhibitory_specialist",
         role="Adversary",
         model_key="test-model",
         system_prompt="You are a skeptical neuroscientist."
     )
-    
+
     print("🚀 Starting SDE Smoke Test...")
     result_entry = await solver._run_optimization_cycle(proponent, adversary)
-    
+
     print("\n--- SDE State committed to Blackboard ---")
     print(f"Metrics: {result_entry.metadata['x']:.2f}, {result_entry.metadata['z']:.2f}")
     print(f"Global Loss: {result_entry.metadata['loss']:.4f}")
-    
+
     assert 'sde_metrics' in result_entry.metadata['kind']
     print("\nSDE Engine Verification: SUCCESS")
 

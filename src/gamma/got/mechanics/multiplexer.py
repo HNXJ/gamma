@@ -30,7 +30,7 @@ class GotMultiplexer:
                 logger.error("VRAM Constraint: Exactly ONE resident base model allowed. "
                              f"Currently loaded: {self.base_model_id}")
                 return False
-        
+
         # In a real implementation, this would call mlx_lm.load()
         logger.info(f"Loading base model {model_id} into Shared Context Pool...")
         self.base_model_id = model_id
@@ -75,23 +75,23 @@ class GotMultiplexer:
 if __name__ == "__main__":
     # Test Multiplexer Logic
     mux = GotMultiplexer(max_sessions=2)
-    
+
     # 1. Load Base Model
     mux.load_base_model("gemma-9b-it-mxfp8")
-    
+
     # 2. Acquire Sessions
     s1 = mux.acquire_session("Agent-Alpha")
     s2 = mux.acquire_session("Agent-Beta")
-    
+
     # 3. Attempt Breach (Should fail)
     s3 = mux.acquire_session("Agent-Gamma")
     if s3 is None:
         print("Success: Multiplexer correctly blocked the third parallel session.")
-    
+
     # 4. Release and Re-acquire
     mux.release_session(s1)
     s4 = mux.acquire_session("Agent-Gamma")
     if s4:
         print("Success: Session re-acquired after release.")
-        
+
     print(f"Final Status: {mux.get_status()}")

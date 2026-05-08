@@ -6,7 +6,7 @@ class SDEMetrics:
     Implementation of the GAMMA Scientific Discovery Equilibrium (SDE) metrics.
     Calculates Epistemic Gain (x), Rigor (y), Ground Truth (z), and Coherence (w).
     """
-    
+
     @staticmethod
     def calculate_x(mse_loss: float) -> float:
         """x (Epistemic Gain): Inversely related to differentiable loss."""

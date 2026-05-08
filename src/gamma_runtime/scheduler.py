@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
-from .types import InferenceRequest, InferenceResult, ModelSpec
+from .runtime_types import InferenceRequest, InferenceResult, ModelSpec
 from .model_pool import SharedModelPool
 
 @dataclass
@@ -14,7 +14,7 @@ class ResourceBudget:
     async def reserve(self, tokens: int):
         async with self._lock:
             if self.current_tokens + tokens > self.max_kv_tokens:
-                # In a production scheduler, this would queue. 
+                # In a production scheduler, this would queue.
                 # For Gamma Phase 2, we fail fast to protect the host.
                 raise RuntimeError(f"VRAM Token Budget Exceeded: {self.current_tokens + tokens} > {self.max_kv_tokens}")
             self.current_tokens += tokens
@@ -41,7 +41,7 @@ class InferenceScheduler:
 
     async def schedule(self, model_key: str, request: InferenceRequest) -> InferenceResult:
         """
-        Entry point for all inference. 
+        Entry point for all inference.
         Routes requests through residency checks and VRAM budgets.
         """
         pool = self.pools.get(model_key)
@@ -50,7 +50,7 @@ class InferenceScheduler:
 
         # 1. Budget Reservation (Estimating worst-case KV usage)
         # We assume max_tokens + reasonable prompt context overhead
-        estimated_tokens = request.generation.get("max_tokens", 512) + 4096 
+        estimated_tokens = request.generation.get("max_tokens", 512) + 4096
         await self.budget.reserve(estimated_tokens)
 
         try:
@@ -62,7 +62,7 @@ class InferenceScheduler:
 
     async def batch_run(self, requests: List[tuple[str, InferenceRequest]]) -> List[InferenceResult]:
         """
-        Managed parallel execution. 
+        Managed parallel execution.
         Strictly replaces unmanaged asyncio.gather at the application layer.
         """
         tasks = [self.schedule(model_key, req) for model_key, req in requests]

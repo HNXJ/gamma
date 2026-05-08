@@ -25,7 +25,7 @@ def test_ignore_comments_and_blank_lines():
     text = """
     ```bash
     ls
-    
+
     # this is a comment
     pwd
     ```

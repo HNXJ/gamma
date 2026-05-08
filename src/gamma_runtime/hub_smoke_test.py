@@ -10,19 +10,19 @@ from gamma_runtime.hub_api import HubAPIServer
 
 async def main():
     print("🚀 Initializing Hub API Smoke Test...")
-    
+
     # Setup Runtime Components
     scheduler = InferenceScheduler()
     registry = RuntimeRegistry(str(Path(__file__).parent.parent.parent / "configs"))
     orchestrator = UnifiedOrchestrator(scheduler, registry)
-    
+
     # Start API Server
     server = HubAPIServer(orchestrator, port=8002)
     server.start()
-    
+
     # Give the server a moment to boot
     time.sleep(1)
-    
+
     # Test POST /api/launch
     print("Testing /api/launch...")
     conn = http.client.HTTPConnection("127.0.0.1", 8002)
@@ -35,7 +35,7 @@ async def main():
     response = conn.getresponse()
     data = json.loads(response.read().decode())
     session_id = data.get("session_id")
-    
+
     print(f"Response: {response.status}, Session ID: {session_id}")
     assert response.status == 201
     assert "session-" in session_id
@@ -45,11 +45,11 @@ async def main():
     conn.request("GET", f"/api/session/{session_id}")
     response = conn.getresponse()
     data = json.loads(response.read().decode())
-    
+
     print(f"Response: {response.status}, Topic: {data.get('topic')}")
     assert response.status == 200
     assert data.get("topic") == "The stability of JAX-based biophysical solvers."
-    
+
     print("\nHub API Verification: SUCCESS")
     # server.shutdown() # socketserver.TCPServer doesn't have shutdown() easily reachable here but it's a daemon thread
 

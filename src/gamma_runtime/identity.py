@@ -1,5 +1,5 @@
 from typing import List, Set, Dict
-from .types import AgentSpec, ModelSpec
+from .runtime_types import AgentSpec, ModelSpec
 
 def resolve_runtime_name(model: ModelSpec, agent_id: str) -> str:
     """
@@ -14,7 +14,7 @@ def validate_identity_uniqueness(agents: List[AgentSpec], model_map: Dict[str, M
     Verifies that all agents in a team have unique resolved runtime names.
     """
     names: Set[str] = set()
-    
+
     for agent in agents:
         model = model_map.get(agent.model_key)
         if not model:

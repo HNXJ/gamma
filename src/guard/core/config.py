@@ -10,15 +10,15 @@ class Config(BaseModel):
     base_url: str = Field(default="http://127.0.0.1:1234/v1", alias="GUARD_BASE_URL")
     api_key: str = Field(default="lm-studio", alias="GUARD_API_KEY")
     model: str = Field(default="gemma-4-e4b-it-mxfp8", alias="GUARD_MODEL")
-    
+
     sandbox_dir: Path = Field(default=Path("./sandbox"), alias="GUARD_SANDBOX_DIR")
     repo_root: Path = Field(default=Path("."), alias="GUARD_REPO_ROOT")
-    
+
     poll_interval_sec: int = Field(default=5, alias="GUARD_POLL_INTERVAL_SEC")
     max_iterations: int = Field(default=10, alias="GUARD_MAX_ITERATIONS")
     max_memory_chars: int = Field(default=10000, alias="GUARD_MAX_MEMORY_CHARS")
     command_timeout_sec: int = Field(default=120, alias="GUARD_COMMAND_TIMEOUT_SEC")
-    
+
     audit_log: Path = Field(default=Path("state/guard-audit.jsonl"), alias="GUARD_AUDIT_LOG")
     memory_log: Path = Field(default=Path("state/guard-state.md"), alias="GUARD_MEMORY_LOG")
 

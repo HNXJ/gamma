@@ -14,16 +14,16 @@ class GuardPolicy:
     def __init__(self, sandbox_dir: Path, repo_root: Path):
         self.sandbox_dir = sandbox_dir.expanduser().resolve()
         self.repo_root = repo_root.expanduser().resolve()
-        
+
         # Initial allowlist
         self.allowed_binaries = {
             "ls", "cat", "echo", "git", "python3", "grep", "tail", "pwd", "find", "wc",
             "pytest", "ruff", "mkdir", "pgrep", "kill"
         }
-        
+
         # Denied shell metacharacters
         self.denied_chars = ["|", "&", ";", ">", "<", "$(", "`", "\n"]
-        
+
         # Git policy
         self.allowed_git_subcommands = {
             "status", "branch", "checkout", "switch", "add", "commit", "diff", "pull", "push", "log"
@@ -72,10 +72,10 @@ class GuardPolicy:
             # If relative, resolve against current working directory (handled by resolve)
             # We resolve it strictly=False to handle non-existent files
             resolved_path = path.resolve(strict=False)
-            
+
             in_sandbox = self._is_subpath(resolved_path, self.sandbox_dir)
             in_repo = self._is_subpath(resolved_path, self.repo_root)
-            
+
             if not (in_sandbox or in_repo):
                 return False, f"Path '{path_str}' is outside approved roots ({resolved_path})"
             return True, ""
@@ -91,15 +91,15 @@ class GuardPolicy:
     def _validate_git(self, argv: List[str], raw_command: str) -> PolicyDecision:
         if len(argv) < 2:
             return PolicyDecision(False, "Missing git subcommand", raw_command, argv)
-        
+
         subcommand = argv[1]
         if subcommand not in self.allowed_git_subcommands:
             return PolicyDecision(False, f"Git subcommand '{subcommand}' not allowed", raw_command, argv)
-        
+
         for arg in argv:
             if arg in self.denied_git_options:
                 return PolicyDecision(False, f"Forbidden git option: {arg}", raw_command, argv)
-        
+
         if subcommand == "push":
             # Push policy: only to guard/* branches
             # Simple check: expect 'origin guard/branch' or 'guard/branch'
@@ -119,10 +119,10 @@ class GuardPolicy:
         for arg in argv:
             if arg in forbidden_flags:
                 return PolicyDecision(False, f"Forbidden python flag: {arg}", raw_command, argv)
-        
+
         if len(argv) < 2:
             return PolicyDecision(False, "Missing python script or module", raw_command, argv)
-        
+
         if "-m" in argv:
             m_index = argv.index("-m")
             if m_index + 1 < len(argv):
@@ -138,5 +138,5 @@ class GuardPolicy:
                 is_safe, reason = self._is_path_safe(script_path)
                 if not is_safe:
                     return PolicyDecision(False, f"Python script: {reason}", raw_command, argv)
-            
+
         return PolicyDecision(True, "Python execution allowed", raw_command, argv)

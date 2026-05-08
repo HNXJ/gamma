@@ -24,7 +24,7 @@ class SchizophreniaSim:
         # This is a proxy for the complex spectral integration
         actual_slope = -1.5 * (g_inh / 0.4)
         mse = (actual_slope - self.target_slope)**2
-        
+
         return {
             "g_inh": g_inh,
             "slope": actual_slope,

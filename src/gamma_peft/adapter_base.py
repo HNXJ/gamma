@@ -9,7 +9,7 @@ class AdapterMethod(ABC):
     Abstract Base Class for model-agnostic PEFT adapters in the MLX framework.
     All implementation increments (LoRA, DoRA, etc.) must adhere to this interface.
     """
-    
+
     def __init__(self, name: str, adapter_rank: int, adapter_alpha: float, target_modules: List[str]):
         print(f"DEBUG: Initializing AdapterMethod '{name}' (rank={adapter_rank}, alpha={adapter_alpha})")
         self.name = name

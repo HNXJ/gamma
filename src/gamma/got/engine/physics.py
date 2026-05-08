@@ -4,7 +4,7 @@ import chex
 
 class GotPhysics:
     """
-    The GoT Physics engine implements the mathematical kernels for the 
+    The GoT Physics engine implements the mathematical kernels for the
     Evaluation Manifold and the Council Loss function using JAX.
     """
     def __init__(self, alpha=1.0, beta=1.0):
@@ -22,7 +22,7 @@ class GotPhysics:
         p_safe = p + eps
         q_safe = q + eps
         m_safe = m + eps
-        
+
         kl_pm = jnp.sum(p_safe * jnp.log(p_safe / m_safe))
         kl_qm = jnp.sum(q_safe * jnp.log(q_safe / m_safe))
         return 0.5 * (kl_pm + kl_qm)
@@ -32,7 +32,7 @@ class GotPhysics:
         """
         Calculates the Council Loss:
         L = alpha * (z - w)^2 - beta * (x + y)
-        
+
         x: Epistemic Gain (Spectral Residual Reduction)
         y: Adversarial Penalty (JS Divergence across agent proposals)
         z: Lore Adherence (MSD vs Literature)
@@ -43,7 +43,7 @@ class GotPhysics:
     def evaluate_proposals(self, agent_proposals, ground_truth_params, biological_traces):
         """
         Evaluate a batch of agent proposals against ground truth and traces.
-        
+
         agent_proposals: jnp.array (num_agents, num_params)
         ground_truth_params: jnp.array (num_params)
         biological_traces: jnp.array (trace_length)
@@ -52,7 +52,7 @@ class GotPhysics:
         # Simplified: inverse of distance to biological reality
         # In production, this would involve running the SDE-Solver
         x = 1.0 / (1.0 + jnp.std(agent_proposals)) # Mock logic for now
-        
+
         # 2. Adversarial Penalty (y)
         # Calculate JS Divergence if agents provide distributions
         # For point proposals, we treat them as samples of a distribution
@@ -61,18 +61,18 @@ class GotPhysics:
             y = jnp.var(agent_proposals)
         else:
             y = 0.0
-            
+
         # 3. Lore Adherence (z)
         # MSD against ground_truth_params (Lore)
         z = -jnp.mean(jnp.square(agent_proposals - ground_truth_params))
-        
+
         # 4. Stability (w)
         # Check for NaNs or Inf
         has_nan = jnp.any(jnp.isnan(agent_proposals))
         w = jnp.where(has_nan, -100.0, 1.0)
-        
+
         total_loss = self.council_loss(x, y, z, w)
-        
+
         return {
             "x": float(x),
             "y": float(y),

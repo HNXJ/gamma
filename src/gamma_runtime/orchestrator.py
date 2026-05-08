@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+import os
 from typing import Dict, Any, Optional, List
 from .runtime_types import AgentId, InferenceRequest, MissionContext
 from .scheduler import InferenceScheduler
@@ -43,7 +44,7 @@ class UnifiedOrchestrator:
         self._heartbeat_config["team_id"] = team_id
         self._heartbeat_config["topic"] = topic
         self._heartbeat_config["active"] = True
-        
+
         if not self._monitor_task or self._monitor_task.done():
             self._monitor_task = asyncio.create_task(self._heartbeat_loop())
             logger.info(f"💓 Heartbeat Monitor Activated: Team={team_id}, Rule='Not even a second'")
@@ -53,24 +54,24 @@ class UnifiedOrchestrator:
         while self._heartbeat_config["active"]:
             now = time.time()
             idle_duration = now - self._last_activity_time
-            
+
             if idle_duration > 1.0:
                 logger.warning(f"⚠️ SYSTEM IDLE DETECTED ({idle_duration:.2f}s). Forcing heartbeat turn...")
                 try:
                     session_id = "heartbeat-session"
                     if session_id not in self._active_sessions:
                         self._active_sessions[session_id] = Blackboard(self._heartbeat_config["topic"])
-                    
+
                     blackboard = self._active_sessions[session_id]
-                    self._last_activity_time = now 
-                    
+                    self._last_activity_time = now
+
                     # Ensure we have a fresh mission context for each loop iteration
                     self._mission_context = self._load_mission_context()
                     topic = self._mission_context.mission_topic
-                    
+
                     orchestrator = V1GammaSDEOrchestrator(
-                        self.scheduler, 
-                        self.registry, 
+                        self.scheduler,
+                        self.registry,
                         mission_context=self._mission_context,
                         blackboard=blackboard
                     )
@@ -86,15 +87,15 @@ class UnifiedOrchestrator:
                     if latest_entry and latest_entry.metadata.get("kind") == "proposal_acceptance":
                         proposal_id = latest_entry.metadata.get("proposal_id")
                         logger.info(f"🔍 Mission Alignment Confirmed for {proposal_id}. Materializing...")
-                        
+
                         try:
                             # 2. Materialization (Second Trust Boundary)
                             exec_config = self.adapter.materialize_proposal(proposal_id, self._mission_context)
-                            
+
                             # 3. Solver Execution
                             solver = SDESolver(self.scheduler, blackboard=blackboard, registry=self.registry)
                             state_entry = await solver.execute_materialized_config(exec_config)
-                            
+
                             # 4. Success Verification & Persistence Commitment
                             if self.adapter.verify_substrate_success(state_entry.metadata, self._mission_context.target_neuron_count):
                                 current_truth = self.persistence.get_state().get("largest_pass_network_neuron_count", 0)
@@ -106,7 +107,7 @@ class UnifiedOrchestrator:
                                     })
                             else:
                                 logger.warning(f"📉 Simulation failed to reach convergence or target count for {proposal_id}.")
-                                
+
                         except Exception as exec_err:
                             logger.error(f"❌ Execution Bridge Failure: {exec_err}")
                             await blackboard.add_entry(
@@ -117,14 +118,14 @@ class UnifiedOrchestrator:
                 except Exception as e:
                     logger.error(f"Heartbeat trigger failed: {e}")
                     await asyncio.sleep(5)
-            
+
             await asyncio.sleep(0.5)
 
     async def launch_run(self, run_type: str, topic: str, **kwargs) -> str:
         session_id = f"session-{run_type}-{int(time.time())}"
         blackboard = Blackboard(topic)
         self._active_sessions[session_id] = blackboard
-        
+
         if self.emitter:
             self.emitter.emit(
                 agent_id="SYSTEM",
@@ -133,7 +134,7 @@ class UnifiedOrchestrator:
                 summary=f"Orchestrator launched {run_type} run on topic: {topic}",
                 status="OK"
             )
-            
+
         asyncio.create_task(self._execute_run(run_type, blackboard, **kwargs))
         return session_id
 
@@ -153,15 +154,15 @@ class UnifiedOrchestrator:
                 adversary = self.registry.load_agent(kwargs.get("adversary_id", "v1_gamma_adversary"))
                 # Legacy path: defaults to unknown provenance, making it non-persistence-eligible
                 await solver._run_optimization_cycle(proponent, adversary)
-            
+
             self._last_activity_time = time.time()
             logger.info(f"Session {run_type} completed successfully.")
-            
+
             if kwargs.get("auto_consolidate", True):
                 payload_path = self.consolidation.extract_validated_traces(blackboard, blackboard.topic[:10])
                 if payload_path:
                     await self.consolidation.trigger_training(payload_path, "gemma-9b-schiz")
-                    
+
         except Exception as e:
             logger.error(f"Session failed: {e}")
             await blackboard.add_entry(sender="SYSTEM", content=f"ERROR: {str(e)}")
@@ -197,23 +198,23 @@ class UnifiedOrchestrator:
             board_path = self.registry.root / "patches" / "arena_patch_board.json"
             if not board_path.exists():
                 raise FileNotFoundError(f"Mission target source missing: {board_path}")
-                
+
             import json
             with open(board_path, "r") as f:
                 board = json.load(f)
-                
+
             topic = board.get("active_mission_topic")
             target = board.get("active_mission_target")
-            
+
             if topic is None:
                 raise ValueError("Mission topic missing from patch board.")
             if target is None or not isinstance(target, int):
                 raise ValueError(f"Malformed or missing numeric mission target: {target}")
-            
+
             # Determine active patch ID
             active_patches = board.get("active_patches", [])
             patch_id = active_patches[0] if active_patches else None
-            
+
             return MissionContext(
                 target_neuron_count=target,
                 mission_topic=topic,

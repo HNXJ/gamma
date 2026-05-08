@@ -10,7 +10,7 @@ def test_sandbox_boundary():
 
     # Case 1: Simple relative path inside sandbox
     print(f"Testing 'test.txt': {executor.is_path_safe('test.txt')}")
-    
+
     # Case 2: Traversal attempt inside sandbox
     print(f"Testing './test.txt': {executor.is_path_safe('./test.txt')}")
 
@@ -20,7 +20,7 @@ def test_sandbox_boundary():
 
     # Case 4: Traversal attempt OUTSIDE sandbox
     print(f"Testing '../executor.py': {executor.is_path_safe('../executor.py')}")
-    
+
     # Case 5: Absolute path OUTSIDE sandbox
     print(f"Testing '/etc/passwd': {executor.is_path_safe('/etc/passwd')}")
 

@@ -32,7 +32,7 @@ class Trace(BaseModel):
     human_verified: bool = Field(default=False, description="Whether a human has verified this trace")
     is_red_flag: bool = Field(default=False, description="Explicit flag from node indicating a failed or corrupted trace")
     failure_class: Optional[str] = Field(None, description="Classification of failure if the trace was rejected")
-    
+
     # Metadata for the plan's gold/silver hierarchy
     doi_support: bool = Field(default=False, description="Explicit flag for DOI grounding verification")
 

@@ -4,7 +4,7 @@ import os
 import hmac
 import hashlib
 from typing import Dict, Any, List, Optional
-from src.gamma_runtime.types import MissionContext
+from gamma_runtime.runtime_types import MissionContext
 
 logger = logging.getLogger("ExecutionAdapter")
 
@@ -18,12 +18,12 @@ class ExecutionAdapter:
         self.proposals_dir = proposals_dir
         self.adapter_version = "2.5.0-E"
         self.solver_id = "sde_solver_v1"
-        
+
         # Stage 2E: Persistent bridge authority secret and receipt log
         base_dir = os.path.dirname(self.proposals_dir)
         secret_path = os.path.join(base_dir, "bridge_authority_v2.key")
         self.receipts_path = os.path.join(base_dir, "bridge_receipts.log")
-        
+
         if os.path.exists(secret_path):
             with open(secret_path, "r") as f:
                 self._secret = f.read().strip()
@@ -59,7 +59,7 @@ class ExecutionAdapter:
 
         if proposal_n is None:
             raise ValueError(f"Execution Rejected: Proposal {proposal_id} lacks 'meta.neuron_count'.")
-        
+
         if proposal_n != mission_context.target_neuron_count:
             raise ValueError(
                 f"Execution Rejected: Mission Mismatch. "
@@ -71,7 +71,7 @@ class ExecutionAdapter:
         run_id = f"run_{int(os.times()[4])}_{proposal_id[-8:]}"
         issued_at = os.times()[4]
         self._authorized_runs.add(run_id)
-        
+
         params = proposal.get("params", {})
         config_to_hash = {
             "proposal_id": proposal_id,
@@ -79,7 +79,7 @@ class ExecutionAdapter:
             "params": params
         }
         config_hash = self._canonical_hash(config_to_hash)
-        
+
         # Canonical Tuple (Stage 2E): Full context binding
         # mission_id | proposal_id | run_id | target_count | config_hash | solver_id | issued_at | adapter_version
         mission_id = mission_context.patch_id or mission_context.mission_topic
@@ -122,13 +122,13 @@ class ExecutionAdapter:
         """
         converged = metadata.get("converged", False)
         count_match = metadata.get("neuron_count") == target_count
-        
+
         # Provenance Extraction (Stage 2E)
         provenance = metadata.get("provenance", {})
         attestation = provenance.get("attestation")
         run_id = provenance.get("run_id")
         config_hash = provenance.get("config_hash")
-        
+
         # Reconstruct Canonical Tuple from untrusted result metadata
         # mission_id | proposal_id | run_id | target_count | config_hash | solver_id | issued_at | adapter_version
         observed_tuple = "|".join([
@@ -141,13 +141,13 @@ class ExecutionAdapter:
             str(provenance.get("issued_at")),
             str(provenance.get("adapter_version"))
         ])
-        
+
         expected_attestation = self._sign_attestation(observed_tuple)
-        
+
         # Verification Gates
         is_authenticated = (attestation == expected_attestation)
         is_canonical = provenance.get("materialized_by") == "ExecutionAdapter"
-        
+
         # Replay Protection (Stage 2E)
         is_replay = False
         if os.path.exists(self.receipts_path):
@@ -166,6 +166,6 @@ class ExecutionAdapter:
         # Record receipt for single-use enforcement
         with open(self.receipts_path, "a") as f:
             f.write(f"{attestation}\n")
-        
+
         logger.info(f"✅ PERSISTENCE AUTHORIZED (Stage 2E): Payload-bound attestation verified for {metadata.get('proposal_id')}.")
         return True

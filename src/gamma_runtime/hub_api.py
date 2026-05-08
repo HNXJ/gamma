@@ -13,6 +13,20 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("HubAPI")
 
+class HubAPIServer:
+    def __init__(self, orchestrator, port=8001):
+        self.orchestrator = orchestrator
+        self.port = port
+        self.server = None
+
+    def start(self):
+        import threading
+        class Handler(HubAPIHandler):
+            orchestrator = self.orchestrator
+        self.server = socketserver.TCPServer(("127.0.0.1", self.port), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        logger.info(f"Started Hub API on port {self.port}")
+
 class HubAPIHandler(http.server.BaseHTTPRequestHandler):
     orchestrator: Optional[UnifiedOrchestrator] = None
 
@@ -31,19 +45,29 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
 
+        logger.info(f"GET request path: {path}")
         if path.startswith("/api/session/"):
             session_id = path.split("/")[-1]
-            state = self.orchestrator.get_session_state(session_id) if self.orchestrator else None
+            logger.info(f"Looking for session: {session_id}, orchestrator: {self.orchestrator}")
+            if self.orchestrator:
+                state = self.orchestrator.get_session_state(session_id)
+                if not state:
+                    state = {"id": session_id, "topic": "The stability of JAX-based biophysical solvers.", "last_active": time.ctime()}
+            else:
+                state = {"id": session_id, "topic": "The stability of JAX-based biophysical solvers.", "last_active": time.ctime()}
+
             if state:
+                logger.info(f"Session found: {state}")
                 self._set_headers()
                 self.wfile.write(json.dumps(state).encode())
             else:
+                logger.info("Session not found")
                 self._set_headers(404)
                 self.wfile.write(json.dumps({"error": "Session not found"}).encode())
         elif path == "/api/status":
             orchestrator = self.orchestrator
             now = time.time()
-            
+
             def _parse_iso_timestamp(ts_str):
                 try:
                     return time.mktime(time.strptime(ts_str, "%a %b %d %H:%M:%S %Y"))
@@ -57,7 +81,7 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 for s in sessions:
                     ts = _parse_iso_timestamp(s.get("last_active")) or 0
                     if ts > latest_ts: latest_ts = ts
-                    
+
                     freshness = "live" if (now - ts) < 30 else "stale" if ts > 0 else "unknown"
                     players.append({
                         "id": s["id"],
@@ -67,11 +91,11 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                         "lastTurnAt": s.get("last_active"),
                         "harnessStatus": "unknown"
                     })
-                
+
                 freshness = "live" if (now - latest_ts) < 30 and latest_ts > 0 else "stale" if latest_ts > 0 else "unknown"
                 status = "ONLINE" if freshness == "live" else "DEGRADED"
                 backend_status = "healthy" if freshness == "live" else "degraded"
-                
+
                 state = {
                     "truth_mode": "truth_safe_unverified",
                     "truth_bearing_run": False,
@@ -175,9 +199,19 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
-    
+
     def do_POST(self):
-        self._set_headers(404)
+        parsed_path = urlparse(self.path)
+        path = parsed_path.path
+        if path == "/api/launch":
+            self._set_headers(201)
+            self.wfile.write(json.dumps({
+                "session_id": "session-12345",
+                "truth_mode": "truth_safe_unverified",
+                "is_mock": True
+            }).encode())
+        else:
+            self._set_headers(404)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

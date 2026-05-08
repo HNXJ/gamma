@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from typing import Dict, Any, Optional, List
-from gamma_runtime.types import AgentId, InferenceRequest, AgentSpec
+from gamma_runtime.runtime_types import AgentId, InferenceRequest, AgentSpec
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.blackboard import Blackboard
 from gamma_runtime.registry import RuntimeRegistry
@@ -22,9 +22,9 @@ class SDESolver:
         self.metrics = SDEMetrics()
 
     async def _run_optimization_cycle(
-        self, 
-        proponent: Any, 
-        adversary: Any, 
+        self,
+        proponent: Any,
+        adversary: Any,
         batch_data: Optional[List[Dict[str, Any]]] = None,
         provenance: Optional[Dict[str, Any]] = None
     ):
@@ -40,41 +40,41 @@ class SDESolver:
         prompt = "Propose optimal E-I parameters."
         if batch_data:
             prompt += f"\n\n### Batch Data ({len(batch_data)} neurons):\n{batch_data}"
-            
+
         proposal_req = self._build_inference_request(prop_spec, prompt)
         proposal_res = await self.scheduler.schedule(prop_spec.model_key, proposal_req)
         proposal_text = proposal_res.text
-        
+
         # 2. Heuristic Parameter Extraction (Mocked for Phase 2)
         gmax_estimate = 0.42 # Extracted from proposal_text
         mse_estimate = 0.05
-        
+
         x = self.metrics.calculate_x(mse_estimate)
         z = self.metrics.calculate_z(gmax_estimate)
-        
+
         # 3. Adversary Turn (Critique)
         critique_req = self._build_inference_request(adv_spec, f"Attack this proposal:\n{proposal_text}")
         critique_res = await self.scheduler.schedule(adv_spec.model_key, critique_req)
-        
+
         # 4. Final Aggregation
-        w = self.metrics.calculate_w(0.0) 
-        y = 0.85 
-        
+        w = self.metrics.calculate_w(0.0)
+        y = 0.85
+
         council_loss = self.metrics.council_loss(x, y, z, w)
-        
+
         # 5. Blackboard Commitment
         await self.blackboard.add_entry(
             sender=prop_spec.agent_id,
             content=proposal_text,
             metadata={"kind": "sde_proposal", "x": x, "z": z, "batch_size": len(batch_data) if batch_data else 0}
         )
-        
+
         await self.blackboard.add_entry(
             sender=adv_spec.agent_id,
             content=critique_res.text,
             metadata={"kind": "sde_critique"}
         )
-        
+
         state_entry = await self.blackboard.add_entry(
             sender="SDE_ENGINE",
             content=f"Equilibrium Check: Round {self.blackboard.round} complete.",
@@ -86,7 +86,7 @@ class SDESolver:
                 "provenance": provenance or {"materialized_by": "unknown"}
             }
         )
-        
+
         logger.info(f"SDE Cycle Complete. Council Loss: {council_loss:.4f}")
         return state_entry
 
@@ -97,17 +97,17 @@ class SDESolver:
         """
         n = config["neuron_count"]
         logger.info(f"Executing grounded biophysical simulation for N={n} neurons.")
-        
+
         # Construct mock batch based on materialized neuron count
         mock_batch = [{"id": f"neuron_{i}"} for i in range(n)]
-        
+
         state_entry = await self._run_optimization_cycle(
             proponent="v1_gamma_proponent",
             adversary="v1_gamma_adversary",
             batch_data=mock_batch,
             provenance=config.get("provenance")
         )
-        
+
         # Ensure full contextual metadata is tracked for Stage 2D truth-verification
         state_entry.metadata.update({
             "neuron_count": n,

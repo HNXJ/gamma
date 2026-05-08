@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 sys.path.append(str(Path(__file__).parent.parent))
 
-from gamma_runtime.types import ModelSpec, InferenceResult
+from gamma_runtime.runtime_types import ModelSpec, InferenceResult
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.registry import RuntimeRegistry
 from gamma_runtime.backend_base import InferenceBackend
@@ -29,27 +29,27 @@ async def test_council_flow():
     root = Path(__file__).parent.parent
     registry = RuntimeRegistry(str(root / "configs"))
     scheduler = InferenceScheduler()
-    
+
     orchestrator = CouncilOrchestrator(scheduler, registry)
-    
+
     # Initialize mock pools for models referenced in the team config
     # For this test, we'll just mock 'gemma4-parallel' as used in our registry checks
     def backend_factory(spec): return MockBackend()
-    
+
     await orchestrator.initialize_pools(["gemma4-parallel"], backend_factory)
-    
+
     # Run a deliberation round
     topic = "The biological plausibility of federated LoRA in cortical microcircuits."
     blackboard = await orchestrator.run_deliberation(
-        team_id="sde_debate_team", 
+        team_id="sde_debate_team",
         topic=topic,
         rounds=2
     )
-    
+
     print("\n--- Final Blackboard State ---")
     for entry in blackboard.entries:
         print(f"[{entry.sender}] {entry.content}")
-    
+
     assert len(blackboard.entries) == 8 # 4 agents * 2 rounds
     print("\nTier 1 Verification: SUCCESS")
 

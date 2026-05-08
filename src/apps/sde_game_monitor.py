@@ -65,7 +65,7 @@ def update_monitor_data():
                     f.seek(last_pos)
                     lines = f.readlines()
                     last_pos = f.tell()
-                    
+
                     for line in lines:
                         # Regex Extraction: [Agent], [Timestamp], [Message]
                         match = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - (.*?) - INFO - (.*)", line)
@@ -76,14 +76,14 @@ def update_monitor_data():
                                 council_dialogue.append(entry)
                                 if len(council_dialogue) > 100: council_dialogue.pop(0)
                                 tps_stats["total_tokens"] += len(msg.split()) * 4 # Approximation
-                        
+
                         # Simple TPS calc
                         now = time.time()
                         if now - tps_stats["last_tps_check"] > 5:
                             tps_stats["tps"] = (len(lines) * 5) / 5 # Simplified
                             tps_stats["last_tps_check"] = now
         except Exception:
-            pass 
+            pass
         time.sleep(1)
 
 # Start background thread
@@ -244,7 +244,7 @@ async def get_network_state():
         "kind": ["synapse"] * 5,
         "truth_class": ["GROUNDED"] * 5
     }
-    
+
     now_iso = datetime.now().isoformat()
     return {
         "snapshot_id": f"game001_net_{int(time.time())}",

@@ -53,7 +53,7 @@ class HarnessSession:
         self.turns: List[Dict[str, Any]] = []
         self.started_at = datetime.now(timezone.utc).isoformat()
         self.artifact_hashes: Dict[str, str] = {}
-        
+
         self.artifact_dir.mkdir(parents=True, exist_ok=True)
 
     def redact(self, text: str) -> str:
@@ -104,7 +104,7 @@ class HarnessSession:
         # Redact and apply banner check
         redacted_prompt = self.redact(prompt)
         redacted_response = self.redact(response)
-        
+
         banner_inserted = False
         if turn_index == 1 and self.continuity_banner:
             if self.continuity_banner in prompt:
@@ -123,13 +123,13 @@ class HarnessSession:
             "continuity_banner_inserted_once": banner_inserted
         }
         self.turns.append(turn_data)
-        
+
         # Write individual turn file
         turn_file = self.artifact_dir / f"turn_{turn_index:04d}.json"
         with open(turn_file, "w") as f:
             json.dump(turn_data, f, indent=2)
         self.artifact_hashes[turn_file.name] = self._compute_hash(turn_file)
-        
+
         # Append to transcript.jsonl
         transcript_file = self.artifact_dir / "transcript.jsonl"
         with open(transcript_file, "a") as f:
@@ -153,10 +153,10 @@ class HarnessSession:
         receipt_path = self.artifact_dir / "end_receipt.json"
         with open(receipt_path, "w") as f:
             json.dump(receipt, f, indent=2)
-        
+
         # Update hashes one last time for the final files
         self.artifact_hashes["end_receipt.json"] = self._compute_hash(receipt_path)
-        
+
         hash_path = self.artifact_dir / "artifact_hashes.sha256"
         with open(hash_path, "w") as f:
             for filename, h in sorted(self.artifact_hashes.items()):
@@ -176,7 +176,7 @@ def validate_session_artifacts(artifact_dir: str) -> Dict[str, Any]:
         "truth_mode_valid": False,
         "errors": []
     }
-    
+
     if not results["hash_file_exists"]:
         results["hashes_match"] = False
     else:
@@ -220,12 +220,12 @@ def validate_session_artifacts(artifact_dir: str) -> Dict[str, Any]:
 def run_self_test():
     import tempfile
     import shutil
-    
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         print(f"Starting self-test in {tmp_dir}")
         session_id = "test-session-001"
         banner = "# Continuity Banner Test"
-        
+
         session = HarnessSession(
             session_id=session_id,
             player_id="mock-player",
@@ -235,29 +235,29 @@ def run_self_test():
             artifact_dir=tmp_dir,
             continuity_banner=banner
         )
-        
+
         player = MockHarnessPlayer()
-        
+
         session.write_manifest()
-        
+
         # Turn 1
         prompt1 = banner + "\nTell me about the substrate."
         response1 = player.get_response(prompt1)
         session.write_turn(1, prompt1, response1)
-        
+
         # Turn 2
         prompt2 = "What about weights?"
         response2 = player.get_response(prompt2)
         session.write_turn(2, prompt2, response2)
-        
+
         session.finalize()
-        
+
         validation = validate_session_artifacts(tmp_dir)
         print("Validation Results:")
         print(json.dumps(validation, indent=2))
-        
-        if all([validation["manifest_exists"], validation["transcript_exists"], 
-                validation["receipt_exists"], validation["hash_file_exists"], 
+
+        if all([validation["manifest_exists"], validation["transcript_exists"],
+                validation["receipt_exists"], validation["hash_file_exists"],
                 validation["hashes_match"], not validation["secrets_found"]]):
             print("SELF-TEST PASSED")
             return 0

@@ -19,7 +19,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.path = "/templates/index.html" # Placeholder
         elif self.path == "/":
             self.path = "/templates/index.html"
-        
+
         return super().do_GET()
 
 if __name__ == "__main__":

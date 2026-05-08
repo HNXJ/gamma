@@ -13,22 +13,22 @@ class LoRALinear(nn.Module):
     def __init__(self, base_layer: nn.Linear, rank: int, alpha: float, dropout: float = 0.0):
         super().__init__()
         print(f"DEBUG: Initializing LoRALinear for layer with in_features={base_layer.weight.shape[1]}, out_features={base_layer.weight.shape[0]}")
-        
+
         self.base_layer = base_layer
         self.rank = rank
         self.alpha = alpha
         self.scaling = alpha / rank
-        
+
         # LoRA A matrix (Kaiming uniform init)
         shape_a = (rank, base_layer.weight.shape[1])
         self.lora_a = mx.random.uniform(low=-1/math.sqrt(shape_a[1]), high=1/math.sqrt(shape_a[1]), shape=shape_a)
         print(f"DEBUG: lora_a initialized with shape {shape_a}")
-        
+
         # LoRA B matrix (Zero init)
         shape_b = (base_layer.weight.shape[0], rank)
         self.lora_b = mx.zeros(shape=shape_b)
         print(f"DEBUG: lora_b initialized with shape {shape_b}")
-        
+
         self.dropout = nn.Dropout(dropout) if dropout > 0 else (lambda x: x)
         print(f"DEBUG: Dropout initialized with p={dropout}")
 
@@ -60,7 +60,7 @@ class LoRAAdapter(AdapterMethod):
 
     def attach(self, model: nn.Module, target_spec: Dict[str, Any], config: Dict[str, Any]):
         print(f"DEBUG: Attaching LoRA to model modules: {self.target_modules}") # print(f"Attaching LoRA to model modules: {self.target_modules}")
-        
+
         # Recursively find and replace target linear layers
         def replace_recursive(module, prefix=""):
             for name, child in module.children().items():
@@ -123,7 +123,7 @@ class LoRAAdapter(AdapterMethod):
     def aggregate(self, states: List[Dict[str, mx.array]], policy: str = "alternating"):
         print(f"INFO: Aggregating {len(states)} states using policy '{policy}'") # print(f"Aggregating {len(states)} states using policy '{policy}'")
         if not states: return
-        
+
         # Implements FFA-LoRA logic if suggested in review: only average B if A is fixed
         # But here we implement simple averaging as a placeholder for Phase 3
         new_state = {}

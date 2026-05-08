@@ -7,7 +7,7 @@ from typing import Optional
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.registry import RuntimeRegistry
 from gamma_runtime.blackboard import Blackboard
-from gamma_runtime.types import MissionContext
+from gamma_runtime.runtime_types import MissionContext
 from apps.council_app import CouncilOrchestrator
 
 logger = logging.getLogger("V1GammaSDEApp")
@@ -27,29 +27,29 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
     async def run_deliberation(self, team_id: str, topic: str, rounds: int = 2):
         if not self.blackboard:
             self.blackboard = Blackboard(topic)
-        
+
         team_config = self.registry.load_team(team_id)
         agents = [self.registry.load_agent(aid) for aid in team_config["agents"]]
-        
+
         logger.info(f"🚀 INITIATING V1 GAMMA SDE DELIBERATION: '{topic}'")
 
         for r in range(rounds):
             self.blackboard.round = r + 1
             logger.info(f"--- SDE Epoch {self.blackboard.round} ---")
-            
+
             # Managed Parallel Execution via Scheduler
             requests = []
             for agent in agents:
                 req = self._build_request(agent)
                 requests.append((agent.model_key, req))
-            
+
             results = await self.scheduler.batch_run(requests)
-            
+
             for i, result in enumerate(results):
                 agent_id = agents[i].agent_id
                 await self.blackboard.add_entry(agent_id, result.text)
                 logger.info(f"[{agent_id}] Entry committed to blackboard.")
-                
+
                 # If the Proponent proposed something, we extract and serialize it.
                 if agent_id == "v1_gamma_proponent":
                     self._emit_proposal(self.blackboard.round, result.text)
@@ -73,11 +73,11 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
 
             # 2. Parse JSON
             proposal = json.loads(json_str)
-            
+
             # 3. Schema & Mission Alignment Validation
             rejection_reason = None
             meta = proposal.get("meta")
-            
+
             if not meta or not isinstance(meta, dict):
                 rejection_reason = "Missing or malformed 'meta' block."
             elif "neuron_count" not in meta:
@@ -104,7 +104,7 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
             filename = os.path.join(self.proposals_dir, f"{proposal['proposal_id']}.json")
             with open(filename, 'w') as f:
                 json.dump(proposal, f, indent=2)
-            
+
             logger.info(f"✅ Emitted mission-aligned proposal: {filename}")
             self.blackboard.add_entry(
                 sender="SYSTEM_VALIDATOR",

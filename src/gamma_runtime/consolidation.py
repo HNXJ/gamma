@@ -23,16 +23,16 @@ class ConsolidationManager:
         Saves them as a structured JSON payload for the MLX training loop.
         """
         logger.info(f"INITIATING CONSOLIDATION: Session {session_id}")
-        
+
         valid_traces = []
         for entry in blackboard.entries:
             # Skip system/engine metadata
             if entry.sender in ["SYSTEM", "SDE_ENGINE", "SDE_SOLVER"]:
                 continue
-                
+
             # Filter by metadata quality if available (mocking high consensus for pilot)
             is_high_quality = entry.metadata.get("consensus_score", 0.9) > 0.85
-            
+
             if is_high_quality:
                 # Map Blackboard entry to Gamma Trace schema
                 trace = Trace(
@@ -54,10 +54,10 @@ class ConsolidationManager:
         # Save to staging/fedlora_payloads
         payload_filename = f"trace_{session_id}.json"
         payload_path = os.path.join(self.payload_dir, payload_filename)
-        
+
         with open(payload_path, "w") as f:
             json.dump(valid_traces, f, indent=2)
-            
+
         logger.info(f"✅ CONSOLIDATION SUCCESS: {len(valid_traces)} traces staged at {payload_path}")
         return payload_path
 

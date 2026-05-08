@@ -8,7 +8,7 @@ class LMS8SlotHarness:
         self.artifact_root = artifact_root
         self.lms_url = lms_url
         self.roles = ['receptionist', 'worker_alpha', 'worker_beta', 'critic', 'judge', 'redaction_auditor', 'receipt_verifier', 'synthesizer']
-        
+
     def _ensure_dirs(self):
         os.makedirs(f"{self.artifact_root}/turn_requests", exist_ok=True)
         os.makedirs(f"{self.artifact_root}/turn_responses", exist_ok=True)
@@ -59,7 +59,7 @@ class LMS8SlotHarness:
         }
         with open(f"{self.artifact_root}/minimal_8slot_harness_round_receipt.json", 'w') as f:
             json.dump(receipt, f, indent=2)
-        
+
         # Hashes
         with open(f"{self.artifact_root}/artifact_hashes.sha256", 'w') as f:
             for file in os.listdir(self.artifact_root):
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--artifact-root", required=True)
     args = parser.parse_args()
-    
+
     harness = LMS8SlotHarness(args.artifact_root)
     harness.generate_manifest()
     if args.dry_run:

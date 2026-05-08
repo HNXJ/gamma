@@ -24,37 +24,37 @@ class CompositeWrapper(nn.Module):
 
     def __call__(self, x: mx.array) -> mx.array:
         print("DEBUG: Executing CompositeWrapper forward pass") # print("Executing CompositeWrapper forward pass")
-        
+
         # 1. Base model forward pass
         out = self.base_layer(x)
         print("DEBUG: Base layer computation complete")
-        
+
         # 2. Accumulate deltas from all active adapters
         # Note: Each adapter_module in 'adapters' is expected to return its delta_W update
         for name, adapter in self.adapters.items():
             print(f"DEBUG: Computing delta for adapter '{name}'")
             # If the adapter is a LoRALinear or similar, we need to extract the delta path
-            # We assume a standard interface where adapter(x) returns the DELTA out, 
+            # We assume a standard interface where adapter(x) returns the DELTA out,
             # OR we handle implementation details here for v1.
-            
+
             # For simplicity in v1, we assume the specific adapter module handles its own math
-            # but we only add it to the base. 
-            # In our lora.py/dora.py, __call__ returns (base + delta). 
+            # but we only add it to the base.
+            # In our lora.py/dora.py, __call__ returns (base + delta).
             # We need a 'compute_delta' method or similar to avoid double-counting base.
-            
+
             # Refined for Composite: We will use the adapter's forward_delta if available
             # or expect the module to provide only the delta.
             if hasattr(adapter, "forward_delta"):
                 delta = adapter.forward_delta(x)
             else:
-                # Fallback: if it's a standard module we created, we might need to 
+                # Fallback: if it's a standard module we created, we might need to
                 # subtract base if it was wrapped. But we'll enforce 'forward_delta'.
                 print(f"WARNING: Adapter '{name}' missing forward_delta method")
                 delta = mx.zeros_like(out)
-                
+
             out += delta
             print(f"DEBUG: Delta from '{name}' added to accumulation")
-            
+
         return out
 
 print("INFO: CompositeWrapper class defined") # print("CompositeWrapper class defined")
@@ -78,13 +78,13 @@ class CompositeAdapter(AdapterMethod):
 
     def attach(self, model: nn.Module, target_spec: Dict[str, Any], config: Dict[str, Any]):
         print(f"DEBUG: Attaching composite stack '{self.name}' to model") # print(f"Attaching composite stack to model")
-        
+
         # 1. First, identify all target modules across ALL adapters in stack
         all_targets = set()
         for adapter in self.stack.values():
             all_targets.update(adapter.target_modules)
         print(f"DEBUG: Unified target modules for stack: {all_targets}")
-        
+
         # 2. Wrap all targets with CompositeWrapper
         def wrap_recursive(module, prefix=""):
             for name, child in module.children().items():
@@ -96,9 +96,9 @@ class CompositeAdapter(AdapterMethod):
                     self.wrappers[full_name] = wrapper
                 else:
                     wrap_recursive(child, full_name)
-        
+
         wrap_recursive(model)
-        
+
         # 3. Now, let each sub-adapter 'attach' by registering its layers with the wrappers.
         for adapter_name, adapter in self.stack.items():
             print(f"DEBUG: Linking sub-adapter '{adapter_name}' to wrappers")
@@ -107,10 +107,10 @@ class CompositeAdapter(AdapterMethod):
                     print(f"DEBUG: Creating and registering sub-layer for '{adapter_name}' at '{layer_name}'")
                     # Use the factory method we added to LoRA/DoRA
                     sub_layer = adapter.create_layer(wrapper.base_layer)
-                    
+
                     # Register the sub_layer with the wrapper
                     wrapper.add_adapter(adapter_name, sub_layer)
-                    
+
                     # Also register with the sub-adapter's internal tracker so its methods work
                     adapter.adapters[layer_name] = sub_layer
 
@@ -166,7 +166,7 @@ class CompositeAdapter(AdapterMethod):
                 sub_state = {k[len(prefix):]: v for k, v in state.items() if k.startswith(prefix)}
                 if sub_state:
                     sub_states.append(sub_state)
-            
+
             if sub_states:
                 print(f"DEBUG: Delegating aggregation for '{name}' with {len(sub_states)} states")
                 adapter.aggregate(sub_states, policy)

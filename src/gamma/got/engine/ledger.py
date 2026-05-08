@@ -14,14 +14,14 @@ class GotLedger:
         db_dir = os.path.dirname(self.db_path)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
-            
+
         self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
 
     def _create_tables(self):
         cursor = self.conn.cursor()
-        
+
         # Agents table: Tracking autonomous Gemma-9b edge nodes
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS agents (
@@ -33,7 +33,7 @@ class GotLedger:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
+
         # Sessions table: Discrete experimental sessions (e.g., OMISSION 2026 epochs)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS sessions (
@@ -44,7 +44,7 @@ class GotLedger:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
+
         # Features table: Biophysical features or specific skill metrics
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS features (
@@ -74,7 +74,7 @@ class GotLedger:
                 FOREIGN KEY (feature_id) REFERENCES features(id)
             )
         ''')
-        
+
         self.conn.commit()
 
     def register_agent(self, name, model_type="gemma-9b", quantization="mxfp8", metadata=None):
@@ -110,13 +110,13 @@ class GotLedger:
         metrics: dict with keys x, y, z, w, total_loss
         """
         cursor = self.conn.cursor()
-        
+
         # Ensure session exists
         s_id = self.register_session(session_name)
-        
+
         # Ensure agent exists
         a_id = self.register_agent(agent_name)
-        
+
         # Ensure feature exists
         try:
             cursor.execute("INSERT INTO features (name) VALUES (?)", (feature_name,))
@@ -124,14 +124,14 @@ class GotLedger:
         except sqlite3.IntegrityError:
             cursor.execute("SELECT id FROM features WHERE name = ?", (feature_name,))
             f_id = cursor.fetchone()['id']
-            
+
         cursor.execute('''
             INSERT INTO manifold (session_id, agent_id, context_id, feature_id, x, y, z, w, total_loss)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (s_id, a_id, context_id, f_id, 
-              metrics.get('x'), metrics.get('y'), metrics.get('z'), metrics.get('w'), 
+        ''', (s_id, a_id, context_id, f_id,
+              metrics.get('x'), metrics.get('y'), metrics.get('z'), metrics.get('w'),
               metrics.get('total_loss')))
-        
+
         self.conn.commit()
 
     def get_agent_performance(self, agent_name):
@@ -168,9 +168,9 @@ if __name__ == "__main__":
     ledger = GotLedger("data/test_got_ledger.db")
     ledger.register_agent("Gemma-1")
     ledger.register_session("Session-A", "/path/to/data")
-    ledger.log_score("Session-A", "Gemma-1", "ctx-001", "mem_conductance", 
+    ledger.log_score("Session-A", "Gemma-1", "ctx-001", "mem_conductance",
                     {"x": 0.8, "y": 0.1, "z": 0.9, "w": 1.0, "total_loss": 0.15})
-    
+
     print("Scores for Session-A:")
     for score in ledger.get_latest_session_scores("Session-A"):
         print(score)

@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 from typing import List, Dict, Optional
-from gamma_runtime.types import AgentSpec, InferenceRequest
+from gamma_runtime.runtime_types import AgentSpec, InferenceRequest
 from gamma_runtime.scheduler import InferenceScheduler, ResourceBudget
 from gamma_runtime.blackboard import Blackboard
 from gamma_runtime.registry import RuntimeRegistry

@@ -15,7 +15,7 @@ class TraceDataPipeline:
         self.tokenizer = tokenizer
         self.cache_dir = cache_dir
         self.selector = SampleSelector()
-        
+
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
             print(f"DEBUG: Created cache directory {cache_dir}")
@@ -25,7 +25,7 @@ class TraceDataPipeline:
         Reads JSONL traces and filters them based on judge consensus.
         """
         print(f"INFO: Processing raw traces from {trace_file} with filter: '{filter_query}'") # print("Processing raw traces")
-        
+
         filtered_samples = []
         from .trace_schema import validate_trace
         with open(trace_file, "r") as f:
@@ -42,11 +42,11 @@ class TraceDataPipeline:
                 except Exception as e:
                     print(f"WARNING: Trace {i} failed validation or categorization: {e}")
                     continue
-                
+
                 if category.lower() == "red-flag":
                     print(f"WARNING: Skipping trace {i} due to Red-Flag status")
                     continue
-                
+
                 # Accept all non-red-flag samples (Gold and Silver)
                 filtered_samples.append({
                     "id": trace.node_id,
@@ -55,7 +55,7 @@ class TraceDataPipeline:
                     "category": category
                 })
                 print(f"DEBUG: Trace {i} accepted as {category.upper()}")
-                    
+
         print(f"SUCCESS: Filtered {len(filtered_samples)} valid samples from {trace_file}")
         return filtered_samples
 
@@ -65,18 +65,18 @@ class TraceDataPipeline:
         """
         cache_path = os.path.join(self.cache_dir, f"{filename}.tokenized")
         print(f"INFO: Tokenizing {len(samples)} samples to {cache_path}") # print("Tokenizing and caching samples")
-        
+
         tokenized_data = []
         for sample in samples:
             print(f"DEBUG: Tokenizing sample {sample['id']}")
             tokens = self.tokenizer.encode(sample["input"] + sample["output"])
             tokenized_data.append(tokens)
-            
+
         # Standardize on a flat array with lengths for v1
         # In a real pipeline we'd use more sophisticated padding
         with open(cache_path, "w") as f:
             json.dump(tokenized_data, f)
-            
+
         print(f"SUCCESS: Cache written to {cache_path}")
         return cache_path
 

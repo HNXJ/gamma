@@ -11,7 +11,7 @@ def extract_bash_commands(text: str) -> List[str]:
     # Regex for ```bash ... ``` blocks
     pattern = re.compile(r'```bash\s*\n(.*?)\n\s*```', re.DOTALL)
     matches = pattern.findall(text)
-    
+
     commands = []
     for block in matches:
         lines = block.splitlines()
@@ -21,5 +21,5 @@ def extract_bash_commands(text: str) -> List[str]:
                 continue
             # Note: No support for trailing backslash continuations as per requirements
             commands.append(line)
-            
+
     return commands

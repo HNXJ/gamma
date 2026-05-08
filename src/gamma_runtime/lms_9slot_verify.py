@@ -23,7 +23,7 @@ SLOTS = {
 
 def _request_json(url: str, method: str = "GET", payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     headers = {"Content-Type": "application/json"}
-    
+
     # Check for token without exposing it
     token_keys = ["LM_STUDIO_API_KEY", "LMS_API_TOKEN", "LM_API_TOKEN"]
     token = None
@@ -31,7 +31,7 @@ def _request_json(url: str, method: str = "GET", payload: Optional[Dict[str, Any
         if os.environ.get(k):
             token = os.environ.get(k)
             break
-            
+
     if token:
         headers["Authorization"] = "Bearer " + token
 
@@ -72,14 +72,14 @@ def smoke_ping(base_url: str, model_id: str) -> Dict[str, Any]:
 def generate_dry_run_artifacts(artifact_root: str):
     os.makedirs(f"{artifact_root}/turn_requests", exist_ok=True)
     manifest = []
-    
+
     for slot_id, conf in SLOTS.items():
         req = {
             'model': conf['model'],
             'endpoint': conf['endpoint'],
             'messages': [
                 {'role': 'system', 'content': 'Gamma Labyrinth continuity. You are a harnessed LMS slot in a minimal protocol validation round. truth_mode: truth_safe_unverified. truth_bearing_run: false. No secrets. No biological/scientific truth claims. Output compact JSON only.'},
-                {'role': 'user', 'content': f'Return compact JSON with exactly these keys: ok, slot_id, role, lms_instance_id_seen, truth_mode, truth_bearing_run, protocol_understood, no_science_claims, next_action. Set slot_id={slot_id}, role=player_or_judge, lms_instance_id_seen={conf["model"]}, truth_mode=truth_safe_unverified, truth_bearing_run=false, protocol_understood=true, no_science_claims=true, next_action=end_minimal_harness_round'}   
+                {'role': 'user', 'content': f'Return compact JSON with exactly these keys: ok, slot_id, role, lms_instance_id_seen, truth_mode, truth_bearing_run, protocol_understood, no_science_claims, next_action. Set slot_id={slot_id}, role=player_or_judge, lms_instance_id_seen={conf["model"]}, truth_mode=truth_safe_unverified, truth_bearing_run=false, protocol_understood=true, no_science_claims=true, next_action=end_minimal_harness_round'}
             ],
             'temperature': 0,
             'max_tokens': 160,
@@ -88,7 +88,7 @@ def generate_dry_run_artifacts(artifact_root: str):
         manifest.append(req)
         with open(f"{artifact_root}/turn_requests/{slot_id}_request.json", 'w') as f:
             json.dump(req, f, indent=2)
-            
+
     print(f"Dry run: Would verify 9 slots against configured endpoints.")
     return True
 
@@ -99,16 +99,16 @@ def run_live_verification(artifact_root: str) -> str:
         "truth_bearing_run": False,
         "slots": {}
     }
-    
+
     all_passed = True
     some_passed = False
-    
+
     player_pinged = False
     judge_pinged = False
-    
+
     for slot_id, conf in SLOTS.items():
         print(f"Verifying {slot_id}...")
-        
+
         slot_status = {
             "inventory_status": "NOT_CHECKED",
             "model_present": False,
@@ -128,7 +128,7 @@ def run_live_verification(artifact_root: str) -> str:
             status_report["slots"][slot_id] = slot_status
             all_passed = False
             continue
-            
+
         slot_status["inventory_status"] = "PASS"
         available_models = [m.get("id") for m in models_res["json"].get("data", [])]
         if conf["model"] not in available_models:
@@ -136,7 +136,7 @@ def run_live_verification(artifact_root: str) -> str:
             status_report["slots"][slot_id] = slot_status
             all_passed = False
             continue
-            
+
         slot_status["model_present"] = True
 
         # 2. Smoke check (Bounded Ping - maximum 1 player, 1 judge)
@@ -147,7 +147,7 @@ def run_live_verification(artifact_root: str) -> str:
         elif "judge" in slot_id and not judge_pinged:
             do_ping = True
             judge_pinged = True
-            
+
         if do_ping:
             slot_status["smoke_attempted"] = True
             smoke_res = smoke_ping(conf["endpoint"], conf["model"])
@@ -159,7 +159,7 @@ def run_live_verification(artifact_root: str) -> str:
                 status_report["slots"][slot_id] = slot_status
                 all_passed = False
                 continue
-                
+
             slot_status["http_status"] = smoke_res.get("status", 200)
 
             # Verify content
@@ -167,14 +167,14 @@ def run_live_verification(artifact_root: str) -> str:
                  reply = smoke_res["json"]["choices"][0]["message"]["content"].strip()
                  if reply:
                      slot_status["response_present"] = True
-                     
+
                      reply_lower = reply.lower()
-                     
+
                      # First pass - treat response presence as sufficient for slot_verdict = PASS
                      # since HTTP reachability and model loading are confirmed.
                      slot_status["slot_verdict"] = "PASS"
                      some_passed = True
-                     
+
                      if "ok" in reply_lower:
                          if "not ok" in reply_lower or "cannot comply" in reply_lower:
                              slot_status["ok_token_status"] = "FAIL"
@@ -207,7 +207,7 @@ def run_live_verification(artifact_root: str) -> str:
             slot_status["slot_verdict"] = "PASS"
             slot_status["notes"] = "inventory_only"
             some_passed = True
-            
+
         status_report["slots"][slot_id] = slot_status
 
     if all_passed and all(s.get("slot_verdict") == "PASS" for s in status_report["slots"].values()):
@@ -222,13 +222,13 @@ def run_live_verification(artifact_root: str) -> str:
             verdict = "AUTH_BLOCKED"
         else:
             verdict = "LMS_9SLOT_VERIFY_FAILED"
-            
+
     status_report["status"] = verdict
-    
+
     os.makedirs(artifact_root, exist_ok=True)
     with open(f"{artifact_root}/verified_slot_status.json", 'w') as f:
         json.dump(status_report, f, indent=2)
-        
+
     return verdict
 
 

@@ -11,24 +11,24 @@ class SampleSelector:
 
     def categorize_trace(self, trace: Trace) -> str:
         print(f"DEBUG: Categorizing trace from node {trace.node_id}") # print(f"Categorizing trace from node {trace.node_id}")
-        
+
         # Gold Criteria: human verified OR (high consensus AND high judge score AND DOI support)
         if trace.human_verified or (
-            trace.consensus_level in [ConsensusLevel.HIGH, ConsensusLevel.UNANIMOUS] and 
-            trace.judge_score >= self.gold_min_score and 
+            trace.consensus_level in [ConsensusLevel.HIGH, ConsensusLevel.UNANIMOUS] and
+            trace.judge_score >= self.gold_min_score and
             trace.doi_support
         ):
             print(f"INFO: Trace {trace.node_id} categorized as GOLD") # print(f"Trace {trace.node_id} categorized as GOLD")
             return "gold"
-        
+
         # Silver Criteria: medium+ consensus and moderate+ judge score
         if (
-            trace.consensus_level in [ConsensusLevel.MEDIUM, ConsensusLevel.HIGH, ConsensusLevel.UNANIMOUS] and 
+            trace.consensus_level in [ConsensusLevel.MEDIUM, ConsensusLevel.HIGH, ConsensusLevel.UNANIMOUS] and
             trace.judge_score >= self.silver_min_score
         ):
             print(f"INFO: Trace {trace.node_id} categorized as SILVER") # print(f"Trace {trace.node_id} categorized as SILVER")
             return "silver"
-        
+
         # Red-flag: anything else (unresolved disagreement, low score, etc.)
         print(f"WARNING: Trace {trace.node_id} categorized as RED-FLAG") # print(f"Trace {trace.node_id} categorized as RED-FLAG")
         return "red-flag"

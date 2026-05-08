@@ -15,7 +15,7 @@ class ArenaPersistence:
         self.root_dir = root_dir
         self.base_path = os.path.join(root_dir, "local", game_id)
         self.state_path = os.path.join(self.base_path, "arena_runtime_state.json")
-        
+
         # Ensure directory structure
         os.makedirs(os.path.join(self.base_path, "checkpoints", "runtime"), exist_ok=True)
         os.makedirs(os.path.join(self.base_path, "checkpoints", "science"), exist_ok=True)
@@ -30,7 +30,7 @@ class ArenaPersistence:
                     return json.load(f)
             except Exception:
                 pass
-        
+
         # Default Schema for World State
         return {
             "official_level_metric": "largest_pass_network_neuron_count",
@@ -52,9 +52,9 @@ class ArenaPersistence:
         """
         if updates:
             self.state.update(updates)
-        
+
         self.state["last_checkpoint_time"] = datetime.now().isoformat()
-        
+
         # Atomic persistence pattern
         fd, temp_path = tempfile.mkstemp(dir=self.base_path, suffix=".tmp")
         try:

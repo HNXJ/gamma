@@ -54,10 +54,10 @@ class CheckpointManager:
         state = self.load_state()
         if not state:
             return False
-            
+
         if patch_data:
             state.update(patch_data)
-            
+
         state["last_checkpoint_time"] = time.time()
         return self.atomic_write(state)
 
@@ -68,21 +68,21 @@ class CheckpointManager:
         state = self.load_state()
         if not state:
             return False
-            
+
         is_resume = state.get("last_checkpoint_time", 0) > 0
         now = time.time()
-        
+
         boot_event = {
             "type": "RESUMED" if is_resume else "FRESH",
             "timestamp": now
         }
-        
+
         state["boot_history"].append(boot_event)
         if len(state["boot_history"]) > 10:
             state["boot_history"].pop(0)
-            
+
         if is_resume:
             state["last_resume_time"] = now
             state["resume_count"] = state.get("resume_count", 0) + 1
-            
+
         return self.atomic_write(state)

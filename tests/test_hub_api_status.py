@@ -20,16 +20,16 @@ def test_status_no_orchestrator():
     handler.client_address = ("127.0.0.1", 8000)
     handler.server = MagicMock()
     handler.orchestrator = None
-    
+
     # Initialize attributes expected by do_GET
     handler.path = request.path
-    
+
     # Mock _set_headers
     handler._set_headers = MagicMock()
     handler.wfile = request.wfile
-    
+
     handler.do_GET()
-    
+
     response = json.loads(handler.wfile.getvalue().decode())
     assert response["source"] == "mock_fallback"
     assert response["freshness"] == "fallback"
@@ -43,10 +43,10 @@ def test_status_orchestrator_live():
     handler.request = request
     handler.client_address = ("127.0.0.1", 8000)
     handler.server = MagicMock()
-    
+
     # Initialize attributes expected by do_GET
     handler.path = request.path
-    
+
     now = time.time()
     mock_orchestrator = MagicMock()
     mock_orchestrator.get_all_sessions.return_value = [
@@ -55,9 +55,9 @@ def test_status_orchestrator_live():
     handler.orchestrator = mock_orchestrator
     handler._set_headers = MagicMock()
     handler.wfile = request.wfile
-    
+
     handler.do_GET()
-    
+
     response = json.loads(handler.wfile.getvalue().decode())
     assert response["source"] == "orchestrator_state"
     assert response["freshness"] == "live"
