@@ -42,28 +42,51 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "Session not found"}).encode())
         elif path == "/api/status":
             orchestrator = self.orchestrator
+            now = time.time()
+            
+            def _parse_iso_timestamp(ts_str):
+                try:
+                    return time.mktime(time.strptime(ts_str, "%a %b %d %H:%M:%S %Y"))
+                except:
+                    return None
+
             if orchestrator:
-                uptime = int(time.time())
                 sessions = orchestrator.get_all_sessions()
-
-                # Derive status from orchestrator state
-                status = "ONLINE" if sessions else "IDLE"
-
+                latest_ts = 0
+                players = []
+                for s in sessions:
+                    ts = _parse_iso_timestamp(s.get("last_active")) or 0
+                    if ts > latest_ts: latest_ts = ts
+                    
+                    freshness = "live" if (now - ts) < 30 else "stale" if ts > 0 else "unknown"
+                    players.append({
+                        "id": s["id"],
+                        "label": s.get("topic", s["id"]),
+                        "role": "player",
+                        "liveness": "active" if freshness == "live" else "stalled",
+                        "lastTurnAt": s.get("last_active"),
+                        "harnessStatus": "unknown"
+                    })
+                
+                freshness = "live" if (now - latest_ts) < 30 and latest_ts > 0 else "stale" if latest_ts > 0 else "unknown"
+                status = "ONLINE" if freshness == "live" else "DEGRADED"
+                backend_status = "healthy" if freshness == "live" else "degraded"
+                
                 state = {
                     "truth_mode": "truth_safe_unverified",
                     "truth_bearing_run": False,
                     "source": "orchestrator_state",
-                    "freshness": "live",
+                    "freshness": freshness,
                     "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "last_observed_at": sessions[0]["last_active"] if sessions else None,
+                    "last_observed_at": time.ctime(latest_ts) if latest_ts > 0 else None,
                     "system": {
                         "status": status,
-                        "backend_status": "healthy",
-                        "monitor_uptime_seconds": uptime
+                        "backend_status": backend_status,
+                        "monitor_uptime_seconds": int(now)
                     },
-                    "players": [s["id"] for s in sessions],
+                    "players": players,
                     "judges": [],
-                    "warnings": []
+                    "warnings": ["State is stale."] if freshness == "stale" else []
                 }
             else:
                 state = {
@@ -74,9 +97,9 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                     "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     "last_observed_at": None,
                     "system": {
-                        "status": "ONLINE",
+                        "status": "DEGRADED",
                         "backend_status": "unavailable",
-                        "monitor_uptime_seconds": int(time.time())
+                        "monitor_uptime_seconds": int(now)
                     },
                     "players": [],
                     "judges": [],
