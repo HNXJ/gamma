@@ -41,11 +41,47 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 self._set_headers(404)
                 self.wfile.write(json.dumps({"error": "Session not found"}).encode())
         elif path == "/api/status":
-            state = {
-                "system": {"status": "ONLINE", "monitor_uptime_seconds": int(time.time()), "backend_model_slots_occupied": "0/1"},
-                "progression": {"largest_pass_network_neuron_count": 0, "active_patches": ["v1.2.4-hotfix"], "next_unlock_threshold": 40, "truth_class": "DEGRADED"},
-                "truth_mode": "truth_safe_unverified", "truth_bearing_run": False
-            }
+            orchestrator = self.orchestrator
+            if orchestrator:
+                uptime = int(time.time())
+                sessions = orchestrator.get_all_sessions()
+
+                # Derive status from orchestrator state
+                status = "ONLINE" if sessions else "IDLE"
+
+                state = {
+                    "truth_mode": "truth_safe_unverified",
+                    "truth_bearing_run": False,
+                    "source": "orchestrator_state",
+                    "freshness": "live",
+                    "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "last_observed_at": sessions[0]["last_active"] if sessions else None,
+                    "system": {
+                        "status": status,
+                        "backend_status": "healthy",
+                        "monitor_uptime_seconds": uptime
+                    },
+                    "players": [s["id"] for s in sessions],
+                    "judges": [],
+                    "warnings": []
+                }
+            else:
+                state = {
+                    "truth_mode": "truth_safe_unverified",
+                    "truth_bearing_run": False,
+                    "source": "mock_fallback",
+                    "freshness": "fallback",
+                    "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "last_observed_at": None,
+                    "system": {
+                        "status": "ONLINE",
+                        "backend_status": "unavailable",
+                        "monitor_uptime_seconds": int(time.time())
+                    },
+                    "players": [],
+                    "judges": [],
+                    "warnings": ["Orchestrator not bound; telemetry is mock/fallback."]
+                }
             self._set_headers()
             self.wfile.write(json.dumps(state).encode())
         elif path == "/health":
