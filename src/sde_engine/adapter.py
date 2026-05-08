@@ -28,7 +28,7 @@ class ExecutionAdapter:
             with open(secret_path, "r") as f:
                 self._secret = f.read().strip()
         else:
-            self._secret = "emergency_fallback_unverified_secret"
+            raise FileNotFoundError(f"Required attestation secret not found at: {secret_path}")
 
         self._authorized_runs: set[str] = set()
 
