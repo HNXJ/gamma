@@ -28,7 +28,7 @@ class MLXEngineBackend(InferenceBackend):
     async def generate(self, request: InferenceRequest) -> InferenceResult:
         t0 = time.perf_counter()
         payload = {
-            "model": request.model_key,
+            "model": request.model_id,
             "messages": request.messages,
             "temperature": request.generation.get("temperature", 0.7),
             "max_tokens": request.generation.get("max_tokens", 2048),

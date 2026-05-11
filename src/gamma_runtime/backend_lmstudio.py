@@ -23,7 +23,7 @@ class LMStudioBackend(InferenceBackend):
     async def generate(self, request: InferenceRequest) -> InferenceResult:
         t0 = time.perf_counter()
         payload = {
-            "model": request.model_key,
+            "model": request.model_id,
             "messages": request.messages,
             "stream": False,
             **request.generation,

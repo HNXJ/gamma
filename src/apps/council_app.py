@@ -51,16 +51,40 @@ class CouncilOrchestrator:
     def _build_request(self, agent: AgentSpec) -> InferenceRequest:
         history = self.blackboard.get_history()
         context = "\n".join([f"{e.sender}: {e.content}" for e in history])
+
+        rubric = (
+            "--- SCIENTIFIC WORK-UNIT RUBRIC ---\n"
+            "Every turn must provide a structured response including:\n"
+            "1. study_question: The specific question being addressed.\n"
+            "2. claim_type: proposal_value | simulation_result | empirical_observation | rejected_invalid\n"
+            "3. intended_action: inspect | write_python | run_python | analyze_artifact | propose_only | repair_inventory\n"
+            "4. python_or_analysis_requirement: Describe code or data analysis intent.\n"
+            "5. parameters_with_units: Specify all numeric values with standard units.\n"
+            "6. expected_artifacts: List files to be generated or modified.\n"
+            "7. validation_gates: List required checks (e.g., compile, no_nan_inf, artifact_manifest).\n"
+            "8. next_handoff: Specify which role or slot should proceed next.\n"
+            "\n"
+            "Prose-only hypothesis output is allowed only as claim_type: proposal_value and intended_action: propose_only. "
+            "Computational scientific action is prioritized. Output compact JSON within code fences if requested by your role.\n"
+        )
+
         prompt = (
             f"Topic of Discussion: {self.blackboard.topic}\n"
             f"Round: {self.blackboard.round}\n\n"
+            f"{rubric}\n"
             f"Deliberation History:\n{context}\n\n"
-            f"Your Task: Provide your specialized analysis based on your role."
+            f"Your Task: Provide your specialized analysis based on your role, adhering to the scientific work-unit rubric."
         )
+
+        # Resolve canonical model_id from registry
+        model_spec = self.registry.load_model(agent.model_key)
+        model_id = model_spec.path or model_spec.name or model_spec.key
+
         return InferenceRequest(
             session_id=f"council-{self.blackboard.topic[:10]}",
             agent_id=agent.agent_id,
             model_key=agent.model_key,
+            model_id=model_id,
             messages=[{"role": "system", "content": agent.system_prompt}, {"role": "user", "content": prompt}],
             generation=agent.generation,
             adapter_stack=agent.adapter_stack

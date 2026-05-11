@@ -1,5 +1,6 @@
 {
   "key": "gemma4-parallel",
+  "name": "gemma-4-e4b-it-mlx",
   "provider": "lmstudio",
   "context_length": 8192,
   "quantization": "mxfp8",

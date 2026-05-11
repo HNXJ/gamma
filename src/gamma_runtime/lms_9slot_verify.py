@@ -10,11 +10,11 @@ OFFICE_MAC_URL = "http://100.69.184.42:1234/v1"
 WINDOWS_JUDGE_URL = "http://100.65.139.39:1235/v1"
 
 SLOTS = {
-    "player_slot_01": {"model": "gemma-4-e4b-it-mlx:2", "endpoint": OFFICE_MAC_URL},
-    "player_slot_02": {"model": "gemma-4-e4b-it-mlx:3", "endpoint": OFFICE_MAC_URL},
-    "player_slot_03": {"model": "gemma-4-e4b-it-mlx:4", "endpoint": OFFICE_MAC_URL},
-    "player_slot_04": {"model": "gemma-4-e4b-it-mlx:5", "endpoint": OFFICE_MAC_URL},
-    "player_slot_05": {"model": "gemma-4-e4b-it-mlx:8", "endpoint": OFFICE_MAC_URL},
+    "player_slot_01": {"model": "gemma-4-e4b-it-mlx", "endpoint": OFFICE_MAC_URL},
+    "player_slot_02": {"model": "gemma-4-e4b-it-mlx", "endpoint": OFFICE_MAC_URL},
+    "player_slot_03": {"model": "gemma-4-e4b-it-mlx", "endpoint": OFFICE_MAC_URL},
+    "player_slot_04": {"model": "gemma-4-e4b-it-mlx", "endpoint": OFFICE_MAC_URL},
+    "player_slot_05": {"model": "gemma-4-e4b-it-mlx", "endpoint": OFFICE_MAC_URL},
     "player_slot_06": {"model": "gemma-4-e4b-it-mlx", "endpoint": OFFICE_MAC_URL},
     "player_slot_07": {"model": "gemma-4-e4b-it", "endpoint": OFFICE_MAC_URL},
     "player_slot_08": {"model": "gemma-4-e4b-it-mxfp8", "endpoint": OFFICE_MAC_URL},

@@ -17,7 +17,7 @@ class LMS8SlotHarness:
         self._ensure_dirs()
         manifest = []
         for i, role in enumerate(self.roles):
-            instance_id = 'gemma-4-e4b-it-mlx' if i == 0 else f'gemma-4-e4b-it-mlx:{i+1}'
+            instance_id = 'gemma-4-e4b-it-mlx'
             req = {
                 'model': instance_id,
                 'messages': [

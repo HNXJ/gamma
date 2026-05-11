@@ -52,15 +52,15 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
 
                 # If the Proponent proposed something, we extract and serialize it.
                 if agent_id == "v1_gamma_proponent":
-                    self._emit_proposal(self.blackboard.round, result.text)
+                    await self._emit_proposal(self.blackboard.round, result.text)
 
         logger.info("✅ V1 GAMMA SDE DELIBERATION COMPLETE.")
         return self.blackboard
 
-    def _emit_proposal(self, epoch: int, content: str):
+    async def _emit_proposal(self, epoch: int, content: str):
         """
         Parses the proponent's text for a JSON block and writes it to disk
-        if and only if it satisfies the active mission target.
+        if and only if it satisfies the active mission target and rubric.
         """
         try:
             # 1. Extract JSON block
@@ -69,14 +69,39 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
             else:
                 start = content.find('{')
                 end = content.rfind('}') + 1
-                json_str = content[start:end]
+                if start != -1 and end > start:
+                    json_str = content[start:end]
+                else:
+                    json_str = ""
 
-            # 2. Parse JSON
+            # 2. Rubric Drift Check
+            is_prose_only = "intended_action" not in content or "propose_only" in content
+            if not json_str and is_prose_only:
+                logger.warning("⚠️ PROSE-ONLY DRIFT: No structured scientific action detected.")
+                await self.blackboard.add_entry(
+                    sender="SYSTEM_VALIDATOR",
+                    content="DRIFT DETECTED: Prose-only output without executable artifact intent.",
+                    metadata={"kind": "drift_warning", "reason": "prose_only_yapping"}
+                )
+                return
+
+            if not json_str:
+                logger.error("💥 Failed to locate JSON block in proponent output.")
+                return
+
+            # 3. Parse JSON
             proposal = json.loads(json_str)
 
-            # 3. Schema & Mission Alignment Validation
+            # 4. Schema & Mission Alignment Validation
             rejection_reason = None
             meta = proposal.get("meta")
+
+            # Check for rubric fields in JSON if possible
+            work_unit = {
+                "study_question": proposal.get("study_question"),
+                "intended_action": proposal.get("intended_action"),
+                "claim_type": proposal.get("claim_type")
+            }
 
             if not meta or not isinstance(meta, dict):
                 rejection_reason = "Missing or malformed 'meta' block."
@@ -86,18 +111,20 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
                 rejection_reason = f"Non-integer 'meta.neuron_count': {type(meta['neuron_count']).__name__}"
             elif meta["neuron_count"] != self.mission_context.target_neuron_count:
                 rejection_reason = f"Mission Mismatch: Proposal N={meta['neuron_count']} != Target N={self.mission_context.target_neuron_count}"
+            elif work_unit["intended_action"] == "propose_only" and work_unit["claim_type"] != "proposal_value":
+                rejection_reason = "Rubric Violation: intended_action 'propose_only' requires claim_type 'proposal_value'."
 
             if rejection_reason:
                 logger.warning(f"❌ PROPOSAL REJECTED: {rejection_reason}")
                 # Structured rejection log for monitor ingestion
-                self.blackboard.add_entry(
+                await self.blackboard.add_entry(
                     sender="SYSTEM_VALIDATOR",
                     content=f"REJECTED PROPOSAL [Target N={self.mission_context.target_neuron_count}]: {rejection_reason}",
                     metadata={"kind": "proposal_rejection", "reason": rejection_reason, "target": self.mission_context.target_neuron_count}
                 )
                 return
 
-            # 4. Successful Emission
+            # 5. Successful Emission
             if "proposal_id" not in proposal:
                 proposal["proposal_id"] = f"epoch_{epoch:02d}_candidate_{int(time.time())}"
 
@@ -106,10 +133,14 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
                 json.dump(proposal, f, indent=2)
 
             logger.info(f"✅ Emitted mission-aligned proposal: {filename}")
-            self.blackboard.add_entry(
+            await self.blackboard.add_entry(
                 sender="SYSTEM_VALIDATOR",
                 content=f"ACCEPTED PROPOSAL [Target N={self.mission_context.target_neuron_count}]: {proposal['proposal_id']}",
-                metadata={"kind": "proposal_acceptance", "proposal_id": proposal['proposal_id']}
+                metadata={
+                    "kind": "proposal_acceptance",
+                    "proposal_id": proposal['proposal_id'],
+                    "intended_action": work_unit["intended_action"]
+                }
             )
         except Exception as e:
             logger.error(f"💥 Failed to parse/emit proposal JSON: {e}")

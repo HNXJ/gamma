@@ -191,7 +191,7 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
                 "intended_variant": "nightmedia/gemma-4-E4B-it-mxfp4-mlx",
                 "vision_false_reported": True,
                 "slots": [
-                    {"slot_id": f"gamma_{i+1:02}", "role": role, "instance_id": f"gemma-4-e4b-it-mlx{(':' + str(i+1)) if i > 0 else ''}", "status": "reported_not_started"}
+                    {"slot_id": f"gamma_{i+1:02}", "role": role, "instance_id": "gemma-4-e4b-it-mlx", "status": "reported_not_started"}
                     for i, role in enumerate(["receptionist", "worker_alpha", "worker_beta", "critic", "judge", "redaction_auditor", "receipt_verifier", "synthesizer"])
                 ],
                 "message": "LMS slot state is observation evidence only."
