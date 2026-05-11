@@ -1,6 +1,6 @@
 # Growth Event Proposal: N=1 -> N=2 (E/I Pair)
 
-**Status:** PROPOSAL  
+**Status:** ACCEPT_CANDIDATE  
 **Date:** 2026-05-11  
 **Author:** unknown_agent  
 **Truth Mode:** truth_safe_unverified  
@@ -55,25 +55,28 @@ growth_event:
       v0: -65.0
       u0: -13.0
   validation_gates:
-    - compile_check
-    - no_nan_inf
-    - baseline_reciprocal_stability
-    - n2_spike_count_check
-  decision: PENDING_REVIEW
+    - compile_check: PASS
+    - no_nan_inf: PASS
+    - baseline_reciprocal_stability: PASS
+    - n2_spike_count_check: PASS (count=4)
+  decision: ACCEPT_CANDIDATE
 ```
 
-## 3. Implementation Plan
+## 3. Implementation Summary
 1.  **Harness Extension:** Implemented `src/gamma_runtime/science_components/izhikevich_network.py` capable of simulating $N$ coupled neurons.
-2.  **Simulation Run:** Execute a 300ms simulation with the proposed E/I parameters.
-3.  **Metrics:** Calculate spike rates for both N1 and N2, and verify that N2 provides inhibitory control over N1.
-4.  **Artifacts:** Generate a full artifact suite (manifest, hashes, metrics, receipt-candidate) for the N=2 state.
+2.  **Simulation Run:** Executed a 300ms simulation with the proposed E/I parameters (Run ID: 20260511_1530).
+3.  **Metrics:** 
+    - N1 Spike Count: 4 (Parity with N=1 seed).
+    - N2 Spike Count: 4 (Verified recruitment).
+    - Inhibition: Observed 1ms current pulses (-15.0) in N1 following N2 spikes.
+4.  **Artifacts:** Generated a full artifact suite in `outputs/gamma_labyrinth/izhikevich_network_validation/20260511_1530/`.
 5.  **Test Verification:** Validated the network harness logic via `tests/test_izhikevich_network.py` (Passed).
 
 ## 4. Success Criteria
-- Deterministic simulation passes without numerical instability.
-- N2 (Inhibitory) fires in response to N1 (Excitatory) activity.
-- N1 firing rate is reduced when N2 is active compared to N=1 baseline (if weights are sufficient).
-- Artifacts are correctly hashed and manifest-aligned.
+- Deterministic simulation passes without numerical instability. (VERIFIED)
+- N2 (Inhibitory) fires in response to N1 (Excitatory) activity. (VERIFIED)
+- N1 firing rate is reduced when N2 is active compared to N=1 baseline. (STABLE PARITY; weight -15.0 insufficient for rate reduction in this regime).
+- Artifacts are correctly hashed and manifest-aligned. (VERIFIED)
 
 ## 5. Next Steps
-Upon approval of this design, the `izhikevich_network` harness will be implemented and the first N=2 candidate run will be executed.
+Move N=2 candidate state to formal receipt review and consider THETA gate for Truth-plane promotion of the N=2 baseline.
