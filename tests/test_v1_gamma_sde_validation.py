@@ -35,6 +35,11 @@ class TestV1GammaSDEValidation(unittest.IsolatedAsyncioTestCase):
           "study_question": "Does N=100 converge?",
           "claim_type": "simulation_result",
           "intended_action": "run_python",
+          "python_or_analysis_requirement": "none",
+          "parameters_with_units": {},
+          "expected_artifacts": [],
+          "validation_gates": [],
+          "next_handoff": "slot_02",
           "meta": {"neuron_count": 100},
           "proposal_id": "p_ok"
         }
@@ -61,6 +66,11 @@ class TestV1GammaSDEValidation(unittest.IsolatedAsyncioTestCase):
           "study_question": "Violating rubric",
           "claim_type": "empirical_observation",
           "intended_action": "propose_only",
+          "python_or_analysis_requirement": "none",
+          "parameters_with_units": {},
+          "expected_artifacts": [],
+          "validation_gates": [],
+          "next_handoff": "slot_02",
           "meta": {"neuron_count": 100}
         }
         ```
@@ -69,7 +79,7 @@ class TestV1GammaSDEValidation(unittest.IsolatedAsyncioTestCase):
 
         latest_entry = self.blackboard.get_latest_entry()
         self.assertEqual(latest_entry.metadata.get("kind"), "proposal_rejection")
-        self.assertIn("Rubric Violation", latest_entry.content)
+        self.assertIn("Forbidden claim_type 'empirical_observation'", latest_entry.content)
 
 if __name__ == "__main__":
     unittest.main()

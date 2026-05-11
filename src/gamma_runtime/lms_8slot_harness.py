@@ -42,11 +42,11 @@ class LMS8SlotHarness:
 
     @staticmethod
     def parse_response(body):
-        # Extract first JSON object using regex as a reliable fallback for nested/fenced outputs
-        import re
-        match = re.search(r'\{.*\}', body, re.DOTALL)
-        if match:
-            return json.loads(match.group(0))
+        # Extract JSON object using robust utility
+        from gamma_runtime.structured_output import StructuredOutputExtractor
+        data = StructuredOutputExtractor.extract_json(body)
+        if data:
+            return data
         raise ValueError("No JSON found")
 
     def generate_receipt(self, results):
