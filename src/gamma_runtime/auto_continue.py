@@ -24,13 +24,15 @@ class AutoContinueDaemon:
         scheduler: InferenceScheduler,
         interval_sec: int = 60,
         max_turns: int = 3,
-        dry_run: bool = True
+        dry_run: bool = True,
+        target_agents: Optional[List[str]] = None
     ):
         self.registry = registry
         self.scheduler = scheduler
         self.interval_sec = interval_sec
         self.max_turns = max_turns
         self.dry_run = dry_run
+        self.target_agents = target_agents
         self.run_id = f"auto-{int(time.time())}-{uuid.uuid4().hex[:8]}"
         self.output_dir = Path("outputs/gamma_labyrinth/auto_continue") / self.run_id
         
@@ -72,6 +74,10 @@ class AutoContinueDaemon:
             
         eligible = []
         for agent_id in team_config.get("agents", []):
+            # Apply agent filter if provided
+            if self.target_agents and agent_id not in self.target_agents:
+                continue
+
             try:
                 agent = self.registry.load_agent(agent_id)
                 model_spec = self.registry.load_model(agent.model_key)
@@ -106,8 +112,32 @@ class AutoContinueDaemon:
                     latency_s=0.01
                 )
             else:
-                # LIVE: (Not implemented in Stage 3 for safety)
-                raise NotImplementedError("Live mode is disabled for Stage 3 safety.")
+                # LIVE: Call LMS through scheduler
+                try:
+                    profile = self.profiles.get_profile(agent.model_key)
+                    
+                    request = InferenceRequest(
+                        session_id=f"{self.run_id}-{tick_id}",
+                        agent_id=agent.agent_id,
+                        model_key=agent.model_key,
+                        model_id=profile.lms_canonical_model_id,
+                        messages=[
+                            {"role": "system", "content": agent.system_prompt},
+                            {"role": "user", "content": "HEARTBEAT_CHECK: confirm readiness."}
+                        ],
+                        generation=agent.generation or {"max_tokens": 128},
+                        adapter_stack=agent.adapter_stack
+                    )
+                    
+                    result = await self.scheduler.schedule(agent.model_key, request)
+                except Exception as e:
+                    print(f"❌ Live turn failed for {agent.agent_id}: {e}")
+                    result = InferenceResult(
+                        text="[BACKEND_UNAVAILABLE] Agent paused due to routing/backend failure.",
+                        raw={"error": str(e)},
+                        usage={"tokens": 0},
+                        latency_s=0.0
+                    )
 
             results.append((agent.agent_id, result))
             
@@ -126,7 +156,7 @@ class AutoContinueDaemon:
             "truth_mode": "truth_safe_unverified",
             "truth_bearing_run": False,
             "claims": {
-                "model_load": False,
+                "model_load": not self.dry_run,
                 "biological": False,
                 "science_growth": False
             },
@@ -135,11 +165,16 @@ class AutoContinueDaemon:
 
         for agent_id, res in results:
             turn_file = f"turn_{tick_id}_{agent_id}.json"
+            
+            # Identify if it's a backend failure
+            is_unavailable = "[BACKEND_UNAVAILABLE]" in res.text
+            
             turn_data = {
                 "agent_id": agent_id,
                 "text": res.text,
                 "latency_s": res.latency_s,
-                "usage": res.usage
+                "usage": res.usage,
+                "status": "paused/degraded" if is_unavailable else "live" if not self.dry_run else "dry_run"
             }
             
             with open(self.output_dir / turn_file, "w") as f:
@@ -148,7 +183,7 @@ class AutoContinueDaemon:
             manifest["turns"].append({
                 "agent_id": agent_id,
                 "artifact": turn_file,
-                "hash": "sha256_placeholder" # Actual hash could be added here
+                "hash": "sha256_placeholder"
             })
 
         with open(self.output_dir / f"manifest_{tick_id}.json", "w") as f:
@@ -160,6 +195,22 @@ class AutoContinueDaemon:
         print(f"   Mode: {'DRY-RUN' if self.dry_run else 'LIVE'}")
         print(f"   Interval: {self.interval_sec}s | Max Turns: {self.max_turns}")
         
+        if not self.dry_run:
+            # Register pools for live mode
+            from .backend_lmstudio import LMStudioBackend
+            from .model_pool import SharedModelPool
+            
+            for profile in self.profiles.route_ready_profiles():
+                try:
+                    model_spec = self.registry.load_model(profile.profile_id)
+                    # LMStudioBackend adds /v1 itself
+                    backend = LMStudioBackend(base_url=profile.base_url.replace("/v1", ""))
+                    pool = SharedModelPool(model_spec, backend)
+                    await self.scheduler.register_pool(pool)
+                    print(f"✅ Registered live pool for {profile.profile_id}")
+                except Exception as e:
+                    print(f"⚠️ Failed to register pool for {profile.profile_id}: {e}")
+
         turns_taken = 0
         while turns_taken < self.max_turns:
             eligible = self.plan_eligible_turns(team_id)
@@ -178,11 +229,18 @@ class AutoContinueDaemon:
 async def main():
     parser = argparse.ArgumentParser(description="Gamma Auto-Continue Daemon")
     parser.add_argument("--dry-run", action="store_true", default=True)
+    parser.add_argument("--live", action="store_true", help="Enable live backend-gated mode")
     parser.add_argument("--interval-sec", type=int, default=60)
     parser.add_argument("--max-turns", type=int, default=3)
     parser.add_argument("--team", type=str, default="gamma_structured_team")
+    parser.add_argument("--agents", type=str, help="Comma-separated list of agent IDs to include")
     parser.add_argument("--config-root", type=str, default="context/configs")
     args = parser.parse_args()
+
+    # If --live is provided, it overrides dry_run default
+    dry_run = not args.live
+    
+    target_agents = args.agents.split(",") if args.agents else None
 
     registry = RuntimeRegistry(args.config_root)
     scheduler = InferenceScheduler()
@@ -192,7 +250,8 @@ async def main():
         scheduler=scheduler,
         interval_sec=args.interval_sec,
         max_turns=args.max_turns,
-        dry_run=args.dry_run
+        dry_run=dry_run,
+        target_agents=target_agents
     )
     
     await daemon.start(args.team)
