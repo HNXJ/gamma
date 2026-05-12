@@ -14,13 +14,19 @@ class RuntimeRegistry:
         path = self.root / "models" / f"{key}.json"
         with open(path, "r") as f:
             data = json.load(f)
-        return ModelSpec(**data)
+        # Filter for dataclass fields
+        fields = {f.name for f in ModelSpec.__dataclass_fields__.values()}
+        filtered = {k: v for k, v in data.items() if k in fields}
+        return ModelSpec(**filtered)
 
     def load_agent(self, agent_id: str) -> AgentSpec:
         path = self.root / "agents" / f"{agent_id}.json"
         with open(path, "r") as f:
             data = json.load(f)
-        return AgentSpec(**data)
+        # Filter for dataclass fields
+        fields = {f.name for f in AgentSpec.__dataclass_fields__.values()}
+        filtered = {k: v for k, v in data.items() if k in fields}
+        return AgentSpec(**filtered)
 
     def load_team(self, team_id: str) -> dict:
         path = self.root / "teams" / f"{team_id}.json"

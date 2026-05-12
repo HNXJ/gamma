@@ -31,8 +31,8 @@ class AdapterRef:
 class AgentSpec:
     agent_id: AgentId
     role: RoleName
-    model_key: ModelKey
-    system_prompt: str
+    model_key: ModelKey = "gemma4-parallel"
+    system_prompt: str = ""
     adapter_stack: list[AdapterKey] = field(default_factory=list)
     tool_policy: dict[str, Any] = field(default_factory=dict)
     generation: dict[str, Any] = field(default_factory=dict)
