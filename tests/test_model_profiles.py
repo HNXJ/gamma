@@ -56,30 +56,57 @@ def test_model_profile_validation():
         )
         p_vision.validate()
 
-def test_office_mac_gemma4_profiles():
+def test_office_mac_gemma4_profiles_load_blocked():
+    # Even if they are in inventory, they should be marked load_blocked now
     inventory = ["gemma-4-31b-it", "gemma-4-26b-a4b-it"]
     profiles = create_office_mac_gemma4_profiles(inventory)
     
     assert len(profiles) == 2
     
-    p31b = next(p for p in profiles if "31b" in p.profile_id)
-    assert p31b.context_length_tokens == 65536
-    assert p31b.max_concurrent_predictions == 8
-    assert p31b.vision_mode == "disabled"
-    assert p31b.vlm_enabled is False
-    assert p31b.profile_status == "ready"
+    for p in profiles:
+        assert p.profile_status == "load_blocked"
+        assert p.block_reason == "MODEL_LOAD_BLOCKED_BASELINE"
+        assert p.last_load_diagnosis is not None
+        assert p.evidence_path is not None
+        assert p.is_route_ready() is False
+        # Verify desired settings are preserved
+        assert p.context_length_tokens == 65536
+        assert p.max_concurrent_predictions == 8
+        assert p.vision_mode == "disabled"
+        assert p.vlm_enabled is False
 
-    p26b = next(p for p in profiles if "26b" in p.profile_id)
-    assert p26b.context_length_tokens == 65536
-    assert p26b.max_concurrent_predictions == 8
-    assert p26b.vision_mode == "disabled"
-    assert p26b.vlm_enabled is False
-    assert p26b.profile_status == "ready"
+def test_route_readiness_logic():
+    p_ready = ModelProfile(
+        profile_id="ready_p", host="h", base_url="u", gamma_display_name="d",
+        lms_canonical_model_id="m", profile_status="ready"
+    )
+    p_blocked = ModelProfile(
+        profile_id="blocked_p", host="h", base_url="u", gamma_display_name="d",
+        lms_canonical_model_id="m", profile_status="load_blocked"
+    )
+    p_pending = ModelProfile(
+        profile_id="pending_p", host="h", base_url="u", gamma_display_name="d",
+        lms_canonical_model_id="m", profile_status="download_pending"
+    )
+
+    assert p_ready.is_route_ready() is True
+    assert p_blocked.is_route_ready() is False
+    assert p_pending.is_route_ready() is False
+
+    registry = ProfileRegistry()
+    registry.register(p_ready)
+    registry.register(p_blocked)
+    registry.register(p_pending)
+
+    ready_list = registry.route_ready_profiles()
+    assert len(ready_list) == 1
+    assert ready_list[0].profile_id == "ready_p"
 
 def test_download_pending_status():
     profiles = create_office_mac_gemma4_profiles([])
     for p in profiles:
         assert p.profile_status == "download_pending"
+        assert p.is_route_ready() is False
 
 def test_distinct_profile_ids():
     profiles = create_office_mac_gemma4_profiles([])

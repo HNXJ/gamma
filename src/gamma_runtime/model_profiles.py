@@ -19,7 +19,10 @@ class ModelProfile:
     runtime_suffix_policy: str = "observe_only_never_request"
     truth_mode: str = "truth_safe_unverified"
     truth_bearing_run: bool = False
-    profile_status: Literal["ready", "download_pending", "blocked"] = "blocked"
+    profile_status: Literal["ready", "download_pending", "blocked", "load_blocked"] = "blocked"
+    block_reason: str | None = None
+    last_load_diagnosis: str | None = None
+    evidence_path: str | None = None
 
     def validate(self):
         # 1. Reject runtime suffix in canonical ID
@@ -45,6 +48,10 @@ class ModelProfile:
              if "gemma-4" in self.lms_canonical_model_id:
                  raise ValueError("Vision/VLM must be disabled for Gemma 4 profiles in this configuration")
 
+    def is_route_ready(self) -> bool:
+        """Returns True if the profile is ready for player routing."""
+        return self.profile_status == "ready"
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "profile_id": self.profile_id,
@@ -61,7 +68,10 @@ class ModelProfile:
             "runtime_suffix_policy": self.runtime_suffix_policy,
             "truth_mode": self.truth_mode,
             "truth_bearing_run": self.truth_bearing_run,
-            "profile_status": self.profile_status
+            "profile_status": self.profile_status,
+            "block_reason": self.block_reason,
+            "last_load_diagnosis": self.last_load_diagnosis,
+            "evidence_path": self.evidence_path
         }
 
 class ProfileRegistry:
@@ -77,12 +87,34 @@ class ProfileRegistry:
             raise KeyError(f"Profile {profile_id} not found")
         return self.profiles[profile_id]
 
+    def route_ready_profiles(self) -> list[ModelProfile]:
+        """Returns a list of profiles that are ready for player routing."""
+        return [p for p in self.profiles.values() if p.is_route_ready()]
+
 def create_office_mac_gemma4_profiles(inventory_keys: list[str]) -> list[ModelProfile]:
     profiles = []
     
+    # Blocklist for models known to fail baseline load
+    load_blocklist = {
+        "gemma-4-31b-it": {
+            "reason": "MODEL_LOAD_BLOCKED_BASELINE",
+            "diagnosis": "Inventory-visible Gemma 4 31B MLX failed minimal LMS load; likely download integrity or architecture/runtime issue.",
+            "evidence": "outputs/gamma_labyrinth/lms_load_strategy_delta/20260512_2000_lms_load_strategy_delta/"
+        },
+        "gemma-4-26b-a4b-it": {
+            "reason": "MODEL_LOAD_BLOCKED_BASELINE",
+            "diagnosis": "Inventory-visible Gemma 4 26B MLX failed minimal LMS load; likely download integrity or architecture/runtime issue.",
+            "evidence": "outputs/gamma_labyrinth/lms_load_strategy_delta/20260512_2000_lms_load_strategy_delta/"
+        }
+    }
+
     # 31B Profile
     id_31b = "gemma-4-31b-it"
     status_31b = "ready" if id_31b in inventory_keys else "download_pending"
+    block_31b = load_blocklist.get(id_31b)
+    if block_31b and status_31b == "ready":
+        status_31b = "load_blocked"
+
     profiles.append(ModelProfile(
         profile_id="office_mac_gemma4_31b_it_mxfp4",
         host="office_mac_kelvin_lms",
@@ -92,12 +124,19 @@ def create_office_mac_gemma4_profiles(inventory_keys: list[str]) -> list[ModelPr
         quantization="MXFP4",
         context_length_tokens=65536,
         max_concurrent_predictions=8,
-        profile_status=status_31b
+        profile_status=status_31b,
+        block_reason=block_31b["reason"] if block_31b else None,
+        last_load_diagnosis=block_31b["diagnosis"] if block_31b else None,
+        evidence_path=block_31b["evidence"] if block_31b else None
     ))
 
     # 26B Profile
     id_26b = "gemma-4-26b-a4b-it"
     status_26b = "ready" if id_26b in inventory_keys else "download_pending"
+    block_26b = load_blocklist.get(id_26b)
+    if block_26b and status_26b == "ready":
+        status_26b = "load_blocked"
+
     profiles.append(ModelProfile(
         profile_id="office_mac_gemma4_26b_a4b_it_mxfp4",
         host="office_mac_kelvin_lms",
@@ -107,7 +146,10 @@ def create_office_mac_gemma4_profiles(inventory_keys: list[str]) -> list[ModelPr
         quantization="MXFP4",
         context_length_tokens=65536,
         max_concurrent_predictions=8,
-        profile_status=status_26b
+        profile_status=status_26b,
+        block_reason=block_26b["reason"] if block_26b else None,
+        last_load_diagnosis=block_26b["diagnosis"] if block_26b else None,
+        evidence_path=block_26b["evidence"] if block_26b else None
     ))
 
     return profiles
