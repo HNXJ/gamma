@@ -192,10 +192,22 @@ class SDESolver:
         return state_entry
 
     def _build_inference_request(self, agent: AgentSpec, prompt: str) -> InferenceRequest:
+        # Resolve canonical model_id from registry
+        if self.registry:
+            try:
+                model_spec = self.registry.load_model(agent.model_key)
+                model_id = model_spec.path or model_spec.name or agent.model_key
+            except Exception as e:
+                logger.warning(f"Failed to load model spec for {agent.model_key}: {e}")
+                model_id = agent.model_key
+        else:
+            model_id = agent.model_key
+
         return InferenceRequest(
             session_id=f"sde-{self.blackboard.topic[:10]}",
             agent_id=agent.agent_id,
             model_key=agent.model_key,
+            model_id=model_id,
             messages=[
                 {"role": "system", "content": agent.system_prompt},
                 {"role": "user", "content": prompt}

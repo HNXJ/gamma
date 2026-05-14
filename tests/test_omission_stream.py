@@ -14,7 +14,7 @@ async def test_omission_pipeline_fedlora_trigger():
     mock_orchestrator = MagicMock(spec=UnifiedOrchestrator)
     mock_orchestrator.scheduler = MagicMock()
     mock_orchestrator.scheduler.schedule = AsyncMock(return_value=InferenceResult(
-        text="Mock Proposal/Critique",
+        text='Mock Proposal with JSON: ```json {"intended_action": "write_python", "parameters": {"gmax": 0.45}} ```',
         raw={},
         usage={"total_tokens": 100},
         latency_s=0.5
