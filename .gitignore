@@ -14,3 +14,6 @@ archive/staging/
 # UV workspace cache
 .uv_cache/
 .uv_python/
+
+# Execution artifacts
+runtime_artifacts/
