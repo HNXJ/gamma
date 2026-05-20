@@ -29,7 +29,7 @@ def build_lms_session_manifest(
     environment_id: str = "default_lms_env"
 ) -> SessionManifest:
     """Build a formal SessionManifest from LMS specs."""
-    
+
     # 1. Agent Identity
     agent = AgentIdentity(
         agent_id=player_id,
@@ -38,12 +38,12 @@ def build_lms_session_manifest(
         role=provider_spec.role,
         display_name=model_spec.model_label
     )
-    
+
     # 2. Harness Identity
     # Use resolve_session_token_presence to get safe auth info
     token_info = resolve_session_token_presence()
     auth_mode = f"{provider_spec.auth_mode} (token_present={token_info['token_present']})"
-    
+
     harness = HarnessIdentity(
         harness_id=f"harness_{session_id}",
         harness_type="lms_gateway",
@@ -52,7 +52,7 @@ def build_lms_session_manifest(
         artifact_policy="strict_ignore",
         transcript_policy="jsonl_buffered"
     )
-    
+
     # 3. Environment Backend
     env = EnvironmentBackend(
         environment_id=environment_id,
@@ -61,7 +61,7 @@ def build_lms_session_manifest(
         network_policy="restricted_lms_only",
         filesystem_policy="ephemeral_only"
     )
-    
+
     # 4. Tool Bundle
     tool_bundle = ToolBundleRef(
         bundle_id=f"tools_{session_id}",
@@ -69,7 +69,7 @@ def build_lms_session_manifest(
         allowed_planes=["Execution", "Observation"],
         danger_level="safe"
     )
-    
+
     # 5. Evidence Policy
     evidence_policy = EvidencePolicy(
         artifact_root=artifact_root,
@@ -80,7 +80,7 @@ def build_lms_session_manifest(
         truth_mode="truth_safe_unverified",
         claim_type="runtime_admission_candidate"
     )
-    
+
     return SessionManifest(
         session_id=session_id,
         agent=agent,
@@ -102,16 +102,16 @@ def admit_lms_player(
     tool_ids: Optional[List[str]] = None
 ) -> PlayerAdmissionRecord:
     """Admit an LMS player with fail-closed route validation."""
-    
+
     rejection_reasons = []
-    
+
     # Fail-closed: check route readiness
     if not provider_spec.route_ready:
         rejection_reasons.append(f"Provider '{provider_spec.provider_id}' not route-ready: {provider_spec.route_block_reason}")
-    
+
     if not model_spec.route_ready:
         rejection_reasons.append(f"Model '{model_spec.model_id}' not route-ready: {model_spec.route_block_reason}")
-    
+
     # If route is blocked, we don't even try to build the manifest to avoid side effects
     if rejection_reasons:
         return PlayerAdmissionRecord(
@@ -121,7 +121,7 @@ def admit_lms_player(
             rejection_reasons=rejection_reasons,
             stop_conditions=["route_blocked"]
         )
-    
+
     try:
         manifest = build_lms_session_manifest(
             session_id=session_id,

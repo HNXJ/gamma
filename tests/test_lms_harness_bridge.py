@@ -103,7 +103,7 @@ def test_serialization_does_not_leak_secrets(mock_provider, mock_model):
     # Even if auth_mode is set to something that resolve_session_token_presence
     # uses, we want to ensure the serialized manifest doesn't have secrets.
     # HarnessRegistry already has a check for secret patterns in auth mode.
-    
+
     # Simulate a provider with a "secret" in auth_mode (should be caught by registry contract)
     risky_provider = LMSProviderSpec(
         provider_id="risky",
@@ -111,7 +111,7 @@ def test_serialization_does_not_leak_secrets(mock_provider, mock_model):
         auth_mode="sk-12345", # Forbidden pattern
         route_ready=True
     )
-    
+
     record = admit_lms_player(
         session_id="session_001",
         player_id="player_001",
