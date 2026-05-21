@@ -68,3 +68,12 @@ class MissionContext:
     patch_id: str | None = None
     mission_kind: Literal["growth", "tutorial"] = "growth"
     tutorial_id: str | None = None
+
+@dataclass
+class PhaseStatusObservation:
+    phase_id: str
+    status: Literal["reported", "pending_theta", "blocked", "accepted_candidate", "accepted_truth", "rejected_invalid"]
+    truth_mode: str = "truth_safe_unverified"
+    claim_type: str = "proposal_value"
+    evidence_path: str | None = None
+
