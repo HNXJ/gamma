@@ -76,4 +76,3 @@ class PhaseStatusObservation:
     truth_mode: str = "truth_safe_unverified"
     claim_type: str = "proposal_value"
     evidence_path: str | None = None
-
