@@ -2,16 +2,17 @@ import json
 import os
 import hashlib
 import math
-from dataclasses import dataclass, field
-from typing import List, Literal, Optional, Dict, Any
-from datetime import datetime
+import re
+from dataclasses import dataclass
+from typing import List, Literal, Any
+from pathlib import Path
 
-@dataclass
+@dataclass(frozen=True)
 class Evidence:
     path: str
     sha256: str
 
-@dataclass
+@dataclass(frozen=True)
 class TruthGateDecision:
     decision_id: str
     source_receipt_candidate: str
@@ -50,6 +51,9 @@ def check_dict_for_invalid(d: Any) -> bool:
             return False
     return True
 
+def _reject_special_constants(s: str) -> Any:
+    raise ValueError(f"NaN or Infinity sentinel found at parse time: {s}")
+
 def validate_truth_gate_decision(
     decision: TruthGateDecision,
     base_dir: str,
@@ -59,6 +63,25 @@ def validate_truth_gate_decision(
     Validates a TruthGateDecision artifact based on the provided rules.
     Returns True if valid, raises ValueError with a reason if invalid.
     """
+    base_path = Path(base_dir).resolve()
+
+    def _resolve_and_check_path(rel_path: str) -> Path:
+        full_path = (base_path / rel_path).resolve()
+        # Check path traversal
+        if not str(full_path).startswith(str(base_path) + os.sep) and full_path != base_path:
+            raise ValueError(f"Evidence path escapes base_dir: {rel_path}")
+        return full_path
+
+    # Runtime Enum validation
+    if decision.claim_type not in {"simulation_result", "empirical_observation", "tool_improvement", "rejected_invalid"}:
+        raise ValueError(f"Invalid claim_type: {decision.claim_type}")
+    if decision.truth_status_before not in {"receipt_candidate", "truth_safe_unverified"}:
+        raise ValueError(f"Invalid truth_status_before: {decision.truth_status_before}")
+    if decision.truth_status_after not in {"truth_value"}:
+        raise ValueError(f"Invalid truth_status_after: {decision.truth_status_after}")
+    if decision.predecessor_chain_status not in {"verified_truth_chain", "verified_candidate_chain", "blocked_predecessor_not_truth", "blocked_predecessor_missing"}:
+        raise ValueError(f"Invalid predecessor_chain_status: {decision.predecessor_chain_status}")
+
     # 1. biological_claims_accepted must be false for N=3 numerical promotion
     if decision.accepted_N == 3 and decision.biological_claims_accepted:
         raise ValueError("biological_claims_accepted must be false for N=3 numerical promotion")
@@ -75,32 +98,48 @@ def validate_truth_gate_decision(
     if decision.previous_N == 2 and decision.accepted_N != 3:
         raise ValueError("accepted_N must be 3 for N=2 -> N=3 candidate")
 
+    # Verify source files exist and are contained
+    for src_file in [decision.source_receipt_candidate, decision.source_artifact_manifest, decision.source_hashes_file]:
+        p = _resolve_and_check_path(src_file)
+        if not p.exists():
+            raise ValueError(f"Required source file missing: {src_file}")
+
     # 5. truth_status_after checks
     if decision.truth_status_after == "truth_value":
-        if decision.predecessor_chain_status == "blocked_predecessor_not_truth" or decision.predecessor_chain_status == "blocked_predecessor_missing":
+        if not decision.evidence:
+            raise ValueError("truth_value promotion requires at least one evidence artifact")
+
+        if decision.predecessor_chain_status in {"blocked_predecessor_not_truth", "blocked_predecessor_missing"}:
              raise ValueError("predecessor_chain_status is blocked, cannot promote to truth_value")
-             
+
         if decision.predecessor_chain_status == "verified_candidate_chain" and not allow_candidate_chain:
             raise ValueError("Candidate chain policy not enabled. BLOCKED_PREDECESSOR_NOT_TRUTH")
 
         for ev in decision.evidence:
-            full_path = os.path.join(base_dir, ev.path)
-            if not os.path.exists(full_path):
+            # Hash format validation
+            if not re.match(r"^[0-9a-fA-F]{64}$", ev.sha256):
+                raise ValueError(f"Invalid SHA256 format for {ev.path}")
+
+            full_path = _resolve_and_check_path(ev.path)
+            if not full_path.exists():
                 raise ValueError(f"Evidence path missing: {ev.path}")
-            
+
             with open(full_path, "rb") as f:
                 actual_hash = hashlib.sha256(f.read()).hexdigest()
             if actual_hash != ev.sha256:
                 raise ValueError(f"Hash mismatch for {ev.path}")
-            
+
             if ev.path.endswith(".json"):
                 with open(full_path, "r") as f:
                     try:
-                        data = json.load(f)
-                    except json.JSONDecodeError:
-                        raise ValueError(f"Invalid JSON format: {ev.path}")
+                        data = json.load(f, parse_constant=_reject_special_constants)
+                    except json.JSONDecodeError as e:
+                        raise ValueError(f"Invalid JSON format: {ev.path} ({e})")
+                    except ValueError as e:
+                        raise ValueError(f"Parse error in {ev.path}: {e}")
+
                     if not check_dict_for_invalid(data):
-                        raise ValueError(f"NaN or Infinity sentinel found in JSON: {ev.path}")
+                        raise ValueError(f"NaN or Infinity sentinel found in JSON recursive check: {ev.path}")
 
     # 7. n4_unblocked true only if next numerical-growth planning and only if valid
     if decision.n4_unblocked:
@@ -110,14 +149,15 @@ def validate_truth_gate_decision(
              raise ValueError("n4_unblocked cannot be true if not promoted to truth_value")
 
     # 8. Check source receipt candidate for truth_mutation_requested
-    full_receipt_path = os.path.join(base_dir, decision.source_receipt_candidate)
-    if os.path.exists(full_receipt_path):
+    full_receipt_path = _resolve_and_check_path(decision.source_receipt_candidate)
+    if full_receipt_path.exists():
         with open(full_receipt_path, "r") as f:
             try:
-                rc_data = json.load(f)
-                if rc_data.get("truth_mutation_requested", False) is True:
-                    raise ValueError("Source receipt candidate has truth_mutation_requested: true")
-            except json.JSONDecodeError:
-                pass # Already handled in evidence validation if it is part of evidence
+                rc_data = json.load(f, parse_constant=_reject_special_constants)
+            except (json.JSONDecodeError, ValueError):
+                rc_data = {} # Already handled in evidence validation if it is part of evidence
+
+            if rc_data.get("truth_mutation_requested", False) is True:
+                raise ValueError("Source receipt candidate has truth_mutation_requested: true")
 
     return True
