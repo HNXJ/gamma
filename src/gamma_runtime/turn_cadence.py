@@ -2,6 +2,7 @@
 import uuid
 import json
 import argparse
+import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
 import statistics
@@ -13,30 +14,31 @@ def run_cadence_smoke(
     target_spt: int = 360
 ):
     run_id = f"cadence-{int(time.time())}-{uuid.uuid4().hex[:8]}"
-    output_dir = Path("outputs/gamma_labyrinth/cadence_smoke") / datetime.now().strftime("%Y%M%d_%H%M%S")
+    # Fix timestamp format: Use %m for month, not %M (minute)
+    output_dir = Path("outputs/gamma_labyrinth/cadence_smoke") / datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     turn_records = []
     durations = []
-    
+
     start_time_total = time.time()
     turns_completed = 0
-    
+
     for i in range(target_turns):
         turn_start = time.time()
-        
+
         # Simulate dry run logic
         if mode == "dry_run":
             time.sleep(0.01) # Simulate minimal overhead
-        
+
         turn_end = time.time()
         duration = turn_end - turn_start
         durations.append(duration)
-        
+
         transcript_path = output_dir / f"transcript_turn_{i}.txt"
         with open(transcript_path, "w") as f:
             f.write(f"[DRY RUN STUB] Turn {i} transcript.")
-            
+
         turn_record = {
             "session_id": run_id,
             "player_id": "test_player",
@@ -51,7 +53,7 @@ def run_cadence_smoke(
             "turn_status": "completed",
             "claim_type": "runtime_infrastructure_evidence",
             "truth_status": "truth_safe_unverified",
-            "transcript_path": str(transcript_path),
+            "transcript_path": transcript_path.as_posix(),
             "artifact_manifest_path": None,
             "drift_check": {
                 "passed": True,
@@ -59,13 +61,13 @@ def run_cadence_smoke(
             },
             "stop_reason": None
         }
-        
+
         turn_records.append(turn_record)
         turns_completed += 1
 
     total_duration = time.time() - start_time_total
     measured_tph = (turns_completed / total_duration) * 3600 if total_duration > 0 else float("inf")
-    
+
     with open(output_dir / "turn_records.jsonl", "w") as f:
         for record in turn_records:
             f.write(json.dumps(record) + "\n")
@@ -91,6 +93,21 @@ def run_cadence_smoke(
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
 
+    report_path = output_dir / "cadence_report.json"
+    with open(report_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+
+    # Generate hashes.sha256 for all artifacts except the hash file itself
+    hash_lines = []
+    for file_path in output_dir.iterdir():
+        if file_path.is_file() and file_path.name != "hashes.sha256":
+            file_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+            hash_lines.append(f"{file_hash} *{file_path.name}")
+
+    hashes_path = output_dir / "hashes.sha256"
+    with open(hashes_path, "w") as f:
+        f.write("\n".join(hash_lines) + "\n")
+
     return manifest, output_dir
 
 if __name__ == "__main__":
@@ -98,14 +115,14 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="dry_run", choices=["dry_run", "mock", "live"])
     parser.add_argument("--turns", type=int, default=10)
     parser.add_argument("--target-turns-per-hour", type=int, default=10)
-    
+
     args = parser.parse_args()
-    
+
     manifest, out_dir = run_cadence_smoke(
         mode=args.mode,
         target_turns=args.turns,
         target_tph=args.target_turns_per_hour
     )
-    
+
     print(f"Cadence run complete. Manifest in: {out_dir}")
     print(json.dumps(manifest, indent=2))
