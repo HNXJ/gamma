@@ -37,6 +37,7 @@ def test_continuous_scheduler_contract():
 
     # 1. Scheduler completes 10 mock-admitted turns
     assert manifest.turns_completed_total == 10
+    assert manifest.turn_cadence_passed is True
 
     # 2. Scheduler config has target_turns_per_hour == 10
     config_path = out_dir / "scheduler_config.json"
@@ -44,6 +45,11 @@ def test_continuous_scheduler_contract():
     with open(config_path, "r") as f:
         conf = json.load(f)
     assert conf["target_turns_per_hour"] == 10
+
+    # Endurance semantics
+    assert hasattr(manifest, "endurance_window_passed")
+    assert hasattr(manifest, "timing_policy_passed")
+    assert hasattr(manifest, "scheduler_policy_passed")
 
     # 6. backend_mode == mock
     assert manifest.mode == "mock"

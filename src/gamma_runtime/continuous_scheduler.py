@@ -25,6 +25,8 @@ class SchedulerConfig:
     turns_per_lane: int = 10
     active_lanes: List[Dict[str, Any]] = dataclasses.field(default_factory=list)
     pacing_mode: str = "accelerated_validation" # accelerated_validation | wall_clock
+    planned_duration_seconds: int = 3600
+    minimum_valid_duration_seconds: int = 3540
     heartbeat_interval_seconds: int = 60
     live_calls_authorized: bool = False
     truth_mode: str = "truth_safe_unverified"
@@ -41,6 +43,7 @@ class LaneMetrics:
     total_duration_seconds: float
     measured_turns_per_hour: float
     target_turns_per_hour: float
+    turn_cadence_passed: bool
     policy_passed: bool
     transcript_count: int
     judge_verdict_count: int
@@ -60,6 +63,10 @@ class SchedulerManifest:
     turns_completed_total: int
     per_lane_metrics: List[LaneMetrics]
     aggregate_measured_turns_per_hour: float
+    turn_cadence_passed: bool
+    endurance_window_passed: bool
+    scheduler_policy_passed: bool
+    timing_policy_passed: bool
     all_lanes_policy_passed: bool
     heartbeat_count: int
     checkpoint_count: int
@@ -77,6 +84,7 @@ class HeartbeatRecord:
     timestamp_utc: str
     lane_id: Optional[str]
     turn_id: Optional[int]
+    status: str
     session_liveness: str
     transcript_persistence: str
     artifact_persistence: str
@@ -138,11 +146,6 @@ class ContinuousScheduler:
         total_turns_completed = 0
         last_turn_by_lane = {lane["lane_id"]: -1 for lane in self.config.active_lanes}
 
-        # Multi-lane sequential implementation
-        # For true endurance, we would loop over time and dispatch turns.
-        # But per prompt, "Sequential multi-lane is acceptable as a first infrastructure milestone".
-        # For one-hour endurance, we use lane_count: 1.
-        
         for lane_cfg in self.config.active_lanes:
             lane_id = lane_cfg["lane_id"]
             
@@ -161,11 +164,6 @@ class ContinuousScheduler:
             )
             
             prefix = f"lane_{lane_id}_"
-            # Note: We need to modify MockAdmissionRunner to NOT do its own loop if we want to control timing here.
-            # But the prompt says "The scheduler must compose the existing mock-admission runner."
-            # and "Must clearly say this validates scheduler policy and runtime overhead, not real one-hour wall-clock endurance." was for accelerated.
-            # For wall_clock, I should probably do the loop here.
-            
             runner = MockAdmissionRunner(admission_request, file_prefix=prefix)
             runner.output_dir = self.output_dir
             
@@ -190,17 +188,13 @@ class ContinuousScheduler:
                 actual_start_utc = datetime.now(timezone.utc)
                 actual_start_time = time.time()
                 
-                # Execute ONE turn using a modified runner or by mimicking runner.run() for 1 turn
-                # Since MockAdmissionRunner is already there, I'll use it to execute just Turn i.
-                # I'll need a way to run a single turn. I'll mock the internal state of runner.
-                
                 turn_start = time.time()
-                objective = runner.run.__globals__.get('turn_objectives', [
+                objective = [
                     "inspect mission doctrine summary", "propose next bounded action", "perform truth-safety self-check",
                     "identify required artifact fields", "report mock/live boundary", "preserve negative-result rule",
                     "verify no N=4 unlock", "verify blocked model profiles remain blocked", "produce next-turn intent",
                     "summarize session state"
-                ])[i % 10]
+                ][i % 10]
                 
                 response = runner.player.execute_turn(i)
                 verdict = runner.judge.evaluate_turn(i, response)
@@ -265,7 +259,6 @@ class ContinuousScheduler:
                 with open(self.output_dir / f"{prefix}mock_judge_verdicts.jsonl", "a") as f:
                     f.write(json.dumps(dataclasses.asdict(envelope.judge_verdict)) + "\n")
 
-            # Finish runner (write manifest etc)
             lane_end_time = time.time()
             total_duration = lane_end_time - lane_start_time
             measured_tph = (turns_done / total_duration) * 3600 if total_duration > 0 else float("inf")
@@ -302,7 +295,8 @@ class ContinuousScheduler:
                 total_duration_seconds=total_duration,
                 measured_turns_per_hour=measured_tph,
                 target_turns_per_hour=self.config.target_turns_per_hour,
-                policy_passed=(turns_done == self.config.turns_per_lane and (measured_tph >= self.config.target_turns_per_hour or self.config.pacing_mode == "wall_clock")),
+                turn_cadence_passed=(turns_done == self.config.turns_per_lane and measured_tph >= self.config.target_turns_per_hour),
+                policy_passed=(turns_done == self.config.turns_per_lane),
                 transcript_count=turns_done,
                 judge_verdict_count=turns_done,
                 drift_pass_count=turns_done,
@@ -310,11 +304,22 @@ class ContinuousScheduler:
             )
             self.per_lane_metrics.append(lane_metrics)
 
+        # 4. Post-turn observation window (Endurance Gate)
+        if self.config.pacing_mode == "wall_clock":
+            target_end_time = start_time + self.config.planned_duration_seconds
+            now = time.time()
+            while now < target_end_time:
+                self._emit_heartbeat(None, None, "post_turn_observation")
+                wait_sec = min(self.config.heartbeat_interval_seconds, target_end_time - now)
+                if wait_sec > 0:
+                    time.sleep(wait_sec)
+                now = time.time()
+
         end_time = time.time()
         end_utc = datetime.now(timezone.utc)
         elapsed = end_time - start_time
         
-        # 4. Final Artifacts
+        # 5. Final Artifacts
         self._write_checkpoint(last_turn_by_lane, total_turns_completed, "final")
         self.audit_live_route_readiness()
         
@@ -322,8 +327,12 @@ class ContinuousScheduler:
             json.dump([dataclasses.asdict(e) for e in self.jitter_report], f, indent=2)
             
         avg_tph = statistics.mean(m.measured_turns_per_hour for m in self.per_lane_metrics) if self.per_lane_metrics else 0
-        all_passed = all(m.policy_passed for m in self.per_lane_metrics)
-        
+        all_lanes_passed = all(m.policy_passed for m in self.per_lane_metrics)
+        turn_cadence_passed = all(m.turn_cadence_passed for m in self.per_lane_metrics)
+        endurance_window_passed = (elapsed >= self.config.minimum_valid_duration_seconds)
+        timing_policy_passed = (self.config.pacing_mode == "wall_clock" and endurance_window_passed)
+        scheduler_policy_passed = turn_cadence_passed and endurance_window_passed
+
         manifest = SchedulerManifest(
             scheduler_id=self.config.scheduler_id,
             run_id=self.config.run_id,
@@ -336,7 +345,11 @@ class ContinuousScheduler:
             turns_completed_total=total_turns_completed,
             per_lane_metrics=self.per_lane_metrics,
             aggregate_measured_turns_per_hour=avg_tph,
-            all_lanes_policy_passed=all_passed,
+            turn_cadence_passed=turn_cadence_passed,
+            endurance_window_passed=endurance_window_passed,
+            scheduler_policy_passed=scheduler_policy_passed,
+            timing_policy_passed=timing_policy_passed,
+            all_lanes_policy_passed=all_lanes_passed,
             heartbeat_count=len(self.heartbeats),
             checkpoint_count=self.checkpoint_count,
             resume_supported=False,
@@ -358,15 +371,17 @@ class ContinuousScheduler:
             "started_at_utc": manifest.started_at_utc,
             "ended_at_utc": manifest.ended_at_utc,
             "wall_clock_elapsed_seconds": elapsed,
-            "minimum_valid_duration_seconds": 3540,
+            "minimum_valid_duration_seconds": self.config.minimum_valid_duration_seconds,
             "target_turns_per_hour": self.config.target_turns_per_hour,
             "measured_turns_per_hour": avg_tph,
             "target_seconds_per_turn": self.config.target_seconds_per_turn,
             "heartbeat_interval_seconds": self.config.heartbeat_interval_seconds,
             "heartbeat_count": len(self.heartbeats),
             "checkpoint_count": self.checkpoint_count,
-            "timing_policy_passed": (elapsed >= 3540 if self.config.pacing_mode == "wall_clock" else True),
-            "scheduler_policy_passed": manifest.all_lanes_policy_passed,
+            "turn_cadence_passed": turn_cadence_passed,
+            "endurance_window_passed": endurance_window_passed,
+            "scheduler_policy_passed": scheduler_policy_passed,
+            "timing_policy_passed": timing_policy_passed,
             "transcript_persistence": "pass",
             "artifact_persistence": "pass",
             "mock_live_boundary": "pass",
@@ -398,7 +413,11 @@ class ContinuousScheduler:
             "turns_scheduled_total": manifest.turns_scheduled_total,
             "turns_completed_total": manifest.turns_completed_total,
             "aggregate_measured_turns_per_hour": manifest.aggregate_measured_turns_per_hour,
-            "pass_fail": "pass" if manifest.all_lanes_policy_passed else "fail",
+            "turn_cadence_passed": turn_cadence_passed,
+            "endurance_window_passed": endurance_window_passed,
+            "scheduler_policy_passed": scheduler_policy_passed,
+            "timing_policy_passed": timing_policy_passed,
+            "pass_fail": "pass" if scheduler_policy_passed else "fail",
             "truth_status": "truth_safe_unverified"
         }
         with open(self.output_dir / "cadence_report.json", "w") as f:
@@ -416,6 +435,7 @@ class ContinuousScheduler:
             timestamp_utc=datetime.now(timezone.utc).isoformat(),
             lane_id=lane_id,
             turn_id=turn_id,
+            status=status,
             session_liveness="pass",
             transcript_persistence="pass",
             artifact_persistence="pass",
@@ -458,8 +478,26 @@ class ContinuousScheduler:
                 "turn_id": i,
                 "scheduled_start_utc": datetime.fromtimestamp(start_utc.timestamp() + offset, tz=timezone.utc).isoformat()
             })
+        
+        last_turn_at = (self.config.turns_per_lane - 1) * self.config.target_seconds_per_turn
+
+        summary = {
+            "scheduler_id": self.config.scheduler_id,
+            "turns_per_lane": self.config.turns_per_lane,
+            "target_seconds_per_turn": self.config.target_seconds_per_turn,
+            "first_turn_at_seconds": 0,
+            "last_turn_scheduled_at_seconds": last_turn_at,
+            "planned_endurance_duration_seconds": self.config.planned_duration_seconds,
+            "minimum_valid_duration_seconds": self.config.minimum_valid_duration_seconds,
+            "post_turn_observation_seconds": max(0, self.config.planned_duration_seconds - last_turn_at),
+            "expected_min_heartbeat_count": int(self.config.planned_duration_seconds / self.config.heartbeat_interval_seconds) + self.config.turns_per_lane
+        }
+
         with open(self.output_dir / "schedule_plan.json", "w") as f:
-            json.dump(plan, f, indent=2)
+            json.dump({"plan": plan, "summary": summary}, f, indent=2)
+
+        print(json.dumps(summary, indent=2))
+
         return SchedulerManifest(
             scheduler_id=self.config.scheduler_id,
             run_id=self.config.run_id,
@@ -472,6 +510,10 @@ class ContinuousScheduler:
             turns_completed_total=0,
             per_lane_metrics=[],
             aggregate_measured_turns_per_hour=0,
+            turn_cadence_passed=False,
+            endurance_window_passed=False,
+            scheduler_policy_passed=False,
+            timing_policy_passed=False,
             all_lanes_policy_passed=False,
             heartbeat_count=0,
             checkpoint_count=0,

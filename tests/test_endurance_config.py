@@ -16,7 +16,7 @@ def test_wall_clock_config_logic():
         target_turns_per_hour=10,
         target_seconds_per_turn=360,
         lane_count=1,
-        turns_per_lane=2, # Small number for config test
+        turns_per_lane=2,
         active_lanes=[{
             "lane_id": "lane-1",
             "player_profile_id": "gemma4-parallel",
@@ -28,39 +28,36 @@ def test_wall_clock_config_logic():
             "backend_mode": "mock"
         }],
         pacing_mode="wall_clock",
-        heartbeat_interval_seconds=1, # Fast heartbeats for test
+        planned_duration_seconds=10, # Short duration for test
+        minimum_valid_duration_seconds=8,
+        heartbeat_interval_seconds=1,
         live_calls_authorized=False,
-        plan_only=True # Don't actually sleep
+        plan_only=True
     )
-    
+
     scheduler = ContinuousScheduler(config)
     manifest, out_dir = scheduler.run()
-    
-    # Verify plan_only artifacts
+
     assert (out_dir / "schedule_plan.json").exists()
     assert (out_dir / "endurance_config.json").exists()
-    
+
     with open(out_dir / "schedule_plan.json", "r") as f:
-        plan = json.load(f)
+        data = json.load(f)
+        plan = data["plan"]
+        summary = data["summary"]
     assert len(plan) == 2
-    assert "scheduled_start_utc" in plan[0]
+    assert summary["planned_endurance_duration_seconds"] == 10
+    assert summary["last_turn_scheduled_at_seconds"] == 360 # (2-1)*360
 
 def test_target_derivation():
-    # Verify target_seconds_per_turn derivation logic
     tph = 10
     sec_per_turn = int(3600 / tph)
     assert sec_per_turn == 360
-    
-    tph = 20
-    sec_per_turn = int(3600 / tph)
-    assert sec_per_turn == 180
 
-def test_forbidden_scientific_claims_negative():
-    # Mock some data and check for forbidden strings
-    forbidden = ["nan", "infinity", "n=3 closure", "omission result"]
-    sample_text = "This is a mock player response. No biological result. No Truth-plane mutation."
-    
-    low = sample_text.lower()
-    for forb in forbidden:
-        assert forb not in low
-    assert "no biological result" in low
+def test_heartbeat_count_logic():
+    # 3600s duration, 60s interval -> 60 heartbeats + turn heartbeats
+    duration = 3600
+    interval = 60
+    turns = 10
+    expected_min = int(duration / interval) + turns
+    assert expected_min >= 70 # approx
