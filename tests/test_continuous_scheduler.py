@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 import json
 import os
 import sys
@@ -15,7 +15,8 @@ def test_continuous_scheduler_contract():
         mode="mock",
         target_turns_per_hour=10,
         target_seconds_per_turn=360,
-        requested_turns=10,
+        lane_count=1,
+        turns_per_lane=10,
         active_lanes=[{
             "lane_id": "lane-1",
             "player_profile_id": "gemma4-parallel",
@@ -35,7 +36,7 @@ def test_continuous_scheduler_contract():
     manifest, out_dir = scheduler.run()
 
     # 1. Scheduler completes 10 mock-admitted turns in accelerated_validation mode
-    assert manifest.turns_completed == 10
+    assert manifest.turns_completed_total == 10
 
     # 2. Scheduler config has target_turns_per_hour == 10
     config_path = out_dir / "scheduler_config.json"
@@ -57,7 +58,7 @@ def test_continuous_scheduler_contract():
     assert manifest.mode == "mock"
 
     # 7. player/judge lanes remain separated
-    sm_path = out_dir / "session_manifest.json"
+    sm_path = out_dir / "lane_lane-1_session_manifest.json"
     with open(sm_path, "r") as f:
         sm = json.load(f)
     assert sm["player_lane"] == "execution"
@@ -80,20 +81,20 @@ def test_continuous_scheduler_contract():
     # 10. checkpoint records last_completed_turn == 9 or equivalent
     with open(chkpt_path, "r") as f:
         chkpt = json.load(f)
-    assert chkpt["last_completed_turn"] == 9
+    assert chkpt["last_completed_turn_by_lane"]["lane-1"] == 9
 
     # 11. resume metadata exists or resume_supported is explicitly false with reason
     assert manifest.resume_supported is False
 
     # 12. all turn envelopes exist
-    assert (out_dir / "turn_envelopes.jsonl").exists()
+    assert (out_dir / "lane_lane-1_turn_envelopes.jsonl").exists()
 
     # 13. all transcripts exist
     for i in range(10):
-        assert (out_dir / f"transcript_turn_{i}.txt").exists()
+        assert (out_dir / f"lane_lane-1_transcript_turn_{i}.txt").exists()
 
     # 14. all judge verdicts exist
-    assert (out_dir / "mock_judge_verdicts.jsonl").exists()
+    assert (out_dir / "lane_lane-1_mock_judge_verdicts.jsonl").exists()
 
     # 15. artifact_manifest exists
     assert (out_dir / "artifact_manifest.json").exists()
@@ -108,7 +109,7 @@ def test_continuous_scheduler_contract():
     assert len(hash_lines) == len(files_in_dir)
 
     # 17. measured_turns_per_hour >= 10
-    assert manifest.measured_turns_per_hour >= 10
+    assert manifest.aggregate_measured_turns_per_hour >= 10
 
     # 18. all truth_status fields are truth_safe_unverified
     assert manifest.truth_status == "truth_safe_unverified"
@@ -123,7 +124,7 @@ def test_continuous_scheduler_contract():
     with open(audit_path, "r") as f:
         audit = json.load(f)
         
-    for p in audit["live_route_readiness"]["route_safe_profiles_from_registry"]:
+    for p in audit["live_route_readiness"]["mock_safe_profiles_from_registry"]:
         assert "blocked" not in p.get("readiness_status", "")
         # suffix check
         assert ":" not in p["canonical_model_id"]
@@ -139,7 +140,7 @@ def test_continuous_scheduler_contract():
         "no biological result", "no simulation result", "no truth-plane mutation"
     ]
     
-    with open(out_dir / "turn_envelopes.jsonl", "r") as f:
+    with open(out_dir / "lane_lane-1_turn_envelopes.jsonl", "r") as f:
         for line in f:
             if not line.strip(): continue
             low = line.lower()
@@ -147,4 +148,3 @@ def test_continuous_scheduler_contract():
                 assert f"{forb}" not in low
             for req in required_negations:
                 assert req in low
-

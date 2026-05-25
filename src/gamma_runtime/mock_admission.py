@@ -1,4 +1,4 @@
-﻿import time
+import time
 import uuid
 import json
 import argparse
@@ -107,30 +107,25 @@ class MockJudgeHarness:
         )
 
 class MockAdmissionRunner:
-    def __init__(self, request: AdmissionRequest):
+    def __init__(self, request: AdmissionRequest, file_prefix: str = ""):
         self.request = request
+        self.file_prefix = file_prefix
         self.session_id = f"sess-{int(time.time())}-{uuid.uuid4().hex[:8]}"
-        
         # Use UTC timestamp format YYYYMMDD_HHMMSS
         ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         self.output_dir = Path("outputs/gamma_labyrinth/mock_admission") / ts
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
         self.player = MockPlayerHarness()
         self.judge = MockJudgeHarness()
-        
         self.turn_envelopes: List[TurnEnvelope] = []
         self.durations: List[float] = []
 
     def run(self):
         run_start = time.time()
-        
         # Write AdmissionRequest
-        with open(self.output_dir / "admission_request.json", "w") as f:
+        with open(self.output_dir / f"{self.file_prefix}admission_request.json", "w") as f:
             json.dump(dataclasses.asdict(self.request), f, indent=2)
-
         turns_completed = 0
-        
         turn_objectives = [
             "inspect mission doctrine summary",
             "propose next bounded action",
@@ -143,30 +138,21 @@ class MockAdmissionRunner:
             "produce next-turn intent",
             "summarize session state"
         ]
-
         for i in range(self.request.requested_turns):
             turn_start = time.time()
-            
             objective = turn_objectives[i % len(turn_objectives)]
-            
-            # Execute player turn
             response = self.player.execute_turn(i)
-            
-            # Execute judge evaluation
             verdict = self.judge.evaluate_turn(i, response)
-            
             turn_end = time.time()
             duration = turn_end - turn_start
             self.durations.append(duration)
-            
-            transcript_path = self.output_dir / f"transcript_turn_{i}.txt"
+            transcript_path = self.output_dir / f"{self.file_prefix}transcript_turn_{i}.txt"
             with open(transcript_path, "w") as f:
                 f.write(f"Objective: {objective}\n")
                 f.write(f"Player: {response}\n")
                 f.write(f"Judge: {verdict.verdict}\n")
                 f.write(f"Truth Status: truth_safe_unverified\n")
                 f.write(f"Claim Type: runtime_infrastructure_evidence\n")
-            
             envelope = TurnEnvelope(
                 run_id=self.request.run_id,
                 session_id=self.session_id,
@@ -187,20 +173,17 @@ class MockAdmissionRunner:
                 judge_verdict=verdict,
                 drift_check=DriftCheck(passed=True, findings=[]),
                 transcript_path=transcript_path.as_posix(),
-                artifact_manifest_path="artifact_manifest.json",
+                artifact_manifest_path=f"{self.file_prefix}artifact_manifest.json",
                 claim_type="runtime_infrastructure_evidence",
                 truth_status="truth_safe_unverified",
                 next_turn_status="continue",
                 stop_reason=None
             )
-            
             self.turn_envelopes.append(envelope)
             turns_completed += 1
-
         run_end = time.time()
         total_duration = run_end - run_start
         measured_tph = (turns_completed / total_duration) * 3600 if total_duration > 0 else float("inf")
-
         # Session Manifest
         manifest = MockSessionManifest(
             run_id=self.request.run_id,
@@ -222,20 +205,16 @@ class MockAdmissionRunner:
             measured_turns_per_hour=measured_tph,
             truth_status="truth_safe_unverified"
         )
-        
-        with open(self.output_dir / "session_manifest.json", "w") as f:
+        with open(self.output_dir / f"{self.file_prefix}session_manifest.json", "w") as f:
             json.dump(dataclasses.asdict(manifest), f, indent=2)
-
         # Turn Envelopes JSONL
-        with open(self.output_dir / "turn_envelopes.jsonl", "w") as f:
+        with open(self.output_dir / f"{self.file_prefix}turn_envelopes.jsonl", "w") as f:
             for env in self.turn_envelopes:
                 f.write(json.dumps(dataclasses.asdict(env)) + "\n")
-                
         # Mock Judge Verdicts JSONL
-        with open(self.output_dir / "mock_judge_verdicts.jsonl", "w") as f:
+        with open(self.output_dir / f"{self.file_prefix}mock_judge_verdicts.jsonl", "w") as f:
             for env in self.turn_envelopes:
                 f.write(json.dumps(dataclasses.asdict(env.judge_verdict)) + "\n")
-
         # Cadence Report
         report = {
             "run_id": self.request.run_id,
@@ -251,28 +230,23 @@ class MockAdmissionRunner:
             "pass_fail": "pass" if measured_tph >= self.request.target_turns_per_hour and turns_completed == self.request.requested_turns else "fail",
             "truth_status": "truth_safe_unverified"
         }
-        
-        with open(self.output_dir / "cadence_report.json", "w") as f:
+        with open(self.output_dir / f"{self.file_prefix}cadence_report.json", "w") as f:
             json.dump(report, f, indent=2)
-            
         # Artifact Manifest
         artifact_manifest = {
             "run_id": self.request.run_id,
-            "artifacts": [f.name for f in self.output_dir.iterdir() if f.is_file() and f.name != "hashes.sha256"]
+            "artifacts": [f.name for f in self.output_dir.iterdir() if f.is_file() and f.name != "hashes.sha256" and f.name.startswith(self.file_prefix)]
         }
-        with open(self.output_dir / "artifact_manifest.json", "w") as f:
+        with open(self.output_dir / f"{self.file_prefix}artifact_manifest.json", "w") as f:
             json.dump(artifact_manifest, f, indent=2)
-
         # Hashes
         hash_lines = []
         for file_path in self.output_dir.iterdir():
             if file_path.is_file() and file_path.name != "hashes.sha256":
                 file_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
                 hash_lines.append(f"{file_hash} *{file_path.name}")
-                
         with open(self.output_dir / "hashes.sha256", "w") as f:
             f.write("\n".join(hash_lines) + "\n")
-
         return report, self.output_dir
 
 if __name__ == "__main__":
@@ -280,9 +254,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="mock", choices=["mock"])
     parser.add_argument("--turns", type=int, default=10)
     parser.add_argument("--target-turns-per-hour", type=int, default=10)
-    
     args = parser.parse_args()
-    
     request = AdmissionRequest(
         run_id=f"run-{int(time.time())}-{uuid.uuid4().hex[:8]}",
         mission_id="runtime_mock_admission_10turns",
@@ -296,9 +268,7 @@ if __name__ == "__main__":
         judge_model_identity="gemma-2-9b-it",
         backend_mode=args.mode
     )
-    
     runner = MockAdmissionRunner(request)
     report, out_dir = runner.run()
-    
     print(f"Mock Admission run complete. Artifacts in: {out_dir}")
     print(json.dumps(report, indent=2))
