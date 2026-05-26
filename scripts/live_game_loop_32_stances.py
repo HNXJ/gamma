@@ -1,4 +1,4 @@
-import sys, os, json, time, hashlib
+import sys, os, json, time, hashlib, glob
 from datetime import datetime
 
 # scripts/live_game_loop_32_stances.py - Continuous Live Gamma Labyrinth 32-Stance World
@@ -17,31 +17,39 @@ BACKENDS = [
 ]
 
 class ContinuousWorld:
-    def __init__(self, resume_turn=38):
-        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.output_dir = f"outputs/gamma_labyrinth/live_continuous_32_stance_game/{self.timestamp}"
-        os.makedirs(self.output_dir, exist_ok=True)
-        
+    def __init__(self, resume_dir=None):
         self.provider = LMSProviderSpec(
             provider_id="office_mac_lms", role="live_game_backend", 
             base_url="http://127.0.0.1:1234/v1", route_ready=True, timeout_seconds=90,
             models=[LMSModelSpec(model_id=m[0], model_family="generic", model_label=m[1], route_ready=True) for m in BACKENDS]
         )
         self.interface = LMSInterface(providers=[self.provider])
-        self.players = []
-        for b_id, b_slug in BACKENDS:
-            for stance in STANCES:
-                self.players.append({
-                    "player_id": f"{b_slug}.{stance}", "model_id": b_id, "stance": stance,
-                    "inventory": {"tools":[], "resources":[], "contributions":0},
-                })
         
-        self.state = {
-            "game_id": f"continuous-32-stance-{self.timestamp}",
-            "current_turn": resume_turn, "cycle_count": 0,
-            "drift_count": 0, "truth_safety_failure_count": 0
-        }
-        self._write_config()
+        if resume_dir and os.path.exists(resume_dir):
+            self.output_dir = resume_dir
+            self.timestamp = os.path.basename(resume_dir)
+            with open(os.path.join(resume_dir, "checkpoint_latest.json"), "r") as f:
+                self.state = json.load(f)
+            with open(os.path.join(resume_dir, "game_config.json"), "r") as f:
+                config = json.load(f)
+                self.players = config["roster"]
+        else:
+            self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.output_dir = f"outputs/gamma_labyrinth/live_continuous_32_stance_game/{self.timestamp}"
+            os.makedirs(self.output_dir, exist_ok=True)
+            self.players = []
+            for b_id, b_slug in BACKENDS:
+                for stance in STANCES:
+                    self.players.append({
+                        "player_id": f"{b_slug}.{stance}", "model_id": b_id, "stance": stance,
+                        "inventory": {"tools":[], "resources":[], "contributions":0},
+                    })
+            self.state = {
+                "game_id": f"continuous-32-stance-{self.timestamp}",
+                "current_turn": 38, "cycle_count": 0,
+                "drift_count": 0, "truth_safety_failure_count": 0
+            }
+            self._write_config()
 
     def _write_config(self):
         with open(f"{self.output_dir}/game_config.json", "w") as f:
@@ -99,6 +107,7 @@ class ContinuousWorld:
         self.state["cycle_count"] += 1
         with open(f"{self.output_dir}/checkpoint_latest.json", "w") as f:
             json.dump(self.state, f, indent=2)
+        self._write_config()
         
         # Log cycle records
         with open(f"{self.output_dir}/turn_records.jsonl", "a") as f:
@@ -111,10 +120,23 @@ class ContinuousWorld:
     def update_hashes(self):
         os.system(f"cd {self.output_dir} && find . -type f -not -name 'hashes.sha256' -exec shasum -a 256 {{}} + > hashes.sha256")
 
+def get_latest_run_dir():
+    base_dir = "outputs/gamma_labyrinth/live_continuous_32_stance_game"
+    if not os.path.exists(base_dir): return None
+    dirs = [os.path.join(base_dir, d) for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+    return sorted(dirs)[-1] if dirs else None
+
 if __name__ == "__main__":
-    world = ContinuousWorld()
-    # Run at least one full cycle (32 players)
-    world.run_cycle()
-    # Then loop forever (or for a few more cycles in this window)
-    for _ in range(2):
+    resume_dir = None
+    if "--resume" in sys.argv:
+        if "auto" in sys.argv:
+            resume_dir = get_latest_run_dir()
+        else:
+            idx = sys.argv.index("--resume")
+            if idx + 1 < len(sys.argv) and not sys.argv[idx+1].startswith("--"):
+                resume_dir = sys.argv[idx+1]
+
+    world = ContinuousWorld(resume_dir=resume_dir)
+    # Loop forever
+    while True:
         world.run_cycle()
