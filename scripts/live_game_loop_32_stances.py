@@ -7,6 +7,7 @@ sys.path.append("/Users/HN/gamma-world/repos/gamma/src")
 from gamma_runtime.lms_interface import (
     LMSInterface, LMSProviderSpec, LMSModelSpec, LMSCompletionRequest
 )
+from gamma_runtime.player_turn_contract_normalizer import PlayerTurnNormalizer
 
 STANCES = ["scout", "patchsmith", "toolmaker", "trader", "archivist", "scientist_scaffold", "critic_judgelet", "sandbox_curator"]
 BACKENDS = [
@@ -19,13 +20,18 @@ BACKENDS = [
 class ContinuousWorld:
     def __init__(self, resume_dir=None):
         self.provider = LMSProviderSpec(
-            provider_id="office_mac_lms", role="live_game_backend", 
+            provider_id="office_mac_lms", role="live_game_backend",
             base_url="http://127.0.0.1:1234/v1", route_ready=True, timeout_seconds=90,
             models=[LMSModelSpec(model_id=m[0], model_family="generic", model_label=m[1], route_ready=True) for m in BACKENDS]
         )
         self.interface = LMSInterface(providers=[self.provider])
-        
+
+        self.enable_normalizer = os.getenv("GAMMA_ENABLE_PLAYER_TURN_NORMALIZER", "0") == "1"
+        if self.enable_normalizer:
+            self.normalizer = PlayerTurnNormalizer()
+
         if resume_dir and os.path.exists(resume_dir):
+
             self.output_dir = resume_dir
             self.timestamp = os.path.basename(resume_dir)
             with open(os.path.join(resume_dir, "checkpoint_latest.json"), "r") as f:
@@ -58,7 +64,7 @@ class ContinuousWorld:
     def run_cycle(self):
         print(f"--- CYCLE {self.state['cycle_count']} (Turn {self.state['current_turn']}) ---")
         cycle_records = []
-        
+
         # Load directives
         directive_summary = ""
         directives_path = f"{self.output_dir}/game_directives.jsonl"
@@ -71,12 +77,12 @@ class ContinuousWorld:
                         directive_summary = f" ACTIVE DIRECTIVE: {latest_directive.get('message', '')}"
             except Exception as e:
                 print(f"Error reading directives: {e}")
-        
+
         for player in self.players:
             turn_id = self.state["current_turn"]
             p_id = player["player_id"]
             stance = player["stance"]
-            
+
             prompt = (
                 f"You are {p_id} ({stance}) in Gamma Labyrinth turn {turn_id}. "
                 "Continuous scientific-runtime game. Stay inside data/literature analysis, biophysical modeling, "
@@ -84,31 +90,91 @@ class ContinuousWorld:
                 "Do not invent fictional world state. Contribute to the game: actions, patches, tools, trades, sandbox resources. "
                 f"Output one short JSON: {{player_id, stance_id, action_type, contribution, patch_proposal_or_null, trade_offer_or_null, resource_request_or_null, truth_status: 'truth_safe_unverified', non_claims}}.{directive_summary}"
             )
-            
+
             res = self.interface.complete(LMSCompletionRequest(
                 provider_id="office_mac_lms", model_id=player["model_id"],
                 messages=[{"role":"user", "content":prompt}], dry_run=False, max_tokens=256
             ))
-            
+
             if res.success:
                 content = res.content.strip()
                 player["inventory"]["contributions"] += 1
                 cycle_records.append({"turn_id": turn_id, "player_id": p_id, "content": content})
-                with open(f"{self.output_dir}/turn_{turn_id:04d}_{p_id}.txt", "w") as f:
+
+                turn_filename = f"turn_{turn_id:04d}_{p_id}.txt"
+                turn_path = os.path.join(self.output_dir, turn_filename)
+                with open(turn_path, "w") as f:
                     f.write(content)
+
+                # --- Normalizer Integration ---
+                if self.enable_normalizer:
+                    try:
+                        try:
+                            json_str = content.replace("```json", "").replace("```", "").strip()
+                            start = json_str.find("{")
+                            end = json_str.rfind("}")
+                            if start != -1 and end != -1:
+                                json_str = json_str[start:end+1]
+                            raw_turn = json.loads(json_str)
+                        except Exception:
+                            raw_turn = {"content": content}
+
+                        raw_turn["player"] = p_id
+                        raw_turn["stance"] = stance
+
+                        normalized = self.normalizer.normalize(raw_turn)
+
+                        log_entry = {
+                            "source_turn_path": turn_path,
+                            "player": p_id,
+                            "turn_number": turn_id,
+                            "model_backend": player["model_id"],
+                            "canonical_stance": normalized.get("canonical_stance", ""),
+                            "normalization_status": normalized.get("normalization_status", ""),
+                            "domain_guard_status": normalized.get("domain_guard_status", ""),
+                            "warnings": normalized.get("warnings", []) + normalized.get("domain_guard_warnings", []),
+                            "errors": normalized.get("errors", []) + normalized.get("domain_guard_errors", []),
+                            "truth_status": normalized.get("truth_status", "")
+                        }
+
+                        norm_path = os.path.join(self.output_dir, "normalized_turns.jsonl")
+                        with open(norm_path, "a") as f:
+                            f.write(json.dumps(log_entry) + "\n")
+
+                        if normalized.get("normalization_status") == "rejected" or normalized.get("domain_guard_status") == "rejected":
+                            reject_path = os.path.join(self.output_dir, "rejected_turns.jsonl")
+                            with open(reject_path, "a") as f:
+                                f.write(json.dumps(log_entry) + "\n")
+
+                        if normalized.get("warnings") or normalized.get("domain_guard_warnings"):
+                            warn_path = os.path.join(self.output_dir, "normalizer_warnings.jsonl")
+                            with open(warn_path, "a") as f:
+                                f.write(json.dumps(log_entry) + "\n")
+
+                    except Exception as e:
+                        err_path = os.path.join(self.output_dir, "normalizer_errors.jsonl")
+                        with open(err_path, "a") as f:
+                            f.write(json.dumps({
+                                "source_turn_path": turn_path,
+                                "player": p_id,
+                                "turn_number": turn_id,
+                                "error": str(e),
+                                "raw_content": content
+                            }) + "\n")
+                # --- End Normalizer Integration ---
                 self.state["current_turn"] += 1
             else:
                 print(f"Failure for {p_id}")
-            
+
             # Write heartbeat
             with open(f"{self.output_dir}/heartbeats.jsonl", "a") as f:
                 f.write(json.dumps({"ts": datetime.utcnow().isoformat(), "player": p_id, "turn": turn_id}) + "\n")
-        
+
         self.state["cycle_count"] += 1
         with open(f"{self.output_dir}/checkpoint_latest.json", "w") as f:
             json.dump(self.state, f, indent=2)
         self._write_config()
-        
+
         # Log cycle records
         with open(f"{self.output_dir}/turn_records.jsonl", "a") as f:
             for rec in cycle_records:

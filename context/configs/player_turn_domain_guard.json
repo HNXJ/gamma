@@ -1,0 +1,48 @@
+{
+  "active_domain": "jaxfne_computational_neuroscience_biophysics",
+  "allowed_terms": [
+    "jaxfne",
+    "schema validator",
+    "type validator",
+    "shape validator",
+    "tutorial output",
+    "mission card",
+    "scaffold",
+    "receipt",
+    "artifact",
+    "computational neuroscience",
+    "biophysical modeling",
+    "neural",
+    "E/I",
+    "omission",
+    "predictive coding",
+    "spike-field",
+    "sparse spiking",
+    "field modulation",
+    "harness",
+    "tool market"
+  ],
+  "off_mission_terms": [
+    "protein",
+    "protein folding",
+    "folding",
+    "enzyme",
+    "enzyme kinetics",
+    "molecular docking",
+    "molecular dynamics",
+    "ligand",
+    "ligand binding",
+    "generic diffusion model",
+    "unrelated force field",
+    "force field refinement"
+  ],
+  "hard_reject_terms": [
+    "protein folding",
+    "enzyme kinetics",
+    "molecular docking",
+    "ligand binding"
+  ],
+  "max_off_mission_terms_before_reject": 2,
+  "max_drift_ratio_before_reject": 0.3,
+  "truth_status": "truth_safe_unverified"
+}
