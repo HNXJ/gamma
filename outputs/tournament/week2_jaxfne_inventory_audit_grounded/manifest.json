@@ -1,0 +1,13 @@
+{
+  "tournament_id": "jaxfne_craft_tournament_3month_2026q2q3",
+  "week": "2 grounded inventory audit",
+  "runtime_model_id": "gemma-4-26b-a4b-it",
+  "context_window": 65536,
+  "repo": "D:\\workspace\\gemini-gamma-labyrinth\\repos\\gamma",
+  "branch": "office-dev",
+  "commit": "c7c5f86371941b38f5d58f2d1a3b34f61275c5b0",
+  "inventory_root": "D:\\workspace\\gemini-gamma-labyrinth\\inventories\\shared\\jaxfne",
+  "mock_live_status": "live",
+  "truth_status": "truth_safe_unverified",
+  "decision": "ACCEPT_WEEK2_GROUNDED_AUDIT_EVIDENCE_CANDIDATE"
+}
