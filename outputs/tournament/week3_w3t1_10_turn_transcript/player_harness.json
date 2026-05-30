@@ -1,0 +1,35 @@
+{
+  "player_id": "gamma_week3_w3t1_player_01",
+  "agent_role": "W3-T1 Jaxley Optional Boundary and Import Diagnostics player",
+  "model_backend_identity": "gemma-4-26b-a4b-it",
+  "backend_label": "LM Studio on office-mac-gamma-llm",
+  "endpoint_auth_mode": "local backend / no secrets",
+  "session_id": "gamma_week3_w3t1_session_01",
+  "harness_id": "gamma_week3_w3t1_harness_01",
+  "allowed_tools": [
+    "read repository files",
+    "read Week 2 artifacts",
+    "run safe import/smoke commands",
+    "write transcript/report artifacts only"
+  ],
+  "forbidden_tools": [
+    "dependency installation",
+    "biological simulation",
+    "Truth-plane mutation",
+    "stash mutation"
+  ],
+  "artifact_policy": "transcript + manifest + hashes required",
+  "transcript_policy": "persist every turn",
+  "truth_mode": "truth_safe_unverified",
+  "mock_live_status": "live",
+  "stop_conditions": [
+    "credential exposure",
+    "backend_instability",
+    "missing_transcript_persistence",
+    "biological_interpretation",
+    "dependency_installation_request",
+    "branch_mismatch",
+    "unmanifested_artifact",
+    "unsupported_scientific_runtime_truth_assertion"
+  ]
+}

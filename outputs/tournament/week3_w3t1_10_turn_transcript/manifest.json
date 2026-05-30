@@ -1,0 +1,25 @@
+{
+  "tournament_id": "jaxfne_craft_tournament_3month_2026q2q3",
+  "week": "3",
+  "task_id": "W3-T1",
+  "repo": "D:\\workspace\\gemini-gamma-labyrinth\\repos\\gamma",
+  "branch": "office-dev",
+  "commit": "85d67cd93befd19e86ffaef35b79f59c17c9719f",
+  "origin_commit": "85d67cd93befd19e86ffaef35b79f59c17c9719f",
+  "runtime_model_id": "gemma-4-26b-a4b-it",
+  "context_window": 65536,
+  "player_id": "gamma_week3_w3t1_player_01",
+  "session_id": "gamma_week3_w3t1_session_01",
+  "harness_id": "gamma_week3_w3t1_harness_01",
+  "transcript_path": "outputs/tournament/week3_w3t1_10_turn_transcript/transcript.md",
+  "harness_path": "outputs/tournament/week3_w3t1_10_turn_transcript/player_harness.json",
+  "command_trace": "python D:\\workspace\\gemini-gamma-labyrinth\\repos\\gamma\\scripts\\week3_w3t1_transcript_runner.py",
+  "artifact_paths": [
+    "outputs/tournament/week3_w3t1_10_turn_transcript/transcript.md",
+    "outputs/tournament/week3_w3t1_10_turn_transcript/player_harness.json",
+    "outputs/tournament/week3_w3t1_10_turn_transcript/manifest.json",
+    "outputs/tournament/week3_w3t1_10_turn_transcript/hashes.sha256"
+  ],
+  "truth_status": "truth_safe_unverified",
+  "decision": "READY_FOR_W3_T1_IMPLEMENTATION_WORKER"
+}
