@@ -1,0 +1,6 @@
+- This script generated the first Week 2 16-agent audit reports.
+- THETA-lite classified that run as PATH_ONLY_PROMPT_CONTEXT.
+- It is preserved for provenance and negative-result/correction history.
+- It is not the grounded audit orchestrator.
+- It should not be reused for accepted grounded inventory audit without modification to supply actual file contents and command outputs.
+- truth_status: truth_safe_unverified
