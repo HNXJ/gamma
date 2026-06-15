@@ -1,0 +1,62 @@
+{
+  "available_module_symbols": [
+    "Any",
+    "Dict",
+    "EVT_JAXFNE_LATENT_DYNAMICS_PROXY_MISSION_01",
+    "JaxfneProxyMissionRecipe",
+    "Optional",
+    "PlayerAdmissionRecord",
+    "datetime",
+    "get_mission_config",
+    "json",
+    "run_jaxfne_mission_recipe"
+  ],
+  "branch": "office-dev",
+  "claim_type": "tool_validation_observation",
+  "commit": "92a118c4ef32e00af28ec02335b0e852e9b82957",
+  "harness_id": "h-001",
+  "mission_id": "jaxfne_proxy_mission_readout",
+  "mock_live_mode": "proxy_metadata_only",
+  "model_identity": "mock_readout_model",
+  "module": "gamma_runtime.jaxfne_proxy_mission_recipe",
+  "note": "Bounded proxy readout only. This is not biological evidence, not a JAXFNE numerical simulation, and not Truth-plane promotion.",
+  "params": {
+    "latent_dims": 8,
+    "note": "proxy readout parameters",
+    "seed": 42,
+    "steps": 200
+  },
+  "recipe_output": {
+    "claim_level": "proxy_readout_only",
+    "claim_type": "proposal_value",
+    "metadata": {
+      "excluded_tools": [
+        "Kilosort4"
+      ],
+      "prohibited_actions": [
+        "raw_data_processing",
+        "spike_sorting",
+        "truth_mutation"
+      ]
+    },
+    "mission_id": "EVT_JAXFNE_LATENT_DYNAMICS_PROXY_MISSION_01",
+    "output_summary": {
+      "latent_dimensions": 8,
+      "message": "jaxfne proxy simulation completed (mock)",
+      "result_checksum": "sha256:mock_jaxfne_result_checksum",
+      "simulation_steps": 200
+    },
+    "player_id": "gamma_proxy_execution_worker",
+    "receipt_type": "jaxfne_proxy_mission_receipt",
+    "session_id": "jaxfne_proxy_readout_20260522T200252Z",
+    "status": "success",
+    "timestamp": "2026-05-22T15:02:52.349166",
+    "truth_status": "truth_safe_unverified"
+  },
+  "repo": "gamma",
+  "run_id": "jaxfne_proxy_readout_20260522T200252Z",
+  "session_id": "jaxfne_proxy_readout_20260522T200252Z",
+  "status": "success",
+  "truth_mutation_requested": false,
+  "truth_status": "truth_safe_unverified"
+}

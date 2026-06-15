@@ -1,0 +1,43 @@
+{
+  "artifact_manifest": {
+    "claim_type": "tool_validation_observation",
+    "command_trace": [
+      "PYTHONPATH=src",
+      "python bounded proxy readout script from GAMMA handoff"
+    ],
+    "generated_by": {
+      "harness_id": "h-001",
+      "model_identity": "mock_readout_model",
+      "player_id": "gamma_proxy_execution_worker",
+      "session_id": "jaxfne_proxy_readout_20260522T200252Z"
+    },
+    "inputs": [
+      "src/gamma_runtime/jaxfne_proxy_mission_recipe.py",
+      "src/gamma_runtime/harness_registry.py",
+      "tests/test_jaxfne_proxy_mission_recipe.py"
+    ],
+    "mission_id": "jaxfne_proxy_mission_readout",
+    "outputs": [
+      {
+        "path": "runtime_artifacts\\jaxfne_proxy_readout\\20260522_150251\\jaxfne_proxy_readout.json",
+        "sha256": "57c90c914bb28a8684639900056039253203dc288405650e3ce7460123c8df47",
+        "type": "tool_output"
+      }
+    ],
+    "run_id": "jaxfne_proxy_readout_20260522T200252Z",
+    "tools_used": [
+      "python",
+      "pytest",
+      "git"
+    ],
+    "truth_status": "truth_safe_unverified",
+    "validation": {
+      "no_nan_inf": "pass",
+      "parameter_bounds": "not_applicable",
+      "statistics": "not_applicable",
+      "syntax_compile": "pass",
+      "tool_provenance": "pass",
+      "unit_check": "not_applicable"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "receipt_candidate": {
+    "claim_summary": "Proxy metadata readout executed for jaxfne mission recipe and harness-registry integration. No biological or JAXFNE numerical claim is made.",
+    "claim_type": "tool_validation_observation",
+    "decision": "ACCEPT_CANDIDATE",
+    "gates": {
+      "compile_or_syntax": "pass",
+      "mock_live_boundary": "pass",
+      "no_nan_inf": "pass",
+      "parameter_units": "not_applicable",
+      "provenance_gate": "pass",
+      "tool_identity": "pass"
+    },
+    "mission_id": "jaxfne_proxy_mission_readout",
+    "receipt_id": "jaxfne_proxy_readout_20260522T200252Z_receipt_candidate",
+    "run_id": "jaxfne_proxy_readout_20260522T200252Z",
+    "supporting_artifacts": [
+      "jaxfne_proxy_readout.json",
+      "artifact_manifest.json"
+    ],
+    "theta_required_for_truth": true,
+    "truth_mutation_requested": false,
+    "truth_status": "truth_safe_unverified"
+  }
+}
