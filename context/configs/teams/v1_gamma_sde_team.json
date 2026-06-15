@@ -1,9 +1,9 @@
 {
   "team_id": "v1_gamma_sde_team",
   "agents": [
-    "v1_gamma_proponent",
-    "v1_gamma_adversary",
-    "v1_gamma_consensus"
+    "G01",
+    "G02",
+    "J01"
   ],
   "communication": {
     "topology": "blackboard",

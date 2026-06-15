@@ -1,0 +1,26 @@
+{
+  "run_id": "1cab6ca0-6428-4e18-834c-cada9e066ee2",
+  "tutorial_id": "T00_single_neuron_hh",
+  "source_commit": "fb6c8505c4b4c171cb5ede8de5c6c517f82d9ffa",
+  "model_kind": "HH",
+  "n_neurons": 1,
+  "duration_ms": 500.0,
+  "dt_ms": 0.1,
+  "spike_count_mean": 1.0,
+  "spike_count_variance": 0.0,
+  "firing_rate_hz_mean": 2.0,
+  "firing_rate_hz_variance": 0.0,
+  "voltage_mean": -43.593238830566406,
+  "voltage_variance": 38.98774719238281,
+  "parameter_mean": {},
+  "parameter_variance": {},
+  "warnings": [
+    "Submodule run_simulation bypassed due to 0.13.0 incompatibility"
+  ],
+  "artifact_paths": {
+    "v_trace": "v_trace.npy",
+    "metrics": "summary_metrics.json"
+  },
+  "evaluation_decision": "PASS",
+  "promotion_eligible": false
+}

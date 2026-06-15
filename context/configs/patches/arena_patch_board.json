@@ -8,9 +8,11 @@
     "arena_1_3_0_l4_apical_predictive.yaml"
   ],
   "official_level_metric": "largest_pass_network_neuron_count",
-  "largest_pass_network_neuron_count": 10,
-  "active_mission_target": 11,
-  "active_mission_topic": "Continuous Growth Mode: 10 to 11 Neurons",
+  "largest_pass_network_neuron_count": 11,
+  "active_mission_target": 12,
+  "active_mission_kind": "pending_approval",
+  "active_tutorial_id": "NONE",
+  "active_mission_topic": "Recovered N=11; next growth mission pending G04/Role approval",
   "next_unlock_threshold": 40,
   "omissions": 0,
   "sessions": [

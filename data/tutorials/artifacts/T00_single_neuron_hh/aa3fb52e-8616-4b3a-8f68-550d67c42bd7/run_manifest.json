@@ -1,0 +1,11 @@
+{
+  "run_id": "aa3fb52e-8616-4b3a-8f68-550d67c42bd7",
+  "tutorial_id": "T00_single_neuron_hh",
+  "timestamp": 1777682256.763521,
+  "status": "COMPLETED",
+  "mission_config": {
+    "t_max": 500.0,
+    "dt": 0.1,
+    "seed": 42
+  }
+}

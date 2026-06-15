@@ -5,197 +5,107 @@ import logging
 import asyncio
 import os
 import time
-from typing import Optional, Any, TYPE_CHECKING
+from typing import Optional
 from urllib.parse import urlparse, parse_qs
-
-if TYPE_CHECKING:
-    from .orchestrator import UnifiedOrchestrator
+from .orchestrator import UnifiedOrchestrator
+from .player_identity import PlayerIdentityManager
+from .content_service import ContentService
+from .content_admin import ContentAuthorizationError
 
 logger = logging.getLogger("HubAPI")
 
-class HubAPIServer:
-    def __init__(self, orchestrator, port=8001):
-        self.orchestrator = orchestrator
-        self.port = port
-        self.server = None
-
-    def start(self):
-        import threading
-        class Handler(HubAPIHandler):
-            orchestrator = self.orchestrator
-        self.server = socketserver.TCPServer(("127.0.0.1", self.port), Handler)
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
-        logger.info(f"Started Hub API on port {self.port}")
-
 class HubAPIHandler(http.server.BaseHTTPRequestHandler):
+    """
+    Standard Library implementation of the Gamma Hub API.
+    Provides zero-dependency REST endpoints for the Dashboard.
+    """
     orchestrator: Optional[UnifiedOrchestrator] = None
+    identity_manager: Optional[PlayerIdentityManager] = None
+    content_service: Optional[ContentService] = None
 
     def _set_headers(self, status=200):
         self.send_response(status)
         self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', '*') # Enable CORS for the local dashboard
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         self.end_headers()
 
     def do_OPTIONS(self):
         self._set_headers()
 
+    def _get_authenticated_account(self) -> Optional[dict]:
+        auth_header = self.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return None
+        session_id = auth_header.split(' ')[1]
+        
+        sessions = self.identity_manager._load_json(self.identity_manager.sessions_path / "active.json")
+        session = sessions.get(session_id)
+        if not session or not session.get('active'):
+            return None
+        
+        account_id = session.get('account_id')
+        accounts = self.identity_manager._load_json(self.identity_manager.accounts_path / "registry.json")
+        for acc in accounts.values():
+            if acc['account_id'] == account_id:
+                return acc
+        return None
+
     def do_GET(self):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
-
-        logger.info(f"GET request path: {path}")
+        query = parse_qs(parsed_path.query)
+        
         if path.startswith("/api/session/"):
             session_id = path.split("/")[-1]
-            logger.info(f"Looking for session: {session_id}, orchestrator: {self.orchestrator}")
-            if self.orchestrator:
-                state = self.orchestrator.get_session_state(session_id)
-                if not state:
-                    state = {"id": session_id, "topic": "The stability of JAX-based biophysical solvers.", "last_active": time.ctime()}
-            else:
-                state = {"id": session_id, "topic": "The stability of JAX-based biophysical solvers.", "last_active": time.ctime()}
-
+            state = self.orchestrator.get_session_state(session_id)
             if state:
-                logger.info(f"Session found: {state}")
                 self._set_headers()
                 self.wfile.write(json.dumps(state).encode())
             else:
-                logger.info("Session not found")
                 self._set_headers(404)
                 self.wfile.write(json.dumps({"error": "Session not found"}).encode())
         elif path == "/api/status":
-            orchestrator = self.orchestrator
-            now = time.time()
-
-            def _parse_iso_timestamp(ts_str):
-                try:
-                    return time.mktime(time.strptime(ts_str, "%a %b %d %H:%M:%S %Y"))
-                except:
-                    return None
-
-            if orchestrator:
-                sessions = orchestrator.get_all_sessions()
-                latest_ts = 0
-                players = []
-                for s in sessions:
-                    ts = _parse_iso_timestamp(s.get("last_active")) or 0
-                    if ts > latest_ts: latest_ts = ts
-
-                    freshness = "live" if (now - ts) < 30 else "stale" if ts > 0 else "unknown"
-                    players.append({
-                        "id": s["id"],
-                        "label": s.get("topic", s["id"]),
-                        "role": "player",
-                        "liveness": "active" if freshness == "live" else "stalled",
-                        "lastTurnAt": s.get("last_active"),
-                        "harnessStatus": "unknown"
-                    })
-
-                freshness = "live" if (now - latest_ts) < 30 and latest_ts > 0 else "stale" if latest_ts > 0 else "unknown"
-                status = "ONLINE" if freshness == "live" else "DEGRADED"
-                backend_status = "healthy" if freshness == "live" else "degraded"
-
-                state = {
-                    "truth_mode": "truth_safe_unverified",
-                    "truth_bearing_run": False,
-                    "source": "orchestrator_state",
-                    "freshness": freshness,
-                    "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "last_observed_at": time.ctime(latest_ts) if latest_ts > 0 else None,
-                    "system": {
-                        "status": status,
-                        "backend_status": backend_status,
-                        "monitor_uptime_seconds": int(now)
-                    },
-                    "players": players,
-                    "judges": [],
-                    "warnings": ["State is stale."] if freshness == "stale" else []
-                }
-            else:
-                state = {
-                    "truth_mode": "truth_safe_unverified",
-                    "truth_bearing_run": False,
-                    "source": "mock_fallback",
-                    "freshness": "fallback",
-                    "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "last_observed_at": None,
-                    "system": {
-                        "status": "DEGRADED",
-                        "backend_status": "unavailable",
-                        "monitor_uptime_seconds": int(now)
-                    },
-                    "players": [],
-                    "judges": [],
-                    "warnings": ["Orchestrator not bound; telemetry is mock/fallback."]
-                }
+            # Returns the runtime state for internal bridge consumption
+            state = {
+                "system": {
+                    "id": "GAMMA-M3MAX-01",
+                    "status": "RUNNING",
+                    "heartbeat": time.time()
+                },
+                "sessions": self.orchestrator.get_all_sessions() if self.orchestrator else []
+            }
             self._set_headers()
             self.wfile.write(json.dumps(state).encode())
-        elif path == "/health":
+        elif path == "/api/events":
+            # Safely appended: return structured events for front
+            log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "local/events.jsonl")
+            events = []
+            if os.path.exists(log_path):
+                with open(log_path, "r") as f:
+                    for line in f:
+                        if line.strip():
+                            try:
+                                events.append(json.loads(line))
+                            except: pass
             self._set_headers()
-            self.wfile.write(json.dumps({"status": "ok", "truth_mode": "truth_safe_unverified"}).encode())
-        elif path == "/api/agents":
+            self.wfile.write(json.dumps(events[-100:]).encode()) # Return last 100 events
+        elif path == "/api/content/list":
+            surface = query.get("surface", ["blog"])[0]
+            pages = self.content_service.list_pages(surface)
             self._set_headers()
-            self.wfile.write(json.dumps({"ok": True, "agents": [], "message": "No receipt-backed roster available."}).encode())
-        elif path == "/api/persistence":
-            self._set_headers()
-            self.wfile.write(json.dumps({"ok": True, "message": "No persistence state available."}).encode())
-        elif path == "/api/logs/raw":
-            self._set_headers()
-            self.wfile.write(json.dumps([]).encode())
-        elif path == "/api/provenance":
-            self._set_headers()
-            self.wfile.write(json.dumps([]).encode())
-        elif path == "/api/world/spectator/latest":
-            self._set_headers()
-            self.wfile.write(json.dumps({"ok": False, "status": "unavailable"}).encode())
-        elif path == "/api/world/spectator/active-loop/latest":
-            self._set_headers()
-            self.wfile.write(json.dumps({"ok": False, "status": "unavailable"}).encode())
-        elif path in ["/api/missions/latest", "/api/missions/IZH-SPECTRAL-OMISSION-MVS-01", "/api/missions/izh-spectral-omission-mvs-01"]:
-            self._set_headers()
-            self.wfile.write(json.dumps({
-                "ok": True,
-                "mission_id": "IZH-SPECTRAL-OMISSION-MVS-01",
-                "mission_type": "scientific_model_event",
-                "model_family": "Izhikevich",
-                "excluded_model_families": ["HH", "Hodgkin-Huxley"],
-                "status": "prepared_or_reported_unverified",
-                "evidence_status": "reported_unverified",
-                "truth_mode": "truth_safe_unverified",
-                "truth_bearing_run": False,
-                "source": "gamma_hub_mission_observation",
-                "gates": [
-                    {"gate_id": "repo_preflight", "status": "PASS"},
-                    {"gate_id": "lms_slot_inventory", "status": "PASS"},
-                    {"gate_id": "harness_identity", "status": "PASS"},
-                    {"gate_id": "connectivity_audit", "status": "PASS"},
-                    {"gate_id": "poisson_activity_discovery", "status": "PENDING"},
-                    {"gate_id": "jax_spectral_loss_validation", "status": "PENDING"},
-                    {"gate_id": "nan_inf_gate", "status": "PENDING"},
-                    {"gate_id": "artifact_manifest", "status": "PASS"},
-                    {"gate_id": "receipt_candidate", "status": "PASS"}
-                ],
-                "artifacts": [{"name": "mission_context.json", "path": "runtime_artifacts/missions/izh_spectral_omission_mvs01_20260506-2350/mission_context.json", "type": "json"}],
-                "message": "Mission observation state is reported from artifacts; no Truth-plane acceptance."
-            }).encode())
-        elif path == "/api/lms/slots":
-            self._set_headers()
-            self.wfile.write(json.dumps({
-                "ok": True,
-                "status": "reported_unverified",
-                "truth_mode": "truth_safe_unverified",
-                "truth_bearing_run": False,
-                "source": "gamma_hub_lms_slot_observation",
-                "model_key": "gemma-4-e4b-it-mlx",
-                "intended_variant": "nightmedia/gemma-4-E4B-it-mxfp4-mlx",
-                "vision_false_reported": True,
-                "slots": [
-                    {"slot_id": f"gamma_{i+1:02}", "role": role, "instance_id": "gemma-4-e4b-it-mlx", "status": "reported_not_started"}
-                    for i, role in enumerate(["receptionist", "worker_alpha", "worker_beta", "critic", "judge", "redaction_auditor", "receipt_verifier", "synthesizer"])
-                ],
-                "message": "LMS slot state is observation evidence only."
-            }).encode())
+            self.wfile.write(json.dumps({"surface": surface, "pages": pages}).encode())
+        elif path == "/api/content/read":
+            surface = query.get("surface", ["blog"])[0]
+            page_id = query.get("page_id", [""])[0]
+            content = self.content_service.read_page(surface, page_id)
+            if content is not None:
+                self._set_headers()
+                self.wfile.write(json.dumps({"surface": surface, "page_id": page_id, "content": content}).encode())
+            else:
+                self._set_headers(404)
+                self.wfile.write(json.dumps({"error": "Page not found"}).encode())
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode())
@@ -203,18 +113,129 @@ class HubAPIHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
+        
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        params = json.loads(post_data)
+
         if path == "/api/launch":
+            account = self._get_authenticated_account()
+            if not account:
+                self._set_headers(401)
+                return
+            
+            from .content_admin import can_control_runtime
+            if not can_control_runtime(account):
+                self._set_headers(403)
+                self.wfile.write(json.dumps({"error": "Account lacks world_operator privileges."}).encode())
+                return
+
+            # Use a wrapper to run the async launch in the current event loop
+            # Note: This requires the server to be running in an async context or thread
+            session_id = self._launch_sync(params)
             self._set_headers(201)
-            self.wfile.write(json.dumps({
-                "session_id": "session-12345",
-                "truth_mode": "truth_safe_unverified",
-                "is_mock": True
-            }).encode())
+            self.wfile.write(json.dumps({"session_id": session_id}).encode())
+        elif path == "/api/auth/login":
+            username = params.get("username")
+            password = params.get("password")
+            account = self.identity_manager.sign_in(username, password)
+            if account:
+                # We need a binding for session creation, but for content-admin we can skip or use dummy
+                session = self.identity_manager.create_session(account['account_id'], "internal")
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    "session_id": session['session_id'],
+                    "account_id": account['account_id'],
+                    "username": account['username'],
+                    "display_name": account['display_name'],
+                    "roles": account.get('roles', [])
+                }).encode())
+            else:
+                self._set_headers(401)
+                self.wfile.write(json.dumps({"error": "Invalid credentials"}).encode())
+        elif path == "/api/content/write":
+            account = self._get_authenticated_account()
+            if not account:
+                self._set_headers(401)
+                return
+            
+            try:
+                self.content_service.write_page(
+                    account=account,
+                    surface=params.get("surface"),
+                    page_id=params.get("page_id"),
+                    content=params.get("content"),
+                    metadata=params.get("metadata")
+                )
+                self._set_headers()
+                self.wfile.write(json.dumps({"status": "success"}).encode())
+            except ContentAuthorizationError as e:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
+        elif path == "/api/content/publish":
+            account = self._get_authenticated_account()
+            if not account:
+                self._set_headers(401)
+                return
+            
+            try:
+                self.content_service.publish_page(
+                    account=account,
+                    surface=params.get("surface"),
+                    page_id=params.get("page_id"),
+                    metadata=params.get("metadata")
+                )
+                self._set_headers()
+                self.wfile.write(json.dumps({"status": "success"}).encode())
+            except ContentAuthorizationError as e:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
         else:
             self._set_headers(404)
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    httpd = socketserver.TCPServer(("127.0.0.1", 8001), HubAPIHandler)
-    logger.info("Started Observation-only Hub API on port 8001")
-    httpd.serve_forever()
+    def _launch_sync(self, params):
+        if not self.orchestrator:
+            return "mock-session-id"
+        # This is a bit tricky with http.server. 
+        # In a real async server (FastAPI), this would be clean.
+        # Here we assume the orchestrator has an async loop running.
+        loop = asyncio.get_event_loop()
+        future = asyncio.run_coroutine_threadsafe(
+            self.orchestrator.launch_run(
+                run_type=params.get("type", "council"),
+                topic=params.get("topic", "General Inquiry"),
+                **params
+            ),
+            loop
+        )
+        return future.result()
+
+class HubAPIServer:
+    def __init__(self, orchestrator: Optional[UnifiedOrchestrator], port: int = None):
+        if port is None:
+            from .config import HUB_PORT
+            port = HUB_PORT
+        self.orchestrator = orchestrator
+        self.port = port
+        self.identity_manager = PlayerIdentityManager()
+        self.content_service = ContentService()
+        
+        HubAPIHandler.orchestrator = orchestrator
+        HubAPIHandler.identity_manager = self.identity_manager
+        HubAPIHandler.content_service = self.content_service
+
+    def start(self):
+        # We run the TCPServer in a separate thread to not block the main loop
+        import threading
+        # Try to bind to localhost, which is usually permitted even in restricted environments
+        try:
+            server = socketserver.TCPServer(("localhost", self.port), HubAPIHandler)
+        except Exception:
+            # Fallback to 127.0.0.1 if localhost fails
+            server = socketserver.TCPServer(("127.0.0.1", self.port), HubAPIHandler)
+        
+        thread = threading.Thread(target=server.serve_forever)
+        thread.daemon = True
+        thread.start()
+        logger.info(f"Hub API listening on http://localhost:{self.port}")
+        return server

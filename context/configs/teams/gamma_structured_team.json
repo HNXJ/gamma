@@ -1,6 +1,6 @@
 {
   "team_id": "gamma_structured_team",
-  "agents": ["G01", "G02", "G03", "J01"],
+  "agents": ["G01", "G02", "G03", "J01", "G04"],
   "communication": {
     "topology": "blackboard",
     "max_rounds": 10

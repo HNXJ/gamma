@@ -43,7 +43,6 @@ class InferenceRequest:
     session_id: SessionId
     agent_id: AgentId
     model_key: ModelKey
-    model_id: str  # The resolved LMS identifier (e.g. gemma-4-e4b-it-mlx)
     messages: list[dict[str, str]]
     generation: dict[str, Any]
     adapter_stack: list[AdapterKey]
@@ -67,3 +66,5 @@ class MissionContext:
     target_neuron_count: int
     mission_topic: str
     patch_id: str | None = None
+    mission_kind: Literal["growth", "tutorial"] = "growth"
+    tutorial_id: str | None = None

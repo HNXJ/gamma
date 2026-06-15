@@ -1,0 +1,9 @@
+{
+  "proposal_id": "epoch_01_candidate_1777647800",
+  "meta": {
+    "neuron_count": 11,
+    "description": "Bootstrap proposal for single neuron execution"
+  },
+  "code": "print('Successfully executed single neuron v1 model')",
+  "notes": "Minimal test code"
+}

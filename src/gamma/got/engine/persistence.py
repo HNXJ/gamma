@@ -10,8 +10,11 @@ class ArenaPersistence:
     Manages the 'Arena World State' for a namespaced game (e.g., game001).
     Ensures atomic writes and tracks critical scientific milestones.
     """
-    def __init__(self, game_id: str = "game001", root_dir: str = "/Users/HN/MLLM/gamma"):
+    def __init__(self, game_id: str = "game001", root_dir: str = None):
         self.game_id = game_id
+        if root_dir is None:
+            # Derived from __file__ to be cwd-independent
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
         self.root_dir = root_dir
         self.base_path = os.path.join(root_dir, "local", game_id)
         self.state_path = os.path.join(self.base_path, "arena_runtime_state.json")
@@ -48,8 +51,14 @@ class ArenaPersistence:
 
     def save_state(self, updates: Optional[Dict[str, Any]] = None):
         """
-        Atomic Write: tempfile -> fsync -> rename.
+        Atomic Write with Canonical Backend Gate enforcement.
         """
+        # Enforcement: prevent bypass
+        if os.environ.get("TRUTH_GATE_ENABLED", "1") == "1":
+            caller = os.environ.get("AUTHORITY_TOKEN")
+            if caller != "CANONICAL_BACKEND_GATE":
+                raise PermissionError("SECURITY VIOLATION: Unauthorized write to TRUTH artifact.")
+        
         if updates:
             self.state.update(updates)
 
@@ -82,8 +91,12 @@ class ArenaPersistence:
         return self.state
 
 if __name__ == "__main__":
-    # Smoke test for namespaced persistence
-    p = ArenaPersistence(game_id="game001", root_dir="/Users/hamednejat/workspace/computational/gamma")
-    p.record_boot()
-    p.save_state({"accepted_streak": p.get_state()["accepted_streak"] + 1})
-    print(f"Arena World State grounded at: {p.state_path}")
+    # SAFE DEMO: Smoke test must use a temporary path, never canonical local/game001/
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"Running safe persistence demo in: {tmpdir}")
+        p = ArenaPersistence(game_id="demo_game", root_dir=tmpdir)
+        p.record_boot()
+        p.save_state({"largest_pass_network_neuron_count": 3, "demo": True})
+        print(f"Demo state saved to: {p.state_path}")
+        # DO NOT write to local/game001/ or any production path in this block.

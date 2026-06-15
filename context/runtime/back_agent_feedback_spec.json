@@ -1,0 +1,50 @@
+{
+  "contract_version": "1.0.0",
+  "doctrine": "ARCHITECTURE_BACKEND_MIDEND_FRONTEND",
+  "access_model": {
+    "primary_polling_interval_ms": 2000,
+    "stream_reconnect_interval_ms": 5000
+  },
+  "feedback_surfaces": {
+    "system_health": {
+      "endpoint": "/api/health",
+      "watch_fields": ["status", "heartbeat", "last_signal"]
+    },
+    "runtime_status": {
+      "endpoint": "/api/status",
+      "watch_fields": ["system.status", "system.dialogue_activity"]
+    },
+    "deliberation_state": {
+      "endpoint": "/api/progression",
+      "watch_fields": ["active_mission_target", "active_mission_topic", "sessions"]
+    },
+    "communication_queue": {
+      "endpoint": "/api/agents",
+      "description": "Exposes agent roster, statuses, and pending queue items per agent.",
+      "watch_fields": ["status", "pending_items"]
+    },
+    "delivery_acknowledgements": {
+      "endpoint": "/api/events/stream",
+      "type": "SSE",
+      "event_types": ["COMMUNICATION_DELIVERED", "TASK_CONSUMED", "COUNCIL_CHAT"]
+    },
+    "error_blockers": {
+      "endpoint": "/api/logs/raw",
+      "params": {"lines": 50},
+      "indicators": ["ERROR", "CRITICAL", "VIOLATION", "TIMEOUT"]
+    }
+  },
+  "state_transitions_to_watch": [
+    {
+      "trigger": "JBIODYNAMICS_BOOTSTRAP_TASK in /api/agents queue",
+      "expected_outcome": "COMMUNICATION_DELIVERED event in SSE stream",
+      "timeout_ms": 30000
+    },
+    {
+      "trigger": "heartbeat == STALLED",
+      "expected_outcome": "Self-healing restart or manual intervention",
+      "timeout_ms": 10000
+    }
+  ],
+  "consumption_proof_path": "local/run/communication_display.json"
+}

@@ -1,0 +1,18 @@
+{
+    "checkpoint_name": "stable-0.0.4",
+    "frontend": {
+        "path": "computational/gamma-arena",
+        "branch": "main",
+        "commit_sha": "30150502ce5dda53e83d6f8262b5038b89f10d5f",
+        "pushed_tag": "stable-0.0.4",
+        "pushed_backup_branch": "backup/stable-0.0.4"
+    },
+    "backend": {
+        "path": "computational/gamma",
+        "branch": "office-dev",
+        "commit_sha": "3361b30885fdeb98183a937a81407affc32faae3",
+        "pushed_tag": "stable-0.0.4",
+        "pushed_backup_branch": "backup/stable-0.0.4"
+    },
+    "reason": "UI/UX stable checkpoint backup"
+}

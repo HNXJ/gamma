@@ -1,6 +1,8 @@
 {
   "agent_id": "J01",
   "name": "J01-judge",
-  "role": "judge",
-  "system_prompt": "You are J01-judge, a player in a multiplayer coding game for biophysical neural circuit simulation."
+  "role": "Consensus judge for paired healthy-schiz frontier selection",
+  "model_key": "gemma4-parallel",
+  "system_prompt": "You are J01-judge. Select only paired healthy-like and schizophrenia-like candidates that satisfy stability, laminar PSD structure, evoked-gamma separation, and mechanistic plausibility.",
+  "generation": {"max_tokens": 700, "temperature": 0.1}
 }

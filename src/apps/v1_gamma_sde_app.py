@@ -3,23 +3,27 @@ import json
 import logging
 import os
 import time
-from typing import Optional
+from typing import Optional, Dict, Any
 from gamma_runtime.scheduler import InferenceScheduler
 from gamma_runtime.registry import RuntimeRegistry
 from gamma_runtime.blackboard import Blackboard
-from gamma_runtime.runtime_types import MissionContext
+from gamma_runtime.runtime_types import MissionContext, AgentSpec, InferenceRequest
 from apps.council_app import CouncilOrchestrator
+from gamma_runtime.tool_harness import ToolRouter, ContextHydrator
+from gamma_runtime.mechanistic_protocol import MECHANISTIC_PROTOCOL
 
 logger = logging.getLogger("V1GammaSDEApp")
 
 class V1GammaSDEOrchestrator(CouncilOrchestrator):
     """
     Thin wrapper around the CouncilOrchestrator specifically designed for the V1 Gamma SDE Game.
-    It intercepts the Proponent's output, structures it into a JSON payload, and writes it
-    out for the jbiophysic-main repository to consume and simulate.
     """
-    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, mission_context: MissionContext, blackboard: Optional[Blackboard] = None):
-        super().__init__(scheduler, registry, blackboard)
+    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, 
+                 mission_context: MissionContext, 
+                 blackboard: Optional[Blackboard] = None,
+                 tool_routers: Optional[Dict[str, ToolRouter]] = None,
+                 context_hydrator: Optional[ContextHydrator] = None):
+        super().__init__(scheduler, registry, blackboard, tool_routers, context_hydrator)
         self.mission_context = mission_context
         self.proposals_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "sde_proposals")
         os.makedirs(self.proposals_dir, exist_ok=True)
@@ -36,74 +40,52 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
         for r in range(rounds):
             self.blackboard.round = r + 1
             logger.info(f"--- SDE Epoch {self.blackboard.round} ---")
-
-            # Managed Parallel Execution via Scheduler
-            requests = []
+            
             for agent in agents:
+                logger.info(f"Agent {agent.agent_id} turn starting...")
                 req = self._build_request(agent)
-                requests.append((agent.model_key, req))
-
-            results = await self.scheduler.batch_run(requests)
-
-            for i, result in enumerate(results):
-                agent_id = agents[i].agent_id
-                await self.blackboard.add_entry(agent_id, result.text)
-                logger.info(f"[{agent_id}] Entry committed to blackboard.")
-
-                # If the Proponent proposed something, we extract and serialize it.
-                if agent_id == "v1_gamma_proponent":
-                    await self._emit_proposal(self.blackboard.round, result.text)
+                
+                router = self.tool_routers.get(agent.agent_id)
+                if router:
+                    result_text = await self._run_tool_loop(agent, req, router)
+                else:
+                    result = await self.scheduler.schedule(agent.model_key, req)
+                    result_text = result.text
+                
+                await self.blackboard.add_entry(agent.agent_id, result_text)
+                logger.info(f"Agent {agent.agent_id} Contribution: {result_text}")
+                
+                if agent.agent_id == "G01":
+                    self._emit_proposal(self.blackboard.round, result_text)
 
         logger.info("✅ V1 GAMMA SDE DELIBERATION COMPLETE.")
         return self.blackboard
 
-    async def _emit_proposal(self, epoch: int, content: str):
-        """
-        Parses the proponent's text for a JSON block and writes it to disk
-        if and only if it satisfies the active mission target and rubric.
-        """
-        from gamma_runtime.structured_output import StructuredOutputExtractor
-
+    def _emit_proposal(self, epoch: int, content: str):
         try:
-            # 1. Extract JSON block using robust utility
-            proposal = StructuredOutputExtractor.extract_json(content)
-
-            # 2. Rubric Drift Check
-            is_prose_only = "intended_action" not in content or "propose_only" in content
-            if not proposal and is_prose_only:
-                logger.warning("⚠️ PROSE-ONLY DRIFT: No structured scientific action detected.")
-                await self.blackboard.add_entry(
-                    sender="SYSTEM_VALIDATOR",
-                    content="DRIFT DETECTED: Prose-only output without executable artifact intent.",
-                    metadata={"kind": "drift_warning", "reason": "prose_only_yapping"}
-                )
+            # 1. Extract JSON block (STRICT)
+            if "```json" not in content:
+                logger.warning(f"❌ PROPOSAL REJECTED: Missing required JSON block.")
                 return
-
-            if not proposal:
-                logger.error("💥 Failed to locate JSON block in proponent output.")
-                return
-
+            
+            json_str = content.split("```json")[1].split("```")[0].strip()
+            
+            # 2. Parse JSON
+            proposal = json.loads(json_str)
+            
             # 3. Schema & Mission Alignment Validation
             errors = StructuredOutputExtractor.validate_work_unit(proposal, is_toy=True)
             meta = proposal.get("meta")
             if not meta or not isinstance(meta, dict):
                 errors.append("Missing or malformed 'meta' block.")
             elif "neuron_count" not in meta:
-                errors.append("Missing 'meta.neuron_count' field.")
-            elif not isinstance(meta["neuron_count"], int):
-                errors.append(f"Non-integer 'meta.neuron_count': {type(meta['neuron_count']).__name__}")
+                rejection_reason = "Missing 'meta.neuron_count' field."
             elif meta["neuron_count"] != self.mission_context.target_neuron_count:
                 errors.append(f"Mission Mismatch: Proposal N={meta['neuron_count']} != Target N={self.mission_context.target_neuron_count}")
 
             if errors:
                 rejection_reason = "; ".join(errors)
                 logger.warning(f"❌ PROPOSAL REJECTED: {rejection_reason}")
-                # Structured rejection log for monitor ingestion
-                await self.blackboard.add_entry(
-                    sender="SYSTEM_VALIDATOR",
-                    content=f"REJECTED PROPOSAL [Target N={self.mission_context.target_neuron_count}]: {rejection_reason}",
-                    metadata={"kind": "proposal_rejection", "reason": rejection_reason, "target": self.mission_context.target_neuron_count}
-                )
                 return
 
             # 4. Successful Emission
@@ -115,14 +97,50 @@ class V1GammaSDEOrchestrator(CouncilOrchestrator):
                 json.dump(proposal, f, indent=2)
 
             logger.info(f"✅ Emitted mission-aligned proposal: {filename}")
-            await self.blackboard.add_entry(
-                sender="SYSTEM_VALIDATOR",
-                content=f"ACCEPTED PROPOSAL [Target N={self.mission_context.target_neuron_count}]: {proposal['proposal_id']}",
-                metadata={
-                    "kind": "proposal_acceptance",
-                    "proposal_id": proposal['proposal_id'],
-                    "intended_action": proposal.get('intended_action')
-                }
-            )
+        except json.JSONDecodeError as e:
+            debug_path = "/Users/hamednejat/workspace/computational/gamma/local/run/debug_proposal.json"
+            with open(debug_path, "w") as f:
+                f.write(json_str)
+            logger.error(f"💥 Proposal parse error saved to {debug_path}: {e}")
+            return
         except Exception as e:
             logger.error(f"💥 Failed to parse/emit proposal JSON: {e}")
+
+    def _build_request(self, agent: AgentSpec) -> InferenceRequest:
+        """
+        Overrides CouncilOrchestrator to inject Mechanistic Protocol if in exploratory/tutorial mode.
+        """
+        history = self.blackboard.get_history()
+        context = "\n".join([f"{e.sender}: {e.content}" for e in history])
+        task = f"Provide your specialized mechanistic analysis for the topic: {self.blackboard.topic}"
+        
+        # Determine if we should enforce the mechanistic contract
+        protocol = None
+        if self.mission_context.mission_kind in ("tutorial", "exploratory"):
+            protocol = MECHANISTIC_PROTOCOL
+
+        if self.context_hydrator:
+            system_prompt = self.context_hydrator.hydrate(
+                agent_role=agent.role,
+                memory="TBD (Long-term memory integration)",
+                task=task,
+                active_skills=agent.routing_tags,
+                protocol=protocol
+            )
+        else:
+            system_prompt = f"{agent.system_prompt}\n\n{protocol if protocol else ''}"
+
+        prompt = (
+            f"Topic: {self.blackboard.topic}\n"
+            f"Round: {self.blackboard.round}\n\n"
+            f"History:\n{context}\n\n"
+        )
+        
+        return InferenceRequest(
+            session_id=f"v1-sde-{self.blackboard.topic[:10]}",
+            agent_id=agent.agent_id,
+            model_key=agent.model_key,
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
+            generation=agent.generation,
+            adapter_stack=agent.adapter_stack
+        )

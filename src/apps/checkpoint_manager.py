@@ -21,8 +21,13 @@ class CheckpointManager:
     def atomic_write(self, data):
         """
         Atomic write: Temp file -> fsync -> rename.
-        Ensures no state corruption during crashes.
+        Includes TRUTH_GATE check for arena_runtime_state.json.
         """
+        # Truth Exclusivity Gate
+        if os.environ.get("TRUTH_GATE_ENABLED", "1") == "1":
+            if os.environ.get("AUTHORITY_TOKEN") != "CANONICAL_BACKEND_GATE":
+                raise PermissionError("TRUTH_GATE_VIOLATION: Unauthorized write attempt.")
+        
         tmp_path = self.state_path + ".tmp"
         try:
             with open(tmp_path, "w") as f:

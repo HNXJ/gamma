@@ -1,0 +1,11 @@
+{
+  "alias_map_version": "1.0.0",
+  "aliases": {
+    "v1_gamma_proponent": "G01",
+    "v1_gamma_adversary": "G02",
+    "v1_gamma_consensus": "J01",
+    "proponent": "G01",
+    "adversary": "G02",
+    "judge": "J01"
+  }
+}

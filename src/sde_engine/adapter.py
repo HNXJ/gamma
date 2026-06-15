@@ -3,6 +3,7 @@ import logging
 import os
 import hmac
 import hashlib
+import time
 from typing import Dict, Any, List, Optional
 from gamma_runtime.runtime_types import MissionContext
 
@@ -91,7 +92,7 @@ class ExecutionAdapter:
             str(proposal_n),
             str(config_hash),
             str(self.solver_id),
-            str(issued_at),
+            "{:.3f}".format(float(issued_at)),
             str(self.adapter_version)
         ])
         attestation = self._sign_attestation(auth_tuple)
@@ -139,7 +140,7 @@ class ExecutionAdapter:
             str(metadata.get("neuron_count")),
             str(config_hash),
             str(provenance.get("solver_id")),
-            str(provenance.get("issued_at")),
+            "{:.3f}".format(float(provenance.get("issued_at", 0))),
             str(provenance.get("adapter_version"))
         ])
 
@@ -153,8 +154,18 @@ class ExecutionAdapter:
         is_replay = False
         if os.path.exists(self.receipts_path):
             with open(self.receipts_path, "r") as f:
-                if attestation in f.read().splitlines():
-                    is_replay = True
+                for line in f:
+                    line = line.strip()
+                    if not line: continue
+                    # Robust check: matches legacy (plain hash) or new (structured JSON) receipts
+                    if line == attestation:
+                        is_replay = True; break
+                    try:
+                        receipt_data = json.loads(line)
+                        if receipt_data.get("receipt_id") == attestation:
+                            is_replay = True; break
+                    except json.JSONDecodeError:
+                        pass
 
         if not converged or not count_match or not is_authenticated or is_replay:
             logger.warning(
@@ -164,9 +175,19 @@ class ExecutionAdapter:
             )
             return False
 
-        # Record receipt for single-use enforcement
+        # Record structured receipt for definitive scientific provenance
+        receipt = {
+            "receipt_id": attestation,
+            "run_id": run_id,
+            "proposal_id": metadata.get("proposal_id"),
+            "config_hash": config_hash,
+            "result_hash": self._canonical_hash(metadata),
+            "committed_at": time.time(),
+            "parent_truth_state": target_count - 1
+        }
+        
         with open(self.receipts_path, "a") as f:
-            f.write(f"{attestation}\n")
-
+            f.write(json.dumps(receipt) + "\n")
+        
         logger.info(f"✅ PERSISTENCE AUTHORIZED (Stage 2E): Payload-bound attestation verified for {metadata.get('proposal_id')}.")
         return True

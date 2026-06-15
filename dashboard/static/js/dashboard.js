@@ -58,6 +58,23 @@ async function refreshDashboard() {
             });
         }
 
+        // Update World Inhabitants (dynamic count)
+        const agentsRes = await fetch('/api/agents');
+        if (agentsRes.ok) {
+            const agents = await agentsRes.json();
+            const activeEl = document.getElementById('agents-active');
+            if (activeEl) {
+                const total = agents.length;
+                activeEl.innerText = `${total} / 12`;
+            }
+            
+            const guestSummary = document.getElementById('guest-count-summary');
+            if (guestSummary) {
+                const guests = agents.filter(a => a.category === 'GUEST').length;
+                guestSummary.innerText = `${guests} PROVEN`;
+            }
+        }
+
     } catch (err) {
         console.error("Dashboard refresh failed:", err);
     }

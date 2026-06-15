@@ -8,15 +8,21 @@ from gamma_runtime.blackboard import Blackboard
 from gamma_runtime.registry import RuntimeRegistry
 from gamma_runtime.model_pool import SharedModelPool
 from gamma_runtime.backend_lmstudio import LMStudioBackend
+from gamma_runtime.tool_harness import ToolRouter, ContextHydrator
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("CouncilApp")
 
 class CouncilOrchestrator:
-    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, blackboard: Optional[Blackboard] = None):
+    def __init__(self, scheduler: InferenceScheduler, registry: RuntimeRegistry, 
+                 blackboard: Optional[Blackboard] = None,
+                 tool_routers: Optional[Dict[str, ToolRouter]] = None,
+                 context_hydrator: Optional[ContextHydrator] = None):
         self.scheduler = scheduler
         self.registry = registry
         self.blackboard = blackboard
+        self.tool_routers = tool_routers or {}
+        self.context_hydrator = context_hydrator
 
     async def initialize_pools(self, model_keys: List[str], backend_factory):
         for key in model_keys:
@@ -35,57 +41,100 @@ class CouncilOrchestrator:
         team_config = self.registry.load_team(team_id)
         agents = [self.registry.load_agent(aid) for aid in team_config["agents"]]
         logger.info(f"🚀 INITIATING DELIBERATION: '{topic}'")
+        
         for r in range(rounds):
             self.blackboard.round = r + 1
-            requests = []
+            
             for agent in agents:
+                logger.info(f"Agent {agent.agent_id} turn starting...")
+                
+                # 1. Build Initial Request
                 req = self._build_request(agent)
-                requests.append((agent.model_key, req))
-            results = await self.scheduler.batch_run(requests)
-            for i, result in enumerate(results):
-                agent_id = agents[i].agent_id
-                await self.blackboard.add_entry(agent_id, result.text)
-                logger.info(f"[{agent_id}] Entry committed to blackboard.")
+                
+                # 2. Check for Tool Harness Integration
+                router = self.tool_routers.get(agent.agent_id)
+                if router:
+                    # Execute Tool Loop
+                    result_text = await self._run_tool_loop(agent, req, router)
+                else:
+                    # Standard Inference
+                    result = await self.scheduler.schedule(agent.model_key, req)
+                    result_text = result.text
+                
+                await self.blackboard.add_entry(agent.agent_id, result_text)
+                logger.info(f"Agent {agent.agent_id} Contribution: {result_text}")
+                
         return self.blackboard
+
+    async def _run_tool_loop(self, agent: AgentSpec, initial_req: InferenceRequest, router: ToolRouter) -> str:
+        """
+        Implements the OpenAI-compatible tool loop.
+        """
+        messages = list(initial_req.messages) # Shallow copy is enough for top level
+        tools = router.get_tool_schema()
+        
+        # Turn 1: Initial Prompt with Tools
+        req = InferenceRequest(
+            session_id=initial_req.session_id,
+            agent_id=initial_req.agent_id,
+            model_key=initial_req.model_key,
+            messages=messages,
+            generation={**initial_req.generation, "tools": tools, "tool_choice": "auto"},
+            adapter_stack=initial_req.adapter_stack
+        )
+        
+        res = await self.scheduler.schedule(agent.model_key, req)
+        
+        # Parse for tool calls
+        assistant_msg = res.raw["choices"][0]["message"]
+        messages.append(assistant_msg)
+        
+        if assistant_msg.get("tool_calls"):
+            # Turn 2: Execute and provide results
+            tool_results = await router.handle_tool_calls(messages, assistant_msg["tool_calls"])
+            messages.extend(tool_results)
+            
+            # Final Inference
+            final_req = InferenceRequest(
+                session_id=initial_req.session_id,
+                agent_id=initial_req.agent_id,
+                model_key=initial_req.model_key,
+                messages=messages,
+                generation=initial_req.generation,
+                adapter_stack=initial_req.adapter_stack
+            )
+            final_res = await self.scheduler.schedule(agent.model_key, final_req)
+            return final_res.text
+            
+        return res.text
 
     def _build_request(self, agent: AgentSpec) -> InferenceRequest:
         history = self.blackboard.get_history()
         context = "\n".join([f"{e.sender}: {e.content}" for e in history])
-
-        rubric = (
-            "--- SCIENTIFIC WORK-UNIT RUBRIC ---\n"
-            "Every turn must provide a structured response including:\n"
-            "1. study_question: The specific question being addressed.\n"
-            "2. claim_type: proposal_value | simulation_result | empirical_observation | rejected_invalid\n"
-            "3. intended_action: inspect | write_python | run_python | analyze_artifact | propose_only | repair_inventory\n"
-            "4. python_or_analysis_requirement: Describe code or data analysis intent.\n"
-            "5. parameters_with_units: Specify all numeric values with standard units.\n"
-            "6. expected_artifacts: List files to be generated or modified.\n"
-            "7. validation_gates: List required checks (e.g., compile, no_nan_inf, artifact_manifest).\n"
-            "8. next_handoff: Specify which role or slot should proceed next.\n"
-            "\n"
-            "Prose-only hypothesis output is allowed only as claim_type: proposal_value and intended_action: propose_only. "
-            "Computational scientific action is prioritized. Output compact JSON within code fences if requested by your role.\n"
-        )
+        task = f"Provide your specialized analysis based on your role for the topic: {self.blackboard.topic}"
+        
+        # Layering: Use ContextHydrator if available
+        if self.context_hydrator:
+            system_prompt = self.context_hydrator.hydrate(
+                agent_role=agent.role,
+                memory="TBD (Long-term memory integration)",
+                task=task,
+                active_skills=agent.routing_tags # Use tags as skill hints
+            )
+        else:
+            system_prompt = agent.system_prompt
 
         prompt = (
-            f"Topic of Discussion: {self.blackboard.topic}\n"
+            f"Topic: {self.blackboard.topic}\n"
             f"Round: {self.blackboard.round}\n\n"
-            f"{rubric}\n"
-            f"Deliberation History:\n{context}\n\n"
-            f"Your Task: Provide your specialized analysis based on your role, adhering to the scientific work-unit rubric."
+            f"History:\n{context}\n\n"
         )
-
-        # Resolve canonical model_id from registry
-        model_spec = self.registry.load_model(agent.model_key)
-        model_id = model_spec.path or model_spec.name or model_spec.key
-
+        
         return InferenceRequest(
             session_id=f"council-{self.blackboard.topic[:10]}",
             agent_id=agent.agent_id,
             model_key=agent.model_key,
-            model_id=model_id,
-            messages=[{"role": "system", "content": agent.system_prompt}, {"role": "user", "content": prompt}],
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
             generation=agent.generation,
             adapter_stack=agent.adapter_stack
         )
@@ -94,7 +143,7 @@ async def main():
     from gamma_runtime.orchestrator import UnifiedOrchestrator
     from gamma_runtime.hub_api import HubAPIServer
     from gamma_runtime.config import get_lms_url, HUB_PORT
-    root = os.getcwd()
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     config_path = os.path.join(root, "context", "configs")
     registry = RuntimeRegistry(config_path)
     scheduler = InferenceScheduler()

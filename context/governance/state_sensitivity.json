@@ -1,0 +1,82 @@
+{
+  "state_classes": {
+    "TRUTH": {
+      "description": "Committed, authoritative scientific/game state.",
+      "scientific_truth": true,
+      "write_authority": "Canonical_Backend_Gate",
+      "truth_gate": "Strict",
+      "restart_survivable": true
+    },
+    "LOBBY_STATE": {
+      "description": "Transient spectator/lobby relay state.",
+      "scientific_truth": false,
+      "write_authority": "heartbeat_process",
+      "truth_gate": "None",
+      "restart_survivable": true
+    },
+    "OPERATIONAL_STATE": {
+      "description": "Agent-local memory and work state.",
+      "scientific_truth": false,
+      "write_authority": "agent_execution_adapter",
+      "truth_gate": "None",
+      "restart_survivable": false
+    },
+    "OBSERVATION": {
+      "description": "Logs, telemetry, and signals.",
+      "scientific_truth": false,
+      "write_authority": "Any_Supervisor_Worker",
+      "truth_gate": "None",
+      "restart_survivable": true
+    },
+    "CACHE": {
+      "description": "Transient speedups.",
+      "scientific_truth": false,
+      "write_authority": "None_Managed",
+      "truth_gate": "None",
+      "restart_survivable": false
+    }
+  },
+  "registry": [
+    {
+      "path": "local/run/spectator_room.json",
+      "class": "LOBBY_STATE",
+      "owner": "heartbeat",
+      "write_authority": "heartbeat",
+      "truth_gate": "None",
+      "restart_survivable": true,
+      "scientific_truth": false,
+      "manual_edit_risk": true
+    },
+    {
+      "path": "local/game001/arena_runtime_state.json",
+      "class": "TRUTH_CANDIDATE",
+      "owner": "orchestrator",
+      "write_authority": "Canonical_Backend_Gate",
+      "truth_gate": "Required",
+      "restart_survivable": true,
+      "scientific_truth": false,
+      "truth_status": "candidate_only",
+      "manual_edit_risk": true
+    },
+    {
+      "path": "local/inventory/",
+      "class": "OPERATIONAL_STATE",
+      "owner": "agent_execution_adapter",
+      "write_authority": "agent_execution_adapter",
+      "truth_gate": "None",
+      "restart_survivable": false,
+      "scientific_truth": false,
+      "manual_edit_risk": true
+    },
+    {
+      "path": "local/run/*.log",
+      "class": "OBSERVATION",
+      "owner": "supervisor",
+      "write_authority": "Any",
+      "truth_gate": "None",
+      "restart_survivable": true,
+      "scientific_truth": false,
+      "manual_edit_risk": true
+    }
+  ]
+}
