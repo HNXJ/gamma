@@ -60,9 +60,9 @@ def test_office_mac_gemma4_profiles_load_blocked():
     # Even if they are in inventory, they should be marked load_blocked now
     inventory = ["gemma-4-31b-it", "gemma-4-26b-a4b-it"]
     profiles = create_office_mac_gemma4_profiles(inventory)
-    
+
     assert len(profiles) == 2
-    
+
     for p in profiles:
         assert p.profile_status == "load_blocked"
         assert p.block_reason == "MODEL_LOAD_BLOCKED_BASELINE"

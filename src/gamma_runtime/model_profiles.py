@@ -46,7 +46,7 @@ class ModelProfile:
         if self.vision_mode != "disabled" or self.vlm_enabled:
              # Mission constraint: vision must be disabled for these profiles
              if "gemma-4" in self.lms_canonical_model_id:
-                 raise ValueError("Vision/VLM must be disabled for Gemma 4 profiles in this configuration")
+                 raise ValueError("Vision/VLM must be disabled for Gemma 4 profiles in this configuration")   
 
     def is_route_ready(self) -> bool:
         """Returns True if the profile is ready for player routing."""
@@ -93,7 +93,7 @@ class ProfileRegistry:
 
 def create_office_mac_gemma4_profiles(inventory_keys: list[str]) -> list[ModelProfile]:
     profiles = []
-    
+
     # Blocklist for models known to fail baseline load
     load_blocklist = {
         "gemma-4-31b-it": {
