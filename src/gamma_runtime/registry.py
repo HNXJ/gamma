@@ -33,8 +33,8 @@ class RuntimeRegistry:
         path = self.root / "models" / f"{key}.json"
         with open(path, "r") as f:
             data = json.load(f)
-        import inspect
-        fields = inspect.signature(ModelSpec).parameters
+        # Filter for dataclass fields
+        fields = {f.name for f in ModelSpec.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in fields}
         return ModelSpec(**filtered)
 
@@ -53,8 +53,8 @@ class RuntimeRegistry:
         path = self.root / "agents" / f"{agent_id}.json"
         with open(path, "r") as f:
             data = json.load(f)
-        import inspect
-        fields = inspect.signature(AgentSpec).parameters
+        # Filter for dataclass fields
+        fields = {f.name for f in AgentSpec.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in fields}
         return AgentSpec(**filtered)
 
