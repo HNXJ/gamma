@@ -1,0 +1,5 @@
+# Placeholder configuration for Gemma 4 12B Q4 LMS model
+model_name: gemma4_12b_q4_lms
+quantization: Q4_K_M
+framework: llama.cpp
+# Add additional model parameters as needed

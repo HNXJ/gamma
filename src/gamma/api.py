@@ -6,6 +6,7 @@ instances of the active and remote LLM classes respectively.
 
 from .llm.active import ActiveLLM
 from .llm.remote import RemoteLLM
+from .llm.backends.openai_mock import OpenAIMockLLM
 
 def allm(*args, **kwargs) -> ActiveLLM:
     """Create and return an ActiveLLM instance.
@@ -20,3 +21,11 @@ def llm(*args, **kwargs) -> RemoteLLM:
     Parameters are passed through to :class:`RemoteLLM` constructor.
     """
     return RemoteLLM(*args, **kwargs)
+
+def openai_mock(*args, **kwargs) -> OpenAIMockLLM:
+    """Factory for the OpenAI‑compatible mocked client.
+
+    Parameters are passed through to :class:`OpenAIMockLLM` constructor.
+    """
+    return OpenAIMockLLM(*args, **kwargs)
+
